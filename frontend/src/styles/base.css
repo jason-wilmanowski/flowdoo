@@ -1,0 +1,67 @@
+/* Global base styles: reset, type, focus and motion defaults. Components use CSS Modules. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  line-height: var(--leading-dense);
+  font-weight: var(--weight-regular);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-mono);
+}
+
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--accent);
+  outline-offset: var(--focus-ring-offset);
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
