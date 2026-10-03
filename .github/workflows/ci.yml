@@ -103,3 +103,35 @@ jobs:
       # (Postgres) and "odoo" (Odoo container) are not run in CI for now.
       - name: pytest
         run: uv run --no-sync pytest -m "not integration and not odoo" -ra
+
+  backend-generated-types:
+    name: Backend · generated types up to date
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.22"
+          working-directory: backend
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Regenerate from shared/schemas
+        run: ./scripts/gen_types.sh
+
+      # Fails if the checked-in generated code does not match the schema.
+      - name: No diff
+        run: |
+          changes="$(git status --porcelain -- src/flow_tracer_api/generated)"
+          if [ -n "$changes" ]; then
+            echo "Generated types are out of date. Run backend/scripts/gen_types.sh and commit:"
+            echo "$changes"
+            git diff -- src/flow_tracer_api/generated
+            exit 1
+          fi
