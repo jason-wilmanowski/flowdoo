@@ -1,4 +1,4 @@
-import { act, render as rtlRender, screen } from "@testing-library/react";
+import { act, fireEvent, render as rtlRender, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { TooltipProvider } from "./Tooltip";
@@ -31,12 +31,15 @@ describe("CodeValue", () => {
   });
 
   it("copies the exact value and announces it", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
-    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+    vi.useFakeTimers();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
     render(<CodeValue value="draft" label="old value" />);
 
-    await user.click(screen.getByRole("button", { name: "Copy old value" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Copy old value" }));
+      await Promise.resolve();
+    });
     expect(writeText).toHaveBeenCalledWith("draft");
     expect(screen.getByRole("button", { name: "Copied old value" })).toBeInTheDocument();
     expect(screen.getByText("Copied")).toBeInTheDocument();
