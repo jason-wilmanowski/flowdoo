@@ -1,5 +1,6 @@
 """In-memory fakes for service tests (no database)."""
 
+import copy
 import uuid
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
@@ -118,18 +119,37 @@ class FakeTraceRepository:
         return self.rows.pop(trace_id, None) is not None
 
 
+def answer_for(request: TraceRequest, payload: dict[str, Any]) -> dict[str, Any]:
+    """A fixture payload as the recorder would return it for ``request``."""
+    answered = copy.deepcopy(payload)
+    answered["trace_id"] = str(request.trace_id)
+    answered["dry_run"] = request.dry_run
+    answered["entrypoint"].update(
+        model=request.model,
+        method=request.method,
+        record_ids=list(request.record_ids),
+        context=dict(request.context),
+    )
+    return answered
+
+
 class FakeOdooGateway:
+    """Answers with a fixture adapted to the request (``echo_request=False``: as is)."""
+
     def __init__(
         self,
         result: GatewayResult | None = None,
         error: BaseException | None = None,
         on_call: Callable[[TraceRequest], None] | None = None,
+        *,
+        echo_request: bool = True,
     ) -> None:
         self.result = result or GatewayResult(
             payload=load_fixture("trace-small"), odoo_version="19.0"
         )
         self.error = error
         self.on_call = on_call
+        self.echo_request = echo_request
         self.requests: list[TraceRequest] = []
 
     async def run_trace(self, request: TraceRequest) -> GatewayResult:
@@ -138,4 +158,7 @@ class FakeOdooGateway:
             self.on_call(request)
         if self.error is not None:
             raise self.error
-        return self.result
+        if not self.echo_request:
+            return self.result
+        payload = answer_for(request, dict(self.result.payload))
+        return self.result.model_copy(update={"payload": payload})

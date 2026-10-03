@@ -21,7 +21,7 @@ from flow_tracer_api.schemas import GatewayResult
 from flow_tracer_api.services.ports import OdooGateway, OdooGatewayError
 from tests.fixtures import load_fixture
 from tests.settings import make_settings
-from tests.unit.fakes import FakeOdooGateway
+from tests.unit.fakes import FakeOdooGateway, answer_for
 
 pytestmark = pytest.mark.integration
 
@@ -62,7 +62,7 @@ async def test_start_trace_returns_201_with_stored_trace(make_client) -> None:
     body = response.json()
     assert body["status"] == "succeeded"
     assert body["dry_run"] is True
-    assert body["payload"] == payload
+    assert body["payload"] == answer_for(gateway.requests[0], payload)
     assert body["schema_version"] == "0.1.0"
     assert body["odoo_version"] == "19.0"
     assert gateway.requests[0].record_ids == (1,)

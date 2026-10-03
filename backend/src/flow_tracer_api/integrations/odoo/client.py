@@ -86,14 +86,31 @@ class OdooJson2Client:
             payload["ids"] = ids
         if context:
             payload["context"] = context
-        response = await self._post(f"/json/2/{model}/{method}", payload)
+        return await self.post(f"/json/2/{model}/{method}", payload, target=f"{model}.{method}")
+
+    async def post(
+        self,
+        path: str,
+        payload: dict[str, Any],
+        *,
+        timeout_seconds: float | None = None,
+        target: str | None = None,
+    ) -> Any:
+        """POST a JSON-2 request (bearer key, database header) to ``path``; return the JSON.
+
+        Used for ``/json/2`` model calls and for the flow_tracer addon's own routes.
+        """
+        response = await self._post(path, payload, timeout_seconds)
         if response.is_success:
             return response.json()
-        raise self._error_for(response, f"{model}.{method}")
+        raise self._error_for(response, target or path)
 
-    async def _post(self, path: str, payload: dict[str, Any]) -> httpx.Response:
+    async def _post(
+        self, path: str, payload: dict[str, Any], timeout_seconds: float | None = None
+    ) -> httpx.Response:
+        timeout = httpx.USE_CLIENT_DEFAULT if timeout_seconds is None else timeout_seconds
         try:
-            return await self._http.post(path, json=payload)
+            return await self._http.post(path, json=payload, timeout=timeout)
         except httpx.TimeoutException as exc:
             raise OdooUnreachableError(
                 f"Odoo did not answer in time ({type(exc).__name__})"

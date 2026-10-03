@@ -6,9 +6,9 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from pydantic import SecretStr
 
-from flow_tracer_api.api.dependencies import get_odoo_client
+from flow_tracer_api.api.dependencies import get_odoo_client, get_odoo_gateway
 from flow_tracer_api.core.config import Settings, get_settings
-from flow_tracer_api.integrations.odoo import OdooJson2Client
+from flow_tracer_api.integrations.odoo import FlowTracerGateway, OdooJson2Client
 from flow_tracer_api.main import create_app
 from tests.settings import make_settings
 from tests.unit.test_odoo_connection_service import FakeOdooClient
@@ -78,3 +78,14 @@ async def test_real_client_is_built_from_settings_and_closed() -> None:
         await anext(dependency)
 
     assert odoo_client._http.is_closed  # the HTTP connection pool is released
+
+
+async def test_gateway_is_built_on_the_request_client() -> None:
+    settings = _settings(**CONFIGURED)
+    client = OdooJson2Client(base_url="http://odoo:8069", database="dev", api_key="k")
+
+    gateway = get_odoo_gateway(client, settings)
+
+    assert isinstance(gateway, FlowTracerGateway)
+    assert get_odoo_gateway(None, settings) is None
+    await client.aclose()

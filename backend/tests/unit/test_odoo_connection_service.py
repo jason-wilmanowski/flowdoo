@@ -25,7 +25,17 @@ class FakeOdooClient:
         addon_state: str | None = "installed",
         version_error: OdooClientError | None = None,
         call_errors: dict[str, OdooClientError] | None = None,
+        addon_status: dict[str, Any] | None = None,
+        neutralized: bool = True,
     ) -> None:
+        self.addon_status = addon_status or {
+            "addon_version": "19.0.0.2.0",
+            "odoo_version": serie,
+            "enabled": True,
+            "is_admin": True,
+            "recorder_available": True,
+        }
+        self.neutralized = neutralized
         self.serie = serie
         self.login = login
         self.addon_state = addon_state
@@ -58,7 +68,27 @@ class FakeOdooClient:
         if (model, method) == ("ir.module.module", "search_read"):
             assert kwargs["domain"] == [["name", "=", "flow_tracer"]]
             return [] if self.addon_state is None else [{"id": 9, "state": self.addon_state}]
+        if (model, method) == ("ir.ui.view", "search_count"):
+            assert kwargs["domain"] == [
+                ["key", "=", "web.neutralize_banner"],
+                ["active", "=", True],
+            ]
+            return 1 if self.neutralized else 0
         raise AssertionError(f"unexpected call {model}.{method}")
+
+    async def post(
+        self,
+        path: str,
+        payload: dict[str, Any],
+        *,
+        timeout_seconds: float | None = None,
+        target: str | None = None,
+    ) -> Any:
+        self.calls.append(("POST", path))
+        if error := self.call_errors.get(path):
+            raise error
+        assert path == "/flow_tracer/v1/status"
+        return self.addon_status
 
 
 async def _check(client: FakeOdooClient | None, **kwargs: Any) -> Any:
@@ -67,7 +97,7 @@ async def _check(client: FakeOdooClient | None, **kwargs: Any) -> Any:
     return await service.check()
 
 
-async def test_healthy_connection_is_ok_with_dev_warning() -> None:
+async def test_healthy_connection_is_ok() -> None:
     status = await _check(FakeOdooClient(), expected_login="admin")
 
     assert status.ok is True
@@ -80,7 +110,11 @@ async def test_healthy_connection_is_ok_with_dev_warning() -> None:
     assert status.addon_installed is True
     assert status.url == "http://odoo:8069"
     assert status.database == "dev"
-    assert any("production database" in w for w in status.warnings)
+    assert status.tracing_enabled is True
+    assert status.recorder_available is True
+    assert status.user_is_admin is True
+    assert status.database_neutralized is True
+    assert status.warnings == []
 
 
 async def test_not_configured() -> None:
@@ -165,3 +199,63 @@ async def test_addon_check_failure_is_reported() -> None:
 
     assert status.ok is False
     assert status.problems == [f"Could not check the flow_tracer addon: {error.message}"]
+
+
+@pytest.mark.parametrize(
+    ("addon_status", "expected"),
+    [
+        ({"enabled": False, "recorder_available": True, "is_admin": True}, "switched off"),
+        ({"enabled": True, "recorder_available": False, "is_admin": True}, "Python 3.12+"),
+        (
+            {"enabled": True, "recorder_available": True, "is_admin": False},
+            "Settings (Administration)",
+        ),
+    ],
+)
+async def test_addon_status_problems(addon_status: dict[str, Any], expected: str) -> None:
+    status = await _check(FakeOdooClient(addon_status=addon_status))
+
+    assert status.ok is False
+    assert len(status.problems) == 1
+    assert expected in status.problems[0]
+
+
+async def test_addon_status_not_queried_when_addon_missing() -> None:
+    client = FakeOdooClient(addon_state=None)
+
+    status = await _check(client)
+
+    assert ("POST", "/flow_tracer/v1/status") not in client.calls
+    assert status.tracing_enabled is False
+
+
+async def test_addon_status_failure_is_reported() -> None:
+    error = OdooCallError("flow_tracer status failed with HTTP 404: no details")
+    client = FakeOdooClient(call_errors={"/flow_tracer/v1/status": error})
+
+    status = await _check(client)
+
+    assert status.ok is False
+    assert status.problems == [f"Could not read the flow_tracer status: {error.message}"]
+
+
+async def test_not_neutralised_database_is_a_warning_not_a_problem() -> None:
+    status = await _check(FakeOdooClient(neutralized=False))
+
+    assert status.ok is True
+    assert status.database_neutralized is False
+    assert len(status.warnings) == 1
+    assert "not neutralised" in status.warnings[0]
+
+
+async def test_neutralisation_check_failure_is_a_warning() -> None:
+    error = OdooCallError("ir.ui.view.search_count failed with HTTP 403: Access Denied")
+    client = FakeOdooClient(call_errors={"ir.ui.view.search_count": error})
+
+    status = await _check(client)
+
+    assert status.ok is True
+    assert status.database_neutralized is None
+    assert status.warnings == [
+        f"Could not check whether the database is neutralised: {error.message}"
+    ]

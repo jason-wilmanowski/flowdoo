@@ -60,6 +60,12 @@ class OdooConnectionStatus(BaseModel):
     user_login: str | None = None
     addon_installed: bool = False
     addon_state: str | None = None
+    # From the addon's status endpoint: server switch, recorder, rights of the key's user.
+    tracing_enabled: bool = False
+    recorder_available: bool = False
+    user_is_admin: bool = False
+    # None if it could not be checked.
+    database_neutralized: bool | None = None
     ok: bool = False
     problems: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)

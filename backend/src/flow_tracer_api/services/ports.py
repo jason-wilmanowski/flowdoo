@@ -7,14 +7,13 @@ client); credentials stay inside them and never pass through services or the dat
 from collections.abc import Mapping
 from typing import Any, Protocol
 
+from flow_tracer_api.integrations.odoo.errors import OdooClientError
 from flow_tracer_api.schemas import GatewayResult, OdooVersionInfo, TraceRequest, ValidatedPayload
 
-
-class OdooGatewayError(Exception):
-    """Odoo unreachable, wrong version, addon missing, or the traced call failed.
-
-    Implementations must keep credentials out of the message; it is stored as trace error.
-    """
+# Raised by OdooGateway implementations: Odoo unreachable, key rejected, addon missing or
+# refusing, unusable answer. The message is stored as trace error, so it never contains
+# credentials (guaranteed by the Odoo client).
+OdooGatewayError = OdooClientError
 
 
 class OdooGateway(Protocol):
@@ -39,6 +38,15 @@ class OdooClient(Protocol):
         ids: list[int] | None = None,
         context: dict[str, Any] | None = None,
         **kwargs: Any,
+    ) -> Any: ...
+
+    async def post(
+        self,
+        path: str,
+        payload: dict[str, Any],
+        *,
+        timeout_seconds: float | None = None,
+        target: str | None = None,
     ) -> Any: ...
 
 

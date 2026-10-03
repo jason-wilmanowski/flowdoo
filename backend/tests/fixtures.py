@@ -6,7 +6,12 @@ from typing import Any
 
 SHARED = Path(__file__).resolve().parents[2] / "shared"
 SCHEMA_PATH = SHARED / "schemas" / "trace.schema.json"
-FIXTURE_NAMES = ("trace-small", "trace-medium", "trace-error")
+FIXTURE_NAMES = (
+    "trace-small",
+    "trace-medium",
+    "trace-error",
+    "recorded-sale-order-action-confirm",
+)
 
 
 def load_fixture(name: str) -> dict[str, Any]:

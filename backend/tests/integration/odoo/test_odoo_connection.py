@@ -62,5 +62,12 @@ async def test_connection_check_passes_with_addon_installed(
     assert status.user_login == "admin"
     assert status.addon_installed is True
     assert status.addon_state == "installed"
+    # docker/odoo-test/odoo.conf switches tracing on; the image runs Python 3.12
+    assert status.tracing_enabled is True
+    assert status.recorder_available is True
+    assert status.user_is_admin is True
     assert status.problems == []
     assert status.ok is True
+    # The test database is not neutralised: a warning, not a problem.
+    assert status.database_neutralized is False
+    assert len(status.warnings) == 1
