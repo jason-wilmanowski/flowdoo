@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-# Expects backend/pyproject.toml, backend/uv.lock and backend/src/flow_tracer_api/
-# (created in chore/repo-scaffold).
+# Build context: backend/. Migrations ship inside the package; run them with
+#   docker compose run --rm api alembic upgrade head
 
 FROM python:3.12.15-slim-bookworm
 
@@ -18,6 +18,7 @@ COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project
 
+COPY alembic.ini ./
 COPY src ./src
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
