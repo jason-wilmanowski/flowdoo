@@ -4,6 +4,8 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+import { designRules } from "./eslint.design-rules.js";
+
 export default tseslint.config(
   { ignores: ["dist", "coverage", "src/generated"] },
   {
@@ -20,6 +22,7 @@ export default tseslint.config(
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       // Values from the user's Odoo can be sensitive: never log them.
       "no-console": "error",
+      ...designRules,
     },
   },
   {
@@ -27,7 +30,7 @@ export default tseslint.config(
     rules: { "@typescript-eslint/no-non-null-assertion": "off" },
   },
   {
-    files: ["eslint.config.js"],
+    files: ["*.config.js", "eslint.design-rules.js", "lint/**/*.js"],
     extends: [js.configs.recommended],
     languageOptions: { globals: globals.node },
   },
