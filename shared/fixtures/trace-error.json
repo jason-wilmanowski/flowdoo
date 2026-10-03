@@ -1,0 +1,62 @@
+{
+  "schema_version": "0.1.0",
+  "trace_id": "3f2b8c1e-6d4a-4c1e-9b7a-1a2b3c4d5e03",
+  "odoo_version": "19.0",
+  "dry_run": true,
+  "started_at": "2026-10-03T12:10:00+00:00",
+  "entrypoint": {
+    "model": "sale.order",
+    "method": "action_confirm",
+    "record_ids": [
+      3
+    ],
+    "context": {}
+  },
+  "steps": [
+    {
+      "id": "s1",
+      "parent_id": null,
+      "seq": 1,
+      "kind": "method_call",
+      "model": "sale.order",
+      "method": "action_confirm",
+      "module": "sale",
+      "mro_position": 0,
+      "calls_super": false,
+      "record_ids": [
+        3
+      ],
+      "args_summary": null,
+      "return_summary": null,
+      "changes": [],
+      "duration_ms": 2.9,
+      "error": {
+        "type": "odoo.exceptions.UserError",
+        "message": "Some orders are not in a state requiring confirmation."
+      }
+    },
+    {
+      "id": "s2",
+      "parent_id": "s1",
+      "seq": 2,
+      "kind": "method_call",
+      "model": "sale.order",
+      "method": "_confirmation_error_message",
+      "module": "sale",
+      "mro_position": 0,
+      "calls_super": false,
+      "record_ids": [
+        3
+      ],
+      "args_summary": null,
+      "return_summary": "'Some orders are not in a state requiring confirmation.'",
+      "changes": [],
+      "duration_ms": 0.5,
+      "error": null
+    }
+  ],
+  "error": {
+    "type": "odoo.exceptions.UserError",
+    "message": "Some orders are not in a state requiring confirmation."
+  }
+}

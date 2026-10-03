@@ -19,6 +19,7 @@ from flow_tracer_api.core.dependencies import get_session_factory
 from flow_tracer_api.main import create_app
 from flow_tracer_api.schemas import GatewayResult
 from flow_tracer_api.services.ports import OdooGateway, OdooGatewayError
+from tests.fixtures import load_fixture
 from tests.settings import make_settings
 from tests.unit.fakes import FakeOdooGateway
 
@@ -52,7 +53,8 @@ async def make_client(
 
 
 async def test_start_trace_returns_201_with_stored_trace(make_client) -> None:
-    gateway = FakeOdooGateway(GatewayResult(payload={"steps": []}, odoo_version="19.0"))
+    payload = load_fixture("trace-small")
+    gateway = FakeOdooGateway(GatewayResult(payload=payload, odoo_version="19.0"))
     async with make_client(gateway) as client:
         response = await client.post("/traces", json={**CONFIRM, "record_ids": [1]})
 
@@ -60,7 +62,8 @@ async def test_start_trace_returns_201_with_stored_trace(make_client) -> None:
     body = response.json()
     assert body["status"] == "succeeded"
     assert body["dry_run"] is True
-    assert body["payload"] == {"steps": []}
+    assert body["payload"] == payload
+    assert body["schema_version"] == "0.1.0"
     assert body["odoo_version"] == "19.0"
     assert gateway.requests[0].record_ids == (1,)
 

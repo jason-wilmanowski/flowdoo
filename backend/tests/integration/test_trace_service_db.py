@@ -8,7 +8,9 @@ from flow_tracer_api.domain import TraceStatus
 from flow_tracer_api.models import Trace
 from flow_tracer_api.schemas import GatewayResult, StartTraceCommand, TraceListQuery
 from flow_tracer_api.services import TraceService
-from flow_tracer_api.services.ports import OdooGatewayError, OpaquePayloadValidator
+from flow_tracer_api.services.payload_validation import SchemaPayloadValidator
+from flow_tracer_api.services.ports import OdooGatewayError
+from tests.fixtures import load_fixture
 from tests.unit.fakes import FakeOdooGateway
 
 pytestmark = pytest.mark.integration
@@ -17,8 +19,9 @@ CONFIRM = StartTraceCommand(entrypoint_model="sale.order", entrypoint_method="ac
 
 
 async def test_start_trace_persists_through_injected_session(db_session: AsyncSession) -> None:
-    gateway = FakeOdooGateway(GatewayResult(payload={"steps": []}, odoo_version="19.0"))
-    service = TraceService(db_session, gateway, OpaquePayloadValidator())
+    payload = load_fixture("trace-small")
+    gateway = FakeOdooGateway(GatewayResult(payload=payload, odoo_version="19.0"))
+    service = TraceService(db_session, gateway, SchemaPayloadValidator())
 
     result = await service.start_trace(CONFIRM)
 
@@ -26,7 +29,8 @@ async def test_start_trace_persists_through_injected_session(db_session: AsyncSe
     row = await db_session.scalar(select(Trace).where(Trace.id == result.id))
     assert row is not None
     assert row.status is TraceStatus.SUCCEEDED
-    assert row.payload == {"steps": []}
+    assert row.payload == payload
+    assert row.schema_version == "0.1.0"
     assert row.odoo_version == "19.0"
     assert row.finished_at is not None
     assert await service.get_trace(result.id) == result
@@ -34,7 +38,7 @@ async def test_start_trace_persists_through_injected_session(db_session: AsyncSe
 
 async def test_gateway_failure_is_persisted(db_session: AsyncSession) -> None:
     gateway = FakeOdooGateway(error=OdooGatewayError("Odoo unreachable"))
-    service = TraceService(db_session, gateway, OpaquePayloadValidator())
+    service = TraceService(db_session, gateway, SchemaPayloadValidator())
 
     result = await service.start_trace(CONFIRM)
 
@@ -46,7 +50,7 @@ async def test_gateway_failure_is_persisted(db_session: AsyncSession) -> None:
 
 
 async def test_delete_and_list(db_session: AsyncSession) -> None:
-    service = TraceService(db_session, FakeOdooGateway(), OpaquePayloadValidator())
+    service = TraceService(db_session, FakeOdooGateway(), SchemaPayloadValidator())
     first = await service.start_trace(CONFIRM)
     await service.start_trace(CONFIRM)
 

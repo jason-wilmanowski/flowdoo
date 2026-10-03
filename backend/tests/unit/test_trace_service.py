@@ -20,7 +20,9 @@ from flow_tracer_api.services import (
     TraceNotFoundError,
     TraceService,
 )
-from flow_tracer_api.services.ports import OdooGateway, OdooGatewayError, OpaquePayloadValidator
+from flow_tracer_api.services.payload_validation import SchemaPayloadValidator
+from flow_tracer_api.services.ports import OdooGateway, OdooGatewayError
+from tests.fixtures import load_fixture
 from tests.unit.fakes import FIXED_NOW, FakeOdooGateway, FakeSession, FakeTraceRepository
 
 CONFIRM = StartTraceCommand(
@@ -40,7 +42,7 @@ def _service(
     return TraceService(
         cast(AsyncSession, session),
         typed_gateway,
-        OpaquePayloadValidator(),
+        SchemaPayloadValidator(),
         allow_non_dry_run=allow_non_dry_run,
         clock=lambda: FIXED_NOW,
         trace_repository=repository,
@@ -49,15 +51,16 @@ def _service(
 
 async def test_start_trace_succeeds_and_stores_payload() -> None:
     session = FakeSession()
-    gateway = FakeOdooGateway(GatewayResult(payload={"steps": [{"id": "s1"}]}, odoo_version="19.0"))
+    payload = load_fixture("trace-medium")
+    gateway = FakeOdooGateway(GatewayResult(payload=payload, odoo_version="19.0"))
 
     result = await _service(session, gateway).start_trace(CONFIRM)
 
     assert type(result) is TraceDetail
     assert result.status is TraceStatus.SUCCEEDED
-    assert result.payload == {"steps": [{"id": "s1"}]}
+    assert result.payload == payload
     assert result.odoo_version == "19.0"
-    assert result.schema_version is None  # opaque until the trace schema exists
+    assert result.schema_version == "0.1.0"
     assert result.started_at == FIXED_NOW
     assert result.finished_at == FIXED_NOW
     assert result.error is None
@@ -207,7 +210,7 @@ async def test_start_trace_without_gateway_writes_nothing() -> None:
     service = TraceService(
         cast(AsyncSession, session),
         None,
-        OpaquePayloadValidator(),
+        SchemaPayloadValidator(),
         trace_repository=FakeTraceRepository(session),
     )
 
