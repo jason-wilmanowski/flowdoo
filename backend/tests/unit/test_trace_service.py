@@ -1,6 +1,6 @@
 import uuid
 from http import HTTPStatus
-from typing import cast
+from typing import Any, cast
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,7 +23,13 @@ from flow_tracer_api.services import (
 from flow_tracer_api.services.payload_validation import SchemaPayloadValidator
 from flow_tracer_api.services.ports import OdooGateway, OdooGatewayError
 from tests.fixtures import load_fixture
-from tests.unit.fakes import FIXED_NOW, FakeOdooGateway, FakeSession, FakeTraceRepository
+from tests.unit.fakes import (
+    FIXED_NOW,
+    FakeOdooGateway,
+    FakeSession,
+    FakeTraceRepository,
+    answer_for,
+)
 
 CONFIRM = StartTraceCommand(
     entrypoint_model="sale.order",
@@ -58,7 +64,8 @@ async def test_start_trace_succeeds_and_stores_payload() -> None:
 
     assert type(result) is TraceDetail
     assert result.status is TraceStatus.SUCCEEDED
-    assert result.payload == payload
+    assert result.payload == answer_for(gateway.requests[0], payload)
+    assert result.payload["trace_id"] == str(result.id)
     assert result.odoo_version == "19.0"
     assert result.schema_version == "0.1.0"
     assert result.started_at == FIXED_NOW
@@ -112,7 +119,7 @@ async def test_gateway_error_marks_trace_failed() -> None:
 
 
 async def test_invalid_payload_marks_trace_failed() -> None:
-    gateway = FakeOdooGateway(GatewayResult(payload={"value": float("nan")}))
+    gateway = FakeOdooGateway(GatewayResult(payload={"value": float("nan")}), echo_request=False)
 
     result = await _service(FakeSession(), gateway).start_trace(CONFIRM)
 
@@ -250,3 +257,30 @@ async def test_trace_deleted_during_recording_is_409() -> None:
 
     assert exc_info.value.status_code == HTTPStatus.CONFLICT
     assert "deleted while it was being recorded" in exc_info.value.message
+
+
+@pytest.mark.parametrize(
+    ("mutate", "fragment"),
+    [
+        (lambda p: p.update(trace_id="00000000-0000-0000-0000-000000000000"), "trace_id="),
+        (lambda p: p.update(dry_run=False), "dry_run=False (expected True)"),
+        (lambda p: p["entrypoint"].update(method="action_cancel"), "entrypoint.method="),
+        (lambda p: p["entrypoint"].update(record_ids=[99]), "entrypoint.record_ids=[99]"),
+    ],
+)
+async def test_answer_for_another_run_marks_trace_failed(mutate: Any, fragment: str) -> None:
+    class WrongAnswerGateway(FakeOdooGateway):
+        async def run_trace(self, request: TraceRequest) -> GatewayResult:
+            result = await super().run_trace(request)
+            mutate(result.payload)
+            return result
+
+    session = FakeSession()
+
+    result = await _service(session, WrongAnswerGateway()).start_trace(CONFIRM)
+
+    assert result.status is TraceStatus.FAILED
+    assert result.payload is None
+    assert result.error is not None
+    assert result.error.startswith("Recorder answered for a different run")
+    assert fragment in result.error

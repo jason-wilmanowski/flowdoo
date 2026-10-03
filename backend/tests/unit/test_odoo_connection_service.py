@@ -60,6 +60,16 @@ class FakeOdooClient:
             return [] if self.addon_state is None else [{"id": 9, "state": self.addon_state}]
         raise AssertionError(f"unexpected call {model}.{method}")
 
+    async def post(
+        self,
+        path: str,
+        payload: dict[str, Any],
+        *,
+        timeout_seconds: float | None = None,
+        target: str | None = None,
+    ) -> Any:
+        raise AssertionError(f"unexpected POST {path}")
+
 
 async def _check(client: FakeOdooClient | None, **kwargs: Any) -> Any:
     typed: OdooClient | None = client  # fakes must satisfy the port

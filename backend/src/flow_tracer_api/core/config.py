@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     odoo_login: str | None = None
     odoo_api_key: SecretStr | None = None
     odoo_timeout_seconds: float = Field(default=10.0, gt=0)
+    # Recording a long flow takes longer than a normal call.
+    odoo_trace_timeout_seconds: float = Field(default=120.0, gt=0)
 
     @field_validator("odoo_url", "odoo_db", "odoo_login", "odoo_api_key", mode="before")
     @classmethod

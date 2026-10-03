@@ -3,6 +3,7 @@ import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
 from http import HTTPStatus
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -114,6 +115,7 @@ class TraceService:
         try:
             result = await gateway.run_trace(request)
             validated = self._validator.validate(result.payload)
+            _check_answers_request(request, validated.payload)
         except (OdooGatewayError, PayloadValidationError) as exc:
             return await self._finish(
                 trace_id, TraceUpdate(status=TraceStatus.FAILED, error=str(exc))
@@ -178,3 +180,30 @@ class TraceService:
         detail = TraceDetail.model_validate(trace)
         await self._session.commit()
         return detail
+
+
+def _check_answers_request(request: TraceRequest, payload: dict[str, Any]) -> None:
+    """The recorder must have answered exactly this run; otherwise the trace is not stored
+    as this trace (e.g. a proxy/cache mix-up or an addon bug)."""
+    entrypoint = payload["entrypoint"]
+    expected: dict[str, object] = {
+        "trace_id": str(request.trace_id),
+        "entrypoint.model": request.model,
+        "entrypoint.method": request.method,
+        "entrypoint.record_ids": list(request.record_ids),
+        "dry_run": request.dry_run,
+    }
+    actual: dict[str, object] = {
+        "trace_id": str(payload["trace_id"]),
+        "entrypoint.model": entrypoint["model"],
+        "entrypoint.method": entrypoint["method"],
+        "entrypoint.record_ids": list(entrypoint["record_ids"]),
+        "dry_run": payload["dry_run"],
+    }
+    wrong = [
+        f"{key}={actual[key]!r} (expected {value!r})"
+        for key, value in expected.items()
+        if actual[key] != value
+    ]
+    if wrong:
+        raise PayloadValidationError("Recorder answered for a different run: " + ", ".join(wrong))

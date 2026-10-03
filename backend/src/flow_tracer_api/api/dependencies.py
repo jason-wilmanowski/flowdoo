@@ -13,45 +13,20 @@ from fastapi import Depends
 
 from flow_tracer_api.core.config import Settings, get_settings
 from flow_tracer_api.core.dependencies import SessionDep
-from flow_tracer_api.integrations.odoo import OdooJson2Client
+from flow_tracer_api.integrations.odoo import FlowTracerGateway, OdooJson2Client
 from flow_tracer_api.services import TraceService
 from flow_tracer_api.services.odoo_connection_service import OdooConnectionService
 from flow_tracer_api.services.payload_validation import SchemaPayloadValidator
-from flow_tracer_api.services.ports import OdooClient, OdooGateway, TracePayloadValidator
-
-
-def get_odoo_gateway() -> OdooGateway | None:
-    """``None`` = no Odoo connection; ``POST /traces`` then answers 503."""
-    # TODO(odoo-gateway): return the JSON-RPC implementation once it exists.
-    return None
-
-
-def get_payload_validator() -> TracePayloadValidator:
-    return SchemaPayloadValidator()
-
-
-def get_trace_service(
-    session: SessionDep,
-    gateway: Annotated[OdooGateway | None, Depends(get_odoo_gateway)],
-    validator: Annotated[TracePayloadValidator, Depends(get_payload_validator)],
-    settings: Annotated[Settings, Depends(get_settings)],
-) -> TraceService:
-    return TraceService(
-        session,
-        gateway,
-        validator,
-        allow_non_dry_run=settings.allow_non_dry_run,
-    )
-
-
-TraceServiceDep = Annotated[TraceService, Depends(get_trace_service)]
-
+from flow_tracer_api.services.ports import OdooGateway, TracePayloadValidator
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 
-async def get_odoo_client(settings: SettingsDep) -> AsyncIterator[OdooClient | None]:
-    """JSON-2 client for the configured Odoo, or ``None`` if it is not configured."""
+async def get_odoo_client(settings: SettingsDep) -> AsyncIterator[OdooJson2Client | None]:
+    """JSON-2 client for the configured Odoo, or ``None`` if it is not configured.
+
+    One client per request; closed after the response.
+    """
     if settings.odoo_url is None or not settings.odoo_db or settings.odoo_api_key is None:
         yield None
         return
@@ -64,9 +39,39 @@ async def get_odoo_client(settings: SettingsDep) -> AsyncIterator[OdooClient | N
         yield client
 
 
-def get_odoo_connection_service(
-    client: Annotated[OdooClient | None, Depends(get_odoo_client)],
+OdooClientDep = Annotated[OdooJson2Client | None, Depends(get_odoo_client)]
+
+
+def get_odoo_gateway(client: OdooClientDep, settings: SettingsDep) -> OdooGateway | None:
+    """``None`` = no Odoo connection configured; ``POST /traces`` then answers 503."""
+    if client is None:
+        return None
+    return FlowTracerGateway(client, timeout_seconds=settings.odoo_trace_timeout_seconds)
+
+
+def get_payload_validator() -> TracePayloadValidator:
+    return SchemaPayloadValidator()
+
+
+def get_trace_service(
+    session: SessionDep,
+    gateway: Annotated[OdooGateway | None, Depends(get_odoo_gateway)],
+    validator: Annotated[TracePayloadValidator, Depends(get_payload_validator)],
     settings: SettingsDep,
+) -> TraceService:
+    return TraceService(
+        session,
+        gateway,
+        validator,
+        allow_non_dry_run=settings.allow_non_dry_run,
+    )
+
+
+TraceServiceDep = Annotated[TraceService, Depends(get_trace_service)]
+
+
+def get_odoo_connection_service(
+    client: OdooClientDep, settings: SettingsDep
 ) -> OdooConnectionService:
     return OdooConnectionService(
         client,

@@ -6,8 +6,10 @@ from flow_tracer_api.integrations.odoo.errors import (
     OdooDatabaseNotFoundError,
     OdooUnreachableError,
 )
+from flow_tracer_api.integrations.odoo.gateway import FlowTracerGateway
 
 __all__ = [
+    "FlowTracerGateway",
     "OdooAuthenticationError",
     "OdooCallError",
     "OdooClientError",
