@@ -1,7 +1,8 @@
 import pytest
 from pydantic import ValidationError
 
-from flow_tracer_api.schemas import StartTraceCommand, TraceListQuery
+from flow_tracer_api.domain import TraceStatus
+from flow_tracer_api.schemas import StartTraceCommand, TraceListQuery, TraceUpdate
 
 
 def test_start_trace_defaults_to_dry_run() -> None:
@@ -26,3 +27,17 @@ def test_start_trace_rejects_bad_entrypoint(field: str, value: str) -> None:
 def test_list_query_bounds(limit: int, offset: int) -> None:
     with pytest.raises(ValidationError):
         TraceListQuery(limit=limit, offset=offset)
+
+
+def test_trace_update_only_reports_explicitly_set_fields() -> None:
+    assert TraceUpdate().changed_fields() == {}
+    assert TraceUpdate(error=None).changed_fields() == {"error": None}
+    assert TraceUpdate(status=TraceStatus.FAILED, error="x").changed_fields() == {
+        "status": TraceStatus.FAILED,
+        "error": "x",
+    }
+
+
+def test_trace_update_rejects_null_status() -> None:
+    with pytest.raises(ValidationError, match="status cannot be set to None"):
+        TraceUpdate(status=None)
