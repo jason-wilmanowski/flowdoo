@@ -7,7 +7,7 @@ which creates its repository on that session.
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 
 from flow_tracer_api.core.config import Settings, get_settings
 from flow_tracer_api.core.dependencies import SessionDep
@@ -19,12 +19,10 @@ from flow_tracer_api.services.ports import (
 )
 
 
-def get_odoo_gateway() -> OdooGateway:
+def get_odoo_gateway() -> OdooGateway | None:
+    """``None`` = no Odoo connection; ``POST /traces`` then answers 503."""
     # TODO(odoo-gateway): return the JSON-RPC implementation once it exists.
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Odoo gateway is not implemented yet",
-    )
+    return None
 
 
 def get_payload_validator() -> TracePayloadValidator:
@@ -34,7 +32,7 @@ def get_payload_validator() -> TracePayloadValidator:
 
 def get_trace_service(
     session: SessionDep,
-    gateway: Annotated[OdooGateway, Depends(get_odoo_gateway)],
+    gateway: Annotated[OdooGateway | None, Depends(get_odoo_gateway)],
     validator: Annotated[TracePayloadValidator, Depends(get_payload_validator)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> TraceService:

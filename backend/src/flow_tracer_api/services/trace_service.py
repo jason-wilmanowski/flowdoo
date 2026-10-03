@@ -19,7 +19,11 @@ from flow_tracer_api.schemas import (
     TraceSummary,
     TraceUpdate,
 )
-from flow_tracer_api.services.errors import NonDryRunNotAllowedError, TraceNotFoundError
+from flow_tracer_api.services.errors import (
+    NonDryRunNotAllowedError,
+    OdooGatewayUnavailableError,
+    TraceNotFoundError,
+)
 from flow_tracer_api.services.ports import (
     OdooGateway,
     OdooGatewayError,
@@ -40,12 +44,15 @@ class TraceService:
     Gets the request-scoped ``AsyncSession`` injected (see ``api.dependencies``) and builds
     its repository on it. The service owns the transaction: it decides when to
     ``commit()``. Anything not committed is rolled back when the request's session closes.
+
+    ``gateway`` is ``None`` while no Odoo connection is configured; then only
+    ``start_trace`` fails, reading and deleting stored traces keeps working.
     """
 
     def __init__(
         self,
         session: AsyncSession,
-        gateway: OdooGateway,
+        gateway: OdooGateway | None,
         validator: TracePayloadValidator,
         *,
         allow_non_dry_run: bool = False,
@@ -70,6 +77,9 @@ class TraceService:
         """
         if not command.dry_run and not self._allow_non_dry_run:
             raise NonDryRunNotAllowedError
+        if self._gateway is None:
+            raise OdooGatewayUnavailableError
+        gateway = self._gateway
 
         trace = await self._traces.create(
             TraceCreate(
@@ -92,7 +102,7 @@ class TraceService:
             dry_run=command.dry_run,
         )
         try:
-            result = await self._gateway.run_trace(request)
+            result = await gateway.run_trace(request)
             validated = self._validator.validate(result.payload)
         except (OdooGatewayError, PayloadValidationError) as exc:
             return await self._finish(

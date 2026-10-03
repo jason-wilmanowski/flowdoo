@@ -13,7 +13,12 @@ from flow_tracer_api.schemas import (
     TraceListQuery,
     TraceRequest,
 )
-from flow_tracer_api.services import NonDryRunNotAllowedError, TraceNotFoundError, TraceService
+from flow_tracer_api.services import (
+    NonDryRunNotAllowedError,
+    OdooGatewayUnavailableError,
+    TraceNotFoundError,
+    TraceService,
+)
 from flow_tracer_api.services.ports import OdooGateway, OdooGatewayError, OpaquePayloadValidator
 from tests.unit.fakes import FIXED_NOW, FakeOdooGateway, FakeSession, FakeTraceRepository
 
@@ -191,3 +196,19 @@ async def test_delete_trace_commits() -> None:
 async def test_delete_unknown_trace_raises() -> None:
     with pytest.raises(TraceNotFoundError):
         await _service(FakeSession(), FakeOdooGateway()).delete_trace(uuid.uuid4())
+
+
+async def test_start_trace_without_gateway_writes_nothing() -> None:
+    session = FakeSession()
+    service = TraceService(
+        cast(AsyncSession, session),
+        None,
+        OpaquePayloadValidator(),
+        trace_repository=FakeTraceRepository(session),
+    )
+
+    with pytest.raises(OdooGatewayUnavailableError):
+        await service.start_trace(CONFIRM)
+
+    assert session.rows == {}
+    assert session.commits == 0

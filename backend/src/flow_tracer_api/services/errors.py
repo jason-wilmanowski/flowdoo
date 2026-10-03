@@ -11,6 +11,11 @@ class TraceNotFoundError(ServiceError):
         self.trace_id = trace_id
 
 
+class OdooGatewayUnavailableError(ServiceError):
+    def __init__(self) -> None:
+        super().__init__("No connection to Odoo is configured, traces cannot be started")
+
+
 class NonDryRunNotAllowedError(ServiceError):
     def __init__(self) -> None:
         super().__init__(
