@@ -20,4 +20,11 @@ class OdooDatabaseNotFoundError(OdooClientError):
 
 
 class OdooCallError(OdooClientError):
-    """Odoo executed the request and returned an error (e.g. unknown model, access error)."""
+    """Odoo executed the request and returned an error (e.g. unknown model, access error).
+
+    ``status_code`` is Odoo's HTTP status, or None if the answer was not an HTTP error.
+    """
+
+    def __init__(self, message: str, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code

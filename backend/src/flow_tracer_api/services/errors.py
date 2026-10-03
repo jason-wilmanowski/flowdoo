@@ -23,5 +23,13 @@ class OdooGatewayUnavailableError(ServiceError):
     """No Odoo connection is configured, so no trace can be started."""
 
 
+class EntrypointLookupError(ServiceError):
+    """Odoo refused to describe the method: unknown model/method (404), private (403), ..."""
+
+
+class OdooRequestError(ServiceError):
+    """Odoo could not be asked or gave an unusable answer (502)."""
+
+
 class NonDryRunNotAllowedError(ServiceError):
     """``dry_run=false`` was requested but is not enabled for this setup."""
