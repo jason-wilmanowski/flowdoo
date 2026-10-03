@@ -1,13 +1,11 @@
 from httpx import ASGITransport, AsyncClient
-from pydantic import SecretStr
 
-from flow_tracer_api.api.app import create_app
-from flow_tracer_api.core.config import Settings
+from flow_tracer_api.main import create_app
+from tests.settings import make_settings
 
 
 async def test_health_returns_ok() -> None:
-    settings = Settings(database_url=SecretStr("postgresql+asyncpg://u:p@localhost:1/x"))
-    app = create_app(settings)
+    app = create_app(make_settings())
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/health")

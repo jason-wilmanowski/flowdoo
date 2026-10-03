@@ -6,21 +6,18 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from pydantic import SecretStr
 
-from flow_tracer_api.api.app import create_app
 from flow_tracer_api.api.dependencies import get_odoo_client
 from flow_tracer_api.core.config import Settings, get_settings
 from flow_tracer_api.integrations.odoo import OdooJson2Client
+from flow_tracer_api.main import create_app
+from tests.settings import make_settings
 from tests.unit.test_odoo_connection_service import FakeOdooClient
 
 API_KEY = "very-secret-api-key"
 
 
 def _settings(**odoo: object) -> Settings:
-    return Settings(
-        database_url=SecretStr("postgresql+asyncpg://u:p@localhost:1/unused"),
-        _env_file=None,
-        **odoo,  # type: ignore[arg-type]
-    )
+    return make_settings(**odoo)
 
 
 CONFIGURED = {

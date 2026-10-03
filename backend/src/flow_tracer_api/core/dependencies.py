@@ -10,7 +10,7 @@ from flow_tracer_api.core.db import session_scope
 
 
 def get_session_factory(request: Request) -> async_sessionmaker[AsyncSession]:
-    """Session factory created in the app lifespan (see ``api.app.create_app``)."""
+    """Session factory created in the app lifespan (see ``main.create_app``)."""
     return cast(async_sessionmaker[AsyncSession], request.app.state.session_factory)
 
 
