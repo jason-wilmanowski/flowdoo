@@ -1,7 +1,7 @@
 """Async SQLAlchemy engine and session factory.
 
-Sessions are used only through repositories and the unit of work; the API layer merely
-hands a request-scoped session over (see ``core.dependencies``).
+One session per request (see ``core.dependencies``) is injected into the services,
+which build their repositories on it and decide when to commit.
 Creating an engine does not open a connection; that happens on first use.
 """
 
@@ -35,7 +35,7 @@ def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSessi
 async def session_scope(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> AsyncIterator[AsyncSession]:
-    """Open a session for one unit of work (e.g. one request) and always close it.
+    """Open a session (e.g. for one request) and always close it.
 
     This scope never commits: committing is the service layer's decision. On error the
     open transaction is rolled back explicitly; on normal exit, closing the session

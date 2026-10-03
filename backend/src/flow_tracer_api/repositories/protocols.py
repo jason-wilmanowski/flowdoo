@@ -1,12 +1,12 @@
-"""Interfaces the service layer depends on. Implementations live in ``sqlalchemy/``."""
+"""Repository interfaces. The SQLAlchemy implementation lives in ``sqlalchemy/``;
+service tests swap in in-memory fakes."""
 
 import uuid
 from collections.abc import Sequence
-from types import TracebackType
-from typing import Protocol, Self
+from typing import Protocol
 
 from flow_tracer_api.models import Trace
-from flow_tracer_api.repositories.params import TraceCreate, TraceFilter, TraceUpdate
+from flow_tracer_api.schemas import TraceCreate, TraceFilter, TraceUpdate
 
 
 class TraceRepository(Protocol):
@@ -31,30 +31,3 @@ class TraceRepository(Protocol):
     async def delete(self, trace_id: uuid.UUID) -> bool:
         """``True`` if a trace was deleted."""
         ...
-
-
-class UnitOfWork(Protocol):
-    """One transaction scope. Nothing is persisted unless ``commit()`` is called.
-
-    Usage in services::
-
-        async with uow:
-            trace = await uow.traces.create(...)
-            await uow.commit()
-    """
-
-    @property
-    def traces(self) -> TraceRepository: ...
-
-    async def __aenter__(self) -> Self: ...
-
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: TracebackType | None,
-    ) -> None: ...
-
-    async def commit(self) -> None: ...
-
-    async def rollback(self) -> None: ...

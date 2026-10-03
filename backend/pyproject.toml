@@ -62,19 +62,19 @@ markers = [
 
 [tool.importlinter]
 root_package = "flow_tracer_api"
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "Layers only depend downwards"
 type = "layers"
 containers = ["flow_tracer_api"]
 # Parenthesised layers are optional until the branch that introduces them lands.
-layers = ["api", "(services)", "repositories", "models"]
+layers = ["api", "services", "repositories", "models"]
 
 [[tool.importlinter.contracts]]
-name = "core and domain do not depend on application layers"
+name = "core, domain and schemas do not depend on application layers"
 type = "forbidden"
-# flow_tracer_api.schemas joins this list once it exists.
-source_modules = ["flow_tracer_api.core", "flow_tracer_api.domain"]
+source_modules = ["flow_tracer_api.core", "flow_tracer_api.domain", "flow_tracer_api.schemas"]
 forbidden_modules = [
     "flow_tracer_api.api",
     "flow_tracer_api.services",
