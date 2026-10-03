@@ -1,6 +1,8 @@
 export { Badge, type BadgeProps, type BadgeTone } from "./Badge";
 export { Button, type ButtonProps, type ButtonVariant } from "./Button";
+export { buttonClassName } from "./buttonClassName";
 export { CodeValue, type CodeValueProps } from "./CodeValue";
+export { Dialog, type DialogProps } from "./Dialog";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
 export { GraphCanvas, type GraphCanvasProps } from "./GraphCanvas";
 export { GraphNode, type GraphNodeData, type GraphNodeType } from "./GraphNode";

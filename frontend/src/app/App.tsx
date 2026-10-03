@@ -1,6 +1,11 @@
 import { lazy, Suspense } from "react";
+import { BrowserRouter } from "react-router";
 
 import { Spinner } from "@/ui";
+
+import { AppProviders } from "./AppProviders";
+import { AppRoutes } from "./AppRoutes";
+import { initialDataSourceKind, storeDataSourceKind } from "./dataSourceChoice";
 
 // Development-only UI kit; the import is dropped from production builds.
 const KitGallery = import.meta.env.DEV
@@ -15,5 +20,14 @@ export function App() {
       </Suspense>
     );
   }
-  return <main>Flowdoo</main>;
+  return (
+    <BrowserRouter>
+      <AppProviders
+        initialDataSource={initialDataSourceKind()}
+        onDataSourceChange={storeDataSourceKind}
+      >
+        <AppRoutes />
+      </AppProviders>
+    </BrowserRouter>
+  );
 }

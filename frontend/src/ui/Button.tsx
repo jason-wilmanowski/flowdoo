@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 
-import styles from "./Button.module.css";
+import { buttonClassName } from "./buttonClassName";
 import { Icon } from "./Icon";
 import { Spinner } from "./Spinner";
 
@@ -31,9 +31,7 @@ export function Button({
   return (
     <button
       type={type}
-      className={[styles.button, styles[variant], compact ? styles.compact : "", className ?? ""]
-        .join(" ")
-        .trim()}
+      className={[buttonClassName(variant, compact), className ?? ""].join(" ").trim()}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       {...rest}
