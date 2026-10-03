@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Expects frontend/package.json and frontend/pnpm-lock.yaml (created in chore/repo-scaffold).
+# Build context: frontend/. pnpm comes from corepack (version pinned in package.json).
 
 FROM node:22.23.2@sha256:dd5847a04b0deee391fa145f1f4c6d214196668b6bcc7988ebed67249f226844
 
