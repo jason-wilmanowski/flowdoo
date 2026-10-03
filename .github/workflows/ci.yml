@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-ruff:
+    name: Backend · ruff lint and format check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.22"
+          working-directory: backend
+
+      # Ruff comes from uv.lock, so CI runs exactly the version used locally.
+      - name: Install dev dependencies
+        run: uv sync --locked --only-dev
+
+      - name: ruff check
+        run: uv run --no-sync ruff check --output-format=github .
+
+      - name: ruff format --check
+        run: uv run --no-sync ruff format --check --diff .
