@@ -68,7 +68,7 @@ name = "Layers only depend downwards"
 type = "layers"
 containers = ["flow_tracer_api"]
 # Parenthesised layers are optional until the branch that introduces them lands.
-layers = ["api", "(services)", "(repositories)", "models"]
+layers = ["api", "(services)", "repositories", "models"]
 
 [[tool.importlinter.contracts]]
 name = "core and domain do not depend on application layers"
