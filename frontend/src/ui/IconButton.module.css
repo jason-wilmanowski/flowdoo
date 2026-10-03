@@ -1,0 +1,9 @@
+.iconButton {
+  width: var(--control-h);
+  padding: 0;
+}
+
+.compact {
+  width: var(--control-h-compact);
+  height: var(--control-h-compact);
+}

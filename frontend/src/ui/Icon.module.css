@@ -1,0 +1,11 @@
+.icon {
+  flex: none;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  color: currentcolor;
+}
+
+.compact {
+  width: var(--icon-size-compact);
+  height: var(--icon-size-compact);
+}
