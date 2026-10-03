@@ -7,9 +7,9 @@ and `ODOO_TEST_API_KEY` are set.
 One-time setup (from the repository root):
 
 ```sh
-# 1. Create a database with the base module
+# 1. Create a database with the flow_tracer addon (mounted from odoo-addons/)
 docker compose --profile test up -d odoo-test-db
-docker compose --profile test run --rm odoo-test odoo -d odoo_test -i base --stop-after-init
+docker compose --profile test run --rm odoo-test odoo -d odoo_test -i base,flow_tracer --stop-after-init
 
 # 2. Create an API key for the admin user and print it
 docker compose --profile test run --rm -T odoo-test odoo shell -d odoo_test --no-http <<'PY'

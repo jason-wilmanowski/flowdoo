@@ -44,7 +44,7 @@ async def test_unknown_database_is_detected(odoo_test_settings: OdooTestSettings
             await client.call("res.users", "context_get")
 
 
-async def test_connection_check_reports_missing_addon(
+async def test_connection_check_passes_with_addon_installed(
     odoo_client: OdooJson2Client, odoo_test_settings: OdooTestSettings
 ) -> None:
     service = OdooConnectionService(
@@ -60,8 +60,7 @@ async def test_connection_check_reports_missing_addon(
     assert status.version_supported is True
     assert status.authenticated is True
     assert status.user_login == "admin"
-    # The flow_tracer addon does not exist yet (milestone M2).
-    assert status.addon_installed is False
-    assert status.ok is False
-    assert len(status.problems) == 1
-    assert "flow_tracer addon is not available" in status.problems[0]
+    assert status.addon_installed is True
+    assert status.addon_state == "installed"
+    assert status.problems == []
+    assert status.ok is True

@@ -1,0 +1,12 @@
+# Ruff settings for Odoo addons (the backend has its own in backend/pyproject.toml).
+line-length = 100
+target-version = "py312"
+
+[lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM"]
+
+[lint.per-file-ignores]
+# Odoo convention: __init__.py imports submodules for their side effects.
+"__init__.py" = ["F401"]
+# The manifest is a bare dict literal by design.
+"__manifest__.py" = ["B018"]
