@@ -1,0 +1,53 @@
+.node {
+  min-width: var(--panel-left-w);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.active {
+  outline: var(--selection-edge) solid var(--accent);
+  outline-offset: calc(var(--border-width) * -1);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-width) solid var(--border);
+  background: var(--surface-sunken);
+}
+
+.model {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.detail {
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.handle {
+  width: var(--space-2);
+  height: var(--space-2);
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  background: var(--border-strong);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
