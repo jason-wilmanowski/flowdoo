@@ -2,6 +2,7 @@ import logging
 import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
+from http import HTTPStatus
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,7 +20,11 @@ from flow_tracer_api.schemas import (
     TraceSummary,
     TraceUpdate,
 )
-from flow_tracer_api.services.errors import NonDryRunNotAllowedError, TraceNotFoundError
+from flow_tracer_api.services.errors import (
+    NonDryRunNotAllowedError,
+    OdooGatewayUnavailableError,
+    TraceNotFoundError,
+)
 from flow_tracer_api.services.ports import (
     OdooGateway,
     OdooGatewayError,
@@ -40,12 +45,15 @@ class TraceService:
     Gets the request-scoped ``AsyncSession`` injected (see ``api.dependencies``) and builds
     its repository on it. The service owns the transaction: it decides when to
     ``commit()``. Anything not committed is rolled back when the request's session closes.
+
+    ``gateway`` is ``None`` while no Odoo connection is configured; then only
+    ``start_trace`` fails, reading and deleting stored traces keeps working.
     """
 
     def __init__(
         self,
         session: AsyncSession,
-        gateway: OdooGateway,
+        gateway: OdooGateway | None,
         validator: TracePayloadValidator,
         *,
         allow_non_dry_run: bool = False,
@@ -69,7 +77,19 @@ class TraceService:
         3. store the outcome (``succeeded`` or ``failed``) and commit.
         """
         if not command.dry_run and not self._allow_non_dry_run:
-            raise NonDryRunNotAllowedError
+            raise NonDryRunNotAllowedError(
+                message=(
+                    "dry_run=false is disabled. It writes to the Odoo database and is only "
+                    "allowed when explicitly enabled for a development setup."
+                ),
+                status_code=HTTPStatus.FORBIDDEN,
+            )
+        if self._gateway is None:
+            raise OdooGatewayUnavailableError(
+                message="No connection to Odoo is configured, traces cannot be started",
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+            )
+        gateway = self._gateway
 
         trace = await self._traces.create(
             TraceCreate(
@@ -92,7 +112,7 @@ class TraceService:
             dry_run=command.dry_run,
         )
         try:
-            result = await self._gateway.run_trace(request)
+            result = await gateway.run_trace(request)
             validated = self._validator.validate(result.payload)
         except (OdooGatewayError, PayloadValidationError) as exc:
             return await self._finish(
@@ -120,7 +140,9 @@ class TraceService:
     async def get_trace(self, trace_id: uuid.UUID) -> TraceDetail:
         trace = await self._traces.get(trace_id)
         if trace is None:
-            raise TraceNotFoundError(trace_id)
+            raise TraceNotFoundError(
+                message=f"Trace {trace_id} not found", status_code=HTTPStatus.NOT_FOUND
+            )
         return TraceDetail.model_validate(trace)
 
     async def list_traces(self, query: TraceListQuery) -> TracePage:
@@ -140,14 +162,19 @@ class TraceService:
 
     async def delete_trace(self, trace_id: uuid.UUID) -> None:
         if not await self._traces.delete(trace_id):
-            raise TraceNotFoundError(trace_id)
+            raise TraceNotFoundError(
+                message=f"Trace {trace_id} not found", status_code=HTTPStatus.NOT_FOUND
+            )
         await self._session.commit()
 
     async def _finish(self, trace_id: uuid.UUID, changes: TraceUpdate) -> TraceDetail:
         changes = TraceUpdate(**changes.changed_fields(), finished_at=self._clock())
         trace = await self._traces.update(trace_id, changes)
-        if trace is None:  # deleted while Odoo was running
-            raise TraceNotFoundError(trace_id)
+        if trace is None:
+            raise TraceNotFoundError(
+                message=f"Trace {trace_id} was deleted while it was being recorded",
+                status_code=HTTPStatus.CONFLICT,
+            )
         detail = TraceDetail.model_validate(trace)
         await self._session.commit()
         return detail

@@ -1,19 +1,27 @@
-import uuid
+"""Errors raised by the service layer.
+
+Every error carries a ``message`` and a ``status_code``, both set where the service
+raises it. Endpoints catch ``ServiceError`` and turn it into an ``HTTPException``.
+``http.HTTPStatus`` (stdlib) keeps the service layer free of FastAPI imports.
+"""
+
+from http import HTTPStatus
 
 
 class ServiceError(Exception):
-    """Base class for errors the API layer translates into HTTP responses."""
+    def __init__(self, message: str, status_code: HTTPStatus) -> None:
+        super().__init__(message)
+        self.message = message
+        self.status_code = status_code
 
 
 class TraceNotFoundError(ServiceError):
-    def __init__(self, trace_id: uuid.UUID) -> None:
-        super().__init__(f"Trace {trace_id} not found")
-        self.trace_id = trace_id
+    """The requested trace does not exist (any more)."""
+
+
+class OdooGatewayUnavailableError(ServiceError):
+    """No Odoo connection is configured, so no trace can be started."""
 
 
 class NonDryRunNotAllowedError(ServiceError):
-    def __init__(self) -> None:
-        super().__init__(
-            "dry_run=false is disabled. It writes to the Odoo database and is only allowed "
-            "when explicitly enabled for a development setup."
-        )
+    """``dry_run=false`` was requested but is not enabled for this setup."""
