@@ -14,6 +14,7 @@ class TraceRequest(BaseModel):
     method: str
     record_ids: tuple[int, ...] = ()
     context: dict[str, Any] = Field(default_factory=dict)
+    call_kwargs: dict[str, Any] = Field(default_factory=dict)
     dry_run: bool = True
 
 
@@ -69,3 +70,33 @@ class OdooConnectionStatus(BaseModel):
     ok: bool = False
     problems: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+
+
+class EntrypointParameter(BaseModel):
+    """One parameter of a method; only keyword arguments can be passed (as in JSON-2)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    # inspect.Parameter kind, lower case: positional_or_keyword, keyword_only, var_keyword, ...
+    kind: str
+    required: bool
+    # repr of the default value; None if the parameter has no default
+    default: str | None
+    annotation: str | None
+
+
+class EntrypointSignature(BaseModel):
+    """What a method expects, so a trace can be started with the right kwargs."""
+
+    model_config = ConfigDict(frozen=True)
+
+    model: str
+    method: str
+    # True for @api.model methods: call them without record ids.
+    model_level: bool
+    # Module of the most derived implementation.
+    module: str | None
+    # First line of the docstring.
+    summary: str | None
+    parameters: list[EntrypointParameter]

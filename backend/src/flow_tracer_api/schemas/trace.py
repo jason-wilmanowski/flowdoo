@@ -14,12 +14,18 @@ OdooMethodName = Annotated[str, Field(min_length=1, max_length=128)]
 class StartTraceCommand(BaseModel):
     """Request to record one workflow run in the user's Odoo."""
 
-    model_config = ConfigDict(frozen=True, str_strip_whitespace=True)
+    model_config = ConfigDict(
+        frozen=True, str_strip_whitespace=True, validate_by_name=True, validate_by_alias=True
+    )
 
     entrypoint_model: OdooModelName
     entrypoint_method: OdooMethodName
+    # Empty for model-level (@api.model) methods.
     record_ids: tuple[int, ...] = ()
     context: dict[str, Any] = Field(default_factory=dict)
+    # Keyword arguments of the method (JSON values; recordsets as ids), like Odoo's JSON-2.
+    # Named call_kwargs in Python (a field called "kwargs" clashes with __init__(**kwargs)).
+    call_kwargs: dict[str, Any] = Field(default_factory=dict, alias="kwargs")
     # Dry run (rollback at the end) is the default; see CLAUDE.md section 6.
     dry_run: bool = True
 

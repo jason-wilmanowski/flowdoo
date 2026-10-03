@@ -1,4 +1,4 @@
-# Trace format (schema v0.1.0)
+# Trace format (schema v0.2.0)
 
 A trace is one recorded run of an Odoo entrypoint. Its format is the contract between the
 recorder (Odoo addon), the backend and the frontend.
@@ -28,7 +28,7 @@ be `null`.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `schema_version` | `"0.1.0"` | Version of this format |
+| `schema_version` | `"0.2.0"` | Version of this format |
 | `trace_id` | UUID | Assigned by the backend before the run |
 | `odoo_version` | string (≤ 32) | Odoo series, e.g. `"19.0"` |
 | `dry_run` | boolean | `true`: the run was rolled back at the end |
@@ -43,8 +43,9 @@ be `null`.
 |---|---|---|
 | `model` | model name (≤ 128) | e.g. `"sale.order"` |
 | `method` | identifier (≤ 128) | e.g. `"action_confirm"` |
-| `record_ids` | ids (≤ 1000) | Records the method was called on |
+| `record_ids` | ids (≤ 1000) | Records the method was called on; empty for model-level (`@api.model`) methods |
 | `context` | object | Context of the call |
+| `kwargs` | object | Keyword arguments of the call, as in Odoo's JSON-2 API (JSON values; recordsets as ids) |
 
 ## Steps
 
@@ -136,4 +137,11 @@ are stored exactly as received.
 3. Update the fixtures, the recorder, the backend and the frontend; all tests green.
 4. Update this page. Everything in the same pull request.
 
-Masking of sensitive values is not part of v0.1.0 and will be added in a later version.
+Masking of sensitive values is not part of the format yet and will be added in a later version.
+
+## Changelog
+
+| Version | Change |
+|---|---|
+| 0.2.0 | `entrypoint.kwargs` (required): entrypoints can take keyword arguments; `record_ids` may be empty for model-level methods |
+| 0.1.0 | First version |

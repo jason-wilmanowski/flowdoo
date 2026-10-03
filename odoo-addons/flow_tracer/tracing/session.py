@@ -1,4 +1,4 @@
-"""One recording: turns monitoring events into the steps of schema v0.1.0.
+"""One recording: turns monitoring events into the steps of schema v0.2.0.
 
 Invariant: every PY_START of an indexed code object pushes exactly one entry onto
 ``_stack`` and the matching PY_RETURN/PY_UNWIND pops it, whether or not the call becomes

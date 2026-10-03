@@ -1,10 +1,11 @@
 import copy
+import re
 from typing import Any
 
 import jsonschema
 import pytest
 
-from flow_tracer_api.services.payload_validation import SchemaPayloadValidator
+from flow_tracer_api.services.payload_validation import SCHEMA_VERSION, SchemaPayloadValidator
 from flow_tracer_api.services.ports import PayloadValidationError
 from tests.fixtures import FIXTURE_NAMES, load_fixture, load_schema
 
@@ -24,7 +25,7 @@ def test_fixtures_pass_the_backend_validator_unchanged(name: str) -> None:
 
     validated = SchemaPayloadValidator().validate(payload)
 
-    assert validated.schema_version == "0.1.0"
+    assert validated.schema_version == SCHEMA_VERSION
     assert validated.payload == payload  # stored as sent, not re-serialised
     assert validated.payload is not payload
 
@@ -56,7 +57,9 @@ def _broken(mutate: Any) -> dict[str, Any]:
     ],
 )
 def test_schema_violations_are_reported(payload: dict[str, Any], fragment: str) -> None:
-    with pytest.raises(PayloadValidationError, match=r"does not match schema 0\.1\.0") as exc_info:
+    with pytest.raises(
+        PayloadValidationError, match="does not match schema " + re.escape(SCHEMA_VERSION)
+    ) as exc_info:
         SchemaPayloadValidator().validate(payload)
 
     assert fragment in exc_info.value.args[0]

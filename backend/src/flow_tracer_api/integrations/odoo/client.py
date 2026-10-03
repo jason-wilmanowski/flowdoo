@@ -131,7 +131,8 @@ class OdooJson2Client:
                 f"Odoo does not serve database {self._database!r} (or JSON-2 is not available)"
             )
         return OdooCallError(
-            f"{target} failed with HTTP {response.status_code}: {message or 'no details'}"
+            f"{target} failed with HTTP {response.status_code}: {message or 'no details'}",
+            status_code=response.status_code,
         )
 
 

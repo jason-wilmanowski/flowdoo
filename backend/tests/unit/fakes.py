@@ -129,6 +129,7 @@ def answer_for(request: TraceRequest, payload: dict[str, Any]) -> dict[str, Any]
         method=request.method,
         record_ids=list(request.record_ids),
         context=dict(request.context),
+        kwargs=dict(request.call_kwargs),
     )
     return answered
 

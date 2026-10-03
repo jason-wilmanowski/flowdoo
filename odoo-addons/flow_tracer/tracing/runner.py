@@ -1,4 +1,4 @@
-"""Run one entrypoint under the recorder and build the trace (schema v0.1.0).
+"""Run one entrypoint under the recorder and build the trace (schema v0.2.0).
 
 Dry run (default): the run happens inside a savepoint, followed by ``flush_all()`` so
 pending recomputes and constraints are part of the flow. Afterwards the savepoint is
@@ -8,6 +8,7 @@ persist anything. Side effects are not blocked (ADR 0001): use neutralised datab
 """
 
 import datetime
+import inspect
 from contextlib import contextmanager
 
 from odoo import release
@@ -18,11 +19,34 @@ from .monitor import CURRENT_SESSION, MONITOR
 from .session import TraceSession
 from .targets import get_index
 
-SCHEMA_VERSION = "0.1.0"
+SCHEMA_VERSION = "0.2.0"
 
 
 class DryRunCommitError(RuntimeError):
     pass
+
+
+class InvalidEntrypoint(ValueError):
+    """The call cannot be made as requested (wrong arguments, ids on a model-level method)."""
+
+
+def prepare_call(env, model: str, method: str, record_ids, context, kwargs):
+    """Records to call ``method`` on, checked like Odoo's JSON-2 API does it.
+
+    Raises KeyError (unknown model), AccessError/AttributeError (not callable remotely)
+    and InvalidEntrypoint before anything runs.
+    """
+    records = env[model].with_context(**context).browse(record_ids)
+    func = get_public_method(records, method)
+    if getattr(func, "_api_model", False) and record_ids:
+        raise InvalidEntrypoint(
+            f"{model}.{method} is a model-level method: call it without record ids"
+        )
+    try:
+        inspect.signature(func).bind(records, **kwargs)
+    except TypeError as exc:
+        raise InvalidEntrypoint(f"{model}.{method}: {exc}") from exc
+    return records
 
 
 _UNSET = object()
@@ -58,14 +82,15 @@ def _recording(session: TraceSession, index):
         MONITOR.release()
 
 
-def run_trace(env, *, trace_id: str, model: str, method: str, record_ids, context, dry_run=True):
-    """Execute ``model.method`` on ``record_ids`` and return the trace payload.
+def run_trace(
+    env, *, trace_id: str, model: str, method: str, record_ids, context, kwargs=None, dry_run=True
+):
+    """Execute ``model.method(**kwargs)`` on ``record_ids`` and return the trace payload.
 
-    Raises KeyError (unknown model), AccessError/AttributeError (method not callable
-    remotely, same rules as JSON-2) and RecorderUnavailable before anything runs.
+    Raises the errors of :func:`prepare_call` and RecorderUnavailable before anything runs.
     """
-    records = env[model].with_context(**context).browse(record_ids)
-    get_public_method(records, method)
+    kwargs = kwargs or {}
+    records = prepare_call(env, model, method, record_ids, context, kwargs)
     index = get_index(env.registry)
     session = TraceSession(index)
     cr = env.cr
@@ -76,7 +101,7 @@ def run_trace(env, *, trace_id: str, model: str, method: str, record_ids, contex
     try:
         with _commit_forbidden(cr) if dry_run else _nothing(), _recording(session, index):
             try:
-                getattr(records, method)()
+                getattr(records, method)(**kwargs)
                 env.flush_all()
             except Exception as exc:
                 error = values.error_of(exc)
@@ -110,6 +135,7 @@ def run_trace(env, *, trace_id: str, model: str, method: str, record_ids, contex
             "method": method,
             "record_ids": list(record_ids),
             "context": context,
+            "kwargs": kwargs,
         },
         "steps": session.steps,
         "error": error,

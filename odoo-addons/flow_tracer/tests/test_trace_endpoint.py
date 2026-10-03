@@ -77,6 +77,7 @@ class TestTraceEndpoint(HttpCase):
             {"context": []},
             {"dry_run": "yes"},
             {"model": ""},
+            {"kwargs": ["vals"]},
         ]
         for body in cases:
             with self.subTest(body=body):
@@ -99,3 +100,44 @@ class TestTraceEndpoint(HttpCase):
         )
 
         self.assertTrue(response.json()["recorder_available"])
+
+    def test_kwargs_reach_the_method(self):
+        response = self._trace(method="write", kwargs={"vals": {"name": "Ada via HTTP"}})
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(
+            response.json()["entrypoint"]["kwargs"], {"vals": {"name": "Ada via HTTP"}}
+        )
+
+    def test_call_that_cannot_be_made_is_422(self):
+        response = self._trace(method="write", kwargs={"vals": {}, "nope": 1})
+
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("unexpected keyword argument", response.text)
+
+    def _signature(self, key=None, **body):
+        return self.url_open(
+            "/flow_tracer/v1/signature",
+            json={"model": "res.partner", "method": "write", **body},
+            method="POST",
+            headers={
+                "Authorization": f"bearer {key or self.admin_key}",
+                "X-Odoo-Database": self.env.cr.dbname,
+            },
+        )
+
+    def test_signature_endpoint(self):
+        response = self._signature()
+
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertEqual(body["method"], "write")
+        self.assertEqual([p["name"] for p in body["parameters"]], ["vals"])
+
+    def test_signature_endpoint_access_and_errors(self):
+        self.assertEqual(self._signature(key=self.user_key).status_code, 403)
+        self.assertEqual(self._signature(method="no_such_method").status_code, 404)
+        self.assertEqual(self._signature(method="_create_contact_parent_company").status_code, 403)
+        self.assertEqual(self._signature(model="").status_code, 400)
+        with patch.object(flags, "config", {}):
+            self.assertEqual(self._signature().status_code, 403)

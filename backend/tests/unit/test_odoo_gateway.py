@@ -22,6 +22,7 @@ REQUEST = TraceRequest(
     method="action_confirm",
     record_ids=(1,),
     context={"lang": "en_US"},
+    call_kwargs={"vals": {"note": "traced"}},
     dry_run=True,
 )
 
@@ -61,6 +62,7 @@ async def test_posts_the_run_to_the_addon_and_returns_its_trace() -> None:
         "method": "action_confirm",
         "record_ids": [1],
         "context": {"lang": "en_US"},
+        "kwargs": {"vals": {"note": "traced"}},
         "dry_run": True,
     }
     assert request.extensions["timeout"]["read"] == 120  # trace timeout, not the default

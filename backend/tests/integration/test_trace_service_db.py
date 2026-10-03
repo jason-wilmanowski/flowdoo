@@ -8,7 +8,7 @@ from flow_tracer_api.domain import TraceStatus
 from flow_tracer_api.models import Trace
 from flow_tracer_api.schemas import GatewayResult, StartTraceCommand, TraceListQuery
 from flow_tracer_api.services import TraceService
-from flow_tracer_api.services.payload_validation import SchemaPayloadValidator
+from flow_tracer_api.services.payload_validation import SCHEMA_VERSION, SchemaPayloadValidator
 from flow_tracer_api.services.ports import OdooGatewayError
 from tests.fixtures import load_fixture
 from tests.unit.fakes import FakeOdooGateway, answer_for
@@ -30,7 +30,7 @@ async def test_start_trace_persists_through_injected_session(db_session: AsyncSe
     assert row is not None
     assert row.status is TraceStatus.SUCCEEDED
     assert row.payload == answer_for(gateway.requests[0], payload)
-    assert row.schema_version == "0.1.0"
+    assert row.schema_version == SCHEMA_VERSION
     assert row.odoo_version == "19.0"
     assert row.finished_at is not None
     assert await service.get_trace(result.id) == result
