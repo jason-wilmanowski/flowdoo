@@ -20,6 +20,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/odoo/entrypoints/{model}/{method}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Describe a method before tracing it
+         * @description Parameters of `model.method` as the flow_tracer addon sees them: which keyword arguments it takes, which are required, defaults, and whether it is a model-level method (call it without record ids).
+         */
+        get: operations["describe_entrypoint_odoo_entrypoints__model___method__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/odoo/status": {
         parameters: {
             query?: never;
@@ -86,6 +106,40 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * EntrypointParameter
+         * @description One parameter of a method; only keyword arguments can be passed (as in JSON-2).
+         */
+        EntrypointParameter: {
+            /** Annotation */
+            annotation: string | null;
+            /** Default */
+            default: string | null;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /** Required */
+            required: boolean;
+        };
+        /**
+         * EntrypointSignature
+         * @description What a method expects, so a trace can be started with the right kwargs.
+         */
+        EntrypointSignature: {
+            /** Method */
+            method: string;
+            /** Model */
+            model: string;
+            /** Model Level */
+            model_level: boolean;
+            /** Module */
+            module: string | null;
+            /** Parameters */
+            parameters: components["schemas"]["EntrypointParameter"][];
+            /** Summary */
+            summary: string | null;
+        };
         /**
          * ErrorResponse
          * @description Body of every error response: ``HTTPException(detail=...)`` renders as this.
@@ -189,6 +243,10 @@ export interface components {
             entrypoint_method: string;
             /** Entrypoint Model */
             entrypoint_model: string;
+            /** Kwargs */
+            kwargs?: {
+                [key: string]: unknown;
+            };
             /**
              * Record Ids
              * @default []
@@ -323,6 +381,83 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    describe_entrypoint_odoo_entrypoints__model___method__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                model: string;
+                method: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntrypointSignature"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

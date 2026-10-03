@@ -37,13 +37,13 @@ export type Summary = string;
 export type FieldValue = null | boolean | number | Summary | RecordIds;
 
 /**
- * One recorded run of an Odoo entrypoint, as produced by the flow_tracer addon. Contract between recorder, backend and frontend. Version 0.1.0.
+ * One recorded run of an Odoo entrypoint, as produced by the flow_tracer addon. Contract between recorder, backend and frontend. Version 0.2.0.
  */
 export interface TracePayload {
   /**
    * Version of this schema (semver). Breaking changes bump the major version.
    */
-  schema_version: "0.1.0";
+  schema_version: "0.2.0";
   /**
    * Id of the trace, assigned by the backend before the run.
    */
@@ -73,7 +73,7 @@ export interface TracePayload {
   error: RecordedError | null;
 }
 /**
- * What was run: method on model for the given records.
+ * What was run: method on model for the given records (none for model-level methods), called with kwargs.
  */
 export interface Entrypoint {
   model: ModelName;
@@ -82,7 +82,15 @@ export interface Entrypoint {
   /**
    * Context the entrypoint was called with.
    */
-  context: {};
+  context: {
+    [k: string]: unknown | undefined;
+  };
+  /**
+   * Keyword arguments the method was called with (JSON values; recordsets as ids), like Odoo's JSON-2 API.
+   */
+  kwargs: {
+    [k: string]: unknown | undefined;
+  };
 }
 /**
  * One event during the run, e.g. a method call or an ORM write.

@@ -1,6 +1,110 @@
 {
   "components": {
     "schemas": {
+      "EntrypointParameter": {
+        "description": "One parameter of a method; only keyword arguments can be passed (as in JSON-2).",
+        "properties": {
+          "annotation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Annotation"
+          },
+          "default": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "required",
+          "default",
+          "annotation"
+        ],
+        "title": "EntrypointParameter",
+        "type": "object"
+      },
+      "EntrypointSignature": {
+        "description": "What a method expects, so a trace can be started with the right kwargs.",
+        "properties": {
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "model_level": {
+            "title": "Model Level",
+            "type": "boolean"
+          },
+          "module": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module"
+          },
+          "parameters": {
+            "items": {
+              "$ref": "#/components/schemas/EntrypointParameter"
+            },
+            "title": "Parameters",
+            "type": "array"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          }
+        },
+        "required": [
+          "model",
+          "method",
+          "model_level",
+          "module",
+          "summary",
+          "parameters"
+        ],
+        "title": "EntrypointSignature",
+        "type": "object"
+      },
       "ErrorResponse": {
         "description": "Body of every error response: ``HTTPException(detail=...)`` renders as this.",
         "properties": {
@@ -199,6 +303,11 @@
             "minLength": 1,
             "title": "Entrypoint Model",
             "type": "string"
+          },
+          "kwargs": {
+            "additionalProperties": true,
+            "title": "Kwargs",
+            "type": "object"
           },
           "record_ids": {
             "default": [],
@@ -527,6 +636,108 @@
         "summary": "Health",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/odoo/entrypoints/{model}/{method}": {
+      "get": {
+        "description": "Parameters of `model.method` as the flow_tracer addon sees them: which keyword arguments it takes, which are required, defaults, and whether it is a model-level method (call it without record ids).",
+        "operationId": "describe_entrypoint_odoo_entrypoints__model___method__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model",
+            "required": true,
+            "schema": {
+              "title": "Model",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "method",
+            "required": true,
+            "schema": {
+              "title": "Method",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntrypointSignature"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Describe a method before tracing it",
+        "tags": [
+          "odoo"
         ]
       }
     },

@@ -24,7 +24,8 @@ await mkdir(out, { recursive: true });
 // 1. Trace payload
 const trace = await compileFromFile(schemaFile, {
   bannerComment: banner("shared/schemas/trace.schema.json").trim(),
-  additionalProperties: false,
+  // keep the schema's own additionalProperties: closed objects stay closed, the open ones
+  // (entrypoint.context, entrypoint.kwargs) become { [k: string]: unknown }
   strictIndexSignatures: true,
   style: { printWidth: 100 },
 });
