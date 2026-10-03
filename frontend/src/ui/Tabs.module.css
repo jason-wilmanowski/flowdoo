@@ -1,0 +1,33 @@
+.list {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: var(--border-width) solid var(--border);
+}
+
+.trigger {
+  height: var(--control-h);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-bottom: var(--selection-edge) solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition:
+    color var(--duration) var(--ease),
+    border-color var(--duration) var(--ease);
+}
+
+.trigger:hover {
+  color: var(--text);
+}
+
+.trigger[data-state="active"] {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+}
+
+.content {
+  padding: var(--space-3) 0;
+}
