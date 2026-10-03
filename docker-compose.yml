@@ -47,8 +47,17 @@ services:
       context: ./frontend
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+      # Bind mounts on macOS/Windows do not deliver file events: let Vite poll.
+      VITE_USE_POLLING: "true"
+      # Trace schema and fixtures (fixture mode works without backend and Odoo).
+      FLOWDOO_SHARED_DIR: /shared
     ports:
       - "127.0.0.1:${FRONTEND_HOST_PORT:-5173}:5173"
+    volumes:
+      # Source from the host for hot reload; the image keeps its own node_modules.
+      - ./frontend:/app
+      - /app/node_modules
+      - ./shared:/shared:ro
     depends_on:
       - api
 
