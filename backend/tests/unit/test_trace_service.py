@@ -1,4 +1,5 @@
 import uuid
+from http import HTTPStatus
 from typing import cast
 
 import pytest
@@ -133,8 +134,11 @@ async def test_non_dry_run_is_rejected_by_default() -> None:
     session = FakeSession()
     gateway = FakeOdooGateway()
 
-    with pytest.raises(NonDryRunNotAllowedError):
+    with pytest.raises(NonDryRunNotAllowedError) as exc_info:
         await _service(session, gateway).start_trace(CONFIRM.model_copy(update={"dry_run": False}))
+
+    assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
+    assert "dry_run=false is disabled" in exc_info.value.message
 
     assert session.committed == {}
     assert gateway.requests == []
@@ -207,8 +211,39 @@ async def test_start_trace_without_gateway_writes_nothing() -> None:
         trace_repository=FakeTraceRepository(session),
     )
 
-    with pytest.raises(OdooGatewayUnavailableError):
+    with pytest.raises(OdooGatewayUnavailableError) as exc_info:
         await service.start_trace(CONFIRM)
+
+    assert exc_info.value.status_code == HTTPStatus.SERVICE_UNAVAILABLE
 
     assert session.rows == {}
     assert session.commits == 0
+
+
+async def test_not_found_errors_carry_404_and_message() -> None:
+    service = _service(FakeSession(), FakeOdooGateway())
+    missing = uuid.uuid4()
+
+    with pytest.raises(TraceNotFoundError) as on_get:
+        await service.get_trace(missing)
+    with pytest.raises(TraceNotFoundError) as on_delete:
+        await service.delete_trace(missing)
+
+    for exc_info in (on_get, on_delete):
+        assert exc_info.value.status_code == HTTPStatus.NOT_FOUND
+        assert exc_info.value.message == f"Trace {missing} not found"
+
+
+async def test_trace_deleted_during_recording_is_409() -> None:
+    session = FakeSession()
+
+    def delete_while_running(request: TraceRequest) -> None:
+        del session.rows[request.trace_id]
+
+    service = _service(session, FakeOdooGateway(on_call=delete_while_running))
+
+    with pytest.raises(TraceNotFoundError) as exc_info:
+        await service.start_trace(CONFIRM)
+
+    assert exc_info.value.status_code == HTTPStatus.CONFLICT
+    assert "deleted while it was being recorded" in exc_info.value.message
