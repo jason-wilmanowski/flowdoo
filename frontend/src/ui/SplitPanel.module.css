@@ -1,0 +1,41 @@
+.split {
+  display: flex;
+  min-height: 0;
+  height: 100%;
+}
+
+.pane {
+  flex: none;
+  min-width: 0;
+  overflow: auto;
+  background: var(--surface);
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}
+
+.handle {
+  position: relative;
+  flex: none;
+  width: var(--border-width);
+  background: var(--border);
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 1;
+  transition: background-color var(--duration) var(--ease);
+}
+
+/* a wider, invisible grab area around the 1px line */
+.handle::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(var(--space-2) * -1);
+}
+
+.handle:hover,
+.handle:focus-visible {
+  background-color: var(--accent);
+}

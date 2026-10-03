@@ -1,0 +1,68 @@
+.kit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-5) var(--space-6);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--space-4);
+  border-bottom: var(--border-width) solid var(--border);
+}
+
+.heading,
+.title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.title {
+  margin-bottom: var(--space-3);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.wide {
+  width: 100%;
+  max-width: calc(var(--panel-right-w) * 2);
+}
+
+.box {
+  width: var(--panel-right-w);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.split {
+  width: 100%;
+  height: calc(var(--panel-left-w) * 1.2);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.graph {
+  width: 100%;
+  height: calc(var(--panel-right-w) * 1.1);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+}
+
+.pad {
+  padding: var(--space-3);
+  color: var(--text-muted);
+}

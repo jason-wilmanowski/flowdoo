@@ -1,0 +1,20 @@
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.row {
+  height: var(--space-5);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+
+.row:nth-child(3n + 2) {
+  width: 80%;
+}
+
+.row:nth-child(3n) {
+  width: 60%;
+}

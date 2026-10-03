@@ -1,0 +1,17 @@
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.message {
+  color: var(--text-muted);
+  line-height: var(--leading-prose);
+}
+
+.danger {
+  color: var(--danger);
+  line-height: var(--leading-prose);
+}
