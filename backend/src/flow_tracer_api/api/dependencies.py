@@ -1,18 +1,23 @@
-"""Dependency injection wiring: request session -> service.
+"""Dependency injection wiring: request-scoped resources -> services.
 
 Endpoints declare ``service: TraceServiceDep``; FastAPI builds the request-scoped
 ``AsyncSession`` (``core.dependencies.get_session``) and hands it to ``TraceService``,
-which creates its repository on that session.
+which creates its repository on that session. ``OdooConnectionServiceDep`` works the same
+way with a request-scoped Odoo client that is closed after the response.
 """
 
+from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import Depends
 
 from flow_tracer_api.core.config import Settings, get_settings
 from flow_tracer_api.core.dependencies import SessionDep
+from flow_tracer_api.integrations.odoo import OdooJson2Client
 from flow_tracer_api.services import TraceService
+from flow_tracer_api.services.odoo_connection_service import OdooConnectionService
 from flow_tracer_api.services.ports import (
+    OdooClient,
     OdooGateway,
     OpaquePayloadValidator,
     TracePayloadValidator,
@@ -45,3 +50,35 @@ def get_trace_service(
 
 
 TraceServiceDep = Annotated[TraceService, Depends(get_trace_service)]
+
+
+SettingsDep = Annotated[Settings, Depends(get_settings)]
+
+
+async def get_odoo_client(settings: SettingsDep) -> AsyncIterator[OdooClient | None]:
+    """JSON-2 client for the configured Odoo, or ``None`` if it is not configured."""
+    if settings.odoo_url is None or not settings.odoo_db or settings.odoo_api_key is None:
+        yield None
+        return
+    async with OdooJson2Client(
+        base_url=str(settings.odoo_url),
+        database=settings.odoo_db,
+        api_key=settings.odoo_api_key.get_secret_value(),
+        timeout_seconds=settings.odoo_timeout_seconds,
+    ) as client:
+        yield client
+
+
+def get_odoo_connection_service(
+    client: Annotated[OdooClient | None, Depends(get_odoo_client)],
+    settings: SettingsDep,
+) -> OdooConnectionService:
+    return OdooConnectionService(
+        client,
+        url=str(settings.odoo_url) if settings.odoo_url else None,
+        database=settings.odoo_db,
+        expected_login=settings.odoo_login,
+    )
+
+
+OdooConnectionServiceDep = Annotated[OdooConnectionService, Depends(get_odoo_connection_service)]
