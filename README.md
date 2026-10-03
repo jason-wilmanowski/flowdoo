@@ -13,14 +13,14 @@ field values changed. That shows you where you can hook in.
 
 ## Status
 
-The project is in an early stage. The backend foundation is in place; the Odoo addon that
-records traces and the frontend do not exist yet.
+The project is in an early stage. Recording works end to end through the API (backend →
+addon → Odoo 19); the frontend does not exist yet.
 
 | Part | State |
 |---|---|
-| Backend API (`backend/`) | ✅ Layers, `/traces` endpoints, Odoo connection check, migrations, CORS |
-| Odoo recorder addon (`odoo-addons/flow_tracer`) | ⏳ Planned. Until it exists, `POST /traces` answers `503` |
-| Trace schema (`shared/schemas`) | ⏳ Planned. Payloads are stored unvalidated (JSONB) for now |
+| Backend API (`backend/`) | ✅ `/traces` records through the addon, validates and stores traces; `/odoo/status` checks the connection |
+| Odoo recorder addon (`odoo-addons/flow_tracer`) | ✅ Recorder (`sys.monitoring`, [ADR 0001](docs/adr/0001-recorder-mechanism.md)), dry run, trace endpoint |
+| Trace schema (`shared/schemas`) | ✅ v0.1.0 with generated types, hand-written and recorded fixtures ([format](docs/trace-format.md)) |
 | Frontend (`frontend/`) | ⏳ Planned (React, TypeScript, React Flow) |
 
 ## How it works
@@ -49,9 +49,9 @@ flowchart LR
 - **`backend`** starts runs in your Odoo, stores traces in its **own** database (never in
   the Odoo database) and serves them to the frontend.
 - **`frontend`** shows the trace as a timeline with replay. It talks only to the API.
-- **`shared/`** will hold the trace schema, the contract between the three parts.
+- **`shared/`** holds the trace schema, the contract between the three parts.
 
-Recording a trace (once the addon exists):
+Recording a trace:
 
 ```mermaid
 sequenceDiagram
@@ -99,7 +99,9 @@ stuck in `running`.
 │   │   └── migrations/      # Alembic
 │   └── tests/               # unit/ and integration/ (Postgres, Odoo)
 ├── frontend/                # UI (planned)
-├── odoo-addons/             # flow_tracer addon (planned)
+├── odoo-addons/flow_tracer/ # recorder addon for Odoo 19
+├── shared/                  # trace schema and fixtures (the contract)
+├── docs/                    # trace format, ADRs
 ├── docker-compose.yml       # db, api, frontend; profile "test": odoo-test
 └── .github/workflows/ci.yml
 ```
@@ -145,8 +147,12 @@ On start, the `api` container runs `alembic upgrade head` (disable with
 
 ### Connect your Odoo
 
-1. In Odoo, create an API key: *Preferences → Account Security → New API Key*.
-2. Set in `.env`:
+1. Install the addon in your Odoo and switch it on, see
+   [`odoo-addons/flow_tracer/README.md`](odoo-addons/flow_tracer/README.md). Use a
+   neutralised development database (`odoo neutralize -d <db>`).
+2. In Odoo, create an API key for a user in the *Settings* group:
+   *Preferences → Account Security → New API Key*.
+3. Set in `.env`:
 
    | Variable | Meaning |
    |---|---|
@@ -155,15 +161,22 @@ On start, the `api` container runs `alembic upgrade head` (disable with
    | `ODOO_API_KEY` | The API key (never logged, never stored) |
    | `ODOO_LOGIN` | Optional: the login the key must belong to |
 
-3. Restart the API and check the connection:
+4. Restart the API and check the connection:
 
    ```sh
    docker compose up -d api
    curl http://localhost:8000/odoo/status
    ```
 
-   `ok: true` means: reachable, Odoo 19.0, valid key and the `flow_tracer` addon installed.
-   Otherwise `problems` says what is missing.
+   `ok: true` means: reachable, Odoo 19.0, valid key, `flow_tracer` installed and switched
+   on, recorder available, key user is an administrator. Otherwise `problems` says what is
+   missing; `warnings` reports e.g. a database that is not neutralised.
+5. Record a run:
+
+   ```sh
+   curl -X POST http://localhost:8000/traces -H "Content-Type: application/json" \
+     -d '{"entrypoint_model": "sale.order", "entrypoint_method": "action_confirm", "record_ids": [1]}'
+   ```
 
 ### Configuration
 
@@ -184,7 +197,7 @@ The most important ones besides the Odoo connection:
 |---|---|---|
 | `GET` | `/health` | Liveness |
 | `GET` | `/odoo/status` | Check the connection to your Odoo |
-| `POST` | `/traces` | Record a run (`201`; `503` while no Odoo gateway exists) |
+| `POST` | `/traces` | Record a run in your Odoo (`201`; `503` if no Odoo is configured) |
 | `GET` | `/traces` | List traces (filters, paging, without payload) |
 | `GET` | `/traces/{trace_id}` | One trace with payload |
 | `DELETE` | `/traces/{trace_id}` | Delete a trace |
