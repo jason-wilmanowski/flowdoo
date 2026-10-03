@@ -14,14 +14,15 @@ field values changed. That shows you where you can hook in.
 ## Status
 
 The project is in an early stage. Recording works end to end through the API (backend →
-addon → Odoo 19); the frontend does not exist yet.
+addon → Odoo 19). The frontend has its foundation (app shell, data layer, fixture mode);
+the trace views themselves are not built yet.
 
 | Part | State |
 |---|---|
 | Backend API (`backend/`) | ✅ `/traces` records through the addon, validates and stores traces; `/odoo/status` checks the connection |
 | Odoo recorder addon (`odoo-addons/flow_tracer`) | ✅ Recorder (`sys.monitoring`, [ADR 0001](docs/adr/0001-recorder-mechanism.md)), dry run, trace endpoint |
-| Trace schema (`shared/schemas`) | ✅ v0.1.0 with generated types, hand-written and recorded fixtures ([format](docs/trace-format.md)) |
-| Frontend (`frontend/`) | ⏳ Planned (React, TypeScript, React Flow) |
+| Trace schema (`shared/schemas`) | ✅ v0.2.0 with generated types, hand-written and recorded fixtures ([format](docs/trace-format.md)) |
+| Frontend (`frontend/`) | 🚧 Foundation: app shell, routing, API client, stores, fixture mode, UI primitives ([architecture](docs/frontend-architecture.md)); trace list and replay views are next |
 
 ## How it works
 
@@ -78,7 +79,8 @@ stuck in `running`.
 | Tooling | uv, ruff, mypy (strict), import-linter, pytest + pytest-asyncio |
 | Storage | PostgreSQL (own database `flow_tracer`, traces as JSONB) |
 | Odoo | Odoo 19.0 Community, external JSON-2 API (`/json/2/<model>/<method>`) |
-| Frontend (planned) | React, TypeScript, Vite, React Flow (`@xyflow/react`), Zustand |
+| Frontend | React 19, TypeScript (strict), Vite, React Router, Zustand, Radix (unstyled), React Flow (`@xyflow/react`), CSS Modules |
+| Frontend tooling | pnpm, Vitest + Testing Library, ESLint, stylelint, Prettier, json-schema-to-typescript, openapi-typescript |
 | Runtime | Docker Compose |
 
 ## Repository layout
@@ -98,10 +100,10 @@ stuck in `running`.
 │   │   ├── core/            # settings, database engine/session, logging
 │   │   └── migrations/      # Alembic
 │   └── tests/               # unit/ and integration/ (Postgres, Odoo)
-├── frontend/                # UI (planned)
+├── frontend/                # UI (React + Vite), see docs/frontend-architecture.md
 ├── odoo-addons/flow_tracer/ # recorder addon for Odoo 19
 ├── shared/                  # trace schema and fixtures (the contract)
-├── docs/                    # trace format, ADRs
+├── docs/                    # trace format, frontend architecture, ADRs
 ├── docker-compose.yml       # db, api, frontend; profile "test": odoo-test
 └── .github/workflows/ci.yml
 ```
@@ -136,7 +138,7 @@ and an HTTP status code; endpoints turn them into `HTTPException`s.
 
 ```sh
 cp .env.example .env          # then set your own POSTGRES_PASSWORD (also in DATABASE_URL)
-docker compose up -d db api   # the frontend service follows once the frontend exists
+docker compose up -d db api   # add `frontend` for the UI on http://localhost:5173
 ```
 
 On start, the `api` container runs `alembic upgrade head` (disable with
@@ -237,6 +239,31 @@ Test markers:
 The test Odoo is started with the compose profile `test`:
 `docker compose --profile test up -d odoo-test`.
 
+### Frontend
+
+```sh
+cd frontend
+corepack enable                 # pnpm in the version pinned in package.json
+pnpm install
+pnpm dev                        # http://localhost:5173, talks to VITE_API_URL
+VITE_DATA_SOURCE=fixtures pnpm dev   # without backend and Odoo, on shared/fixtures
+
+pnpm lint                       # ESLint, stylelint, Prettier
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm gen:types                  # after a schema or API change (needs uv for the OpenAPI dump)
+```
+
+The data source can also be switched at runtime in the top bar. `/_kit` (development only)
+shows all UI primitives in light and dark. Layers, data flow, conventions and a checklist
+for new features: [docs/frontend-architecture.md](docs/frontend-architecture.md).
+
+| Variable (`frontend/.env.local`) | Meaning |
+|---|---|
+| `VITE_API_URL` | Base URL of the Flowdoo API (default `http://localhost:8000`) |
+| `VITE_DATA_SOURCE` | `api` (default) or `fixtures` |
+
 ### Git hooks
 
 ```sh
@@ -266,6 +293,9 @@ Every pull request runs:
 | mypy | strict type checking |
 | import-linter | backend layer contracts |
 | unit tests | `pytest -m "not integration and not odoo"` |
+| backend generated types | regenerated from `shared/schemas`, no diff |
+| frontend | lint (ESLint, stylelint, Prettier), typecheck, Vitest, build |
+| frontend generated types | regenerated from `shared/schemas` and the backend's OpenAPI, no diff |
 
 ## License
 
