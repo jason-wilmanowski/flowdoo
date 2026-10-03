@@ -10,16 +10,16 @@ from collections.abc import AsyncIterator, Callable
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from pydantic import SecretStr
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
-from flow_tracer_api.api.app import create_app
 from flow_tracer_api.api.dependencies import get_odoo_gateway
 from flow_tracer_api.core.config import Settings, get_settings
 from flow_tracer_api.core.dependencies import get_session_factory
+from flow_tracer_api.main import create_app
 from flow_tracer_api.schemas import GatewayResult
 from flow_tracer_api.services.ports import OdooGateway, OdooGatewayError
+from tests.settings import make_settings
 from tests.unit.fakes import FakeOdooGateway
 
 pytestmark = pytest.mark.integration
@@ -28,11 +28,7 @@ CONFIRM = {"entrypoint_model": "sale.order", "entrypoint_method": "action_confir
 
 
 def _settings(**overrides: object) -> Settings:
-    return Settings(
-        database_url=SecretStr("postgresql+asyncpg://u:p@localhost:1/unused"),
-        _env_file=None,
-        **overrides,  # type: ignore[arg-type]
-    )
+    return make_settings(**overrides)
 
 
 @pytest.fixture

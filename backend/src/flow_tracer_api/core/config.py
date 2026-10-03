@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     # dry_run=false writes to the user's Odoo DB. Dev setups only, off by default.
     allow_non_dry_run: bool = False
 
+    # The frontend's URL (FRONTEND_URL); the only origin allowed to call the API (CORS).
+    frontend_url: str
+
     # Connection to the user's existing Odoo 19 (never stored in the database).
     odoo_url: HttpUrl | None = None
     odoo_db: str | None = None

@@ -32,6 +32,7 @@ services:
       ODOO_API_KEY: ${ODOO_API_KEY:-}
       ODOO_TIMEOUT_SECONDS: ${ODOO_TIMEOUT_SECONDS:-10}
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      FRONTEND_URL: ${FRONTEND_URL:?set FRONTEND_URL in .env}
     ports:
       - "127.0.0.1:${API_HOST_PORT:-8000}:8000"
     extra_hosts:
