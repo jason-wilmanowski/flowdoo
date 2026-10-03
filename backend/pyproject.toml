@@ -71,10 +71,10 @@ containers = ["flow_tracer_api"]
 layers = ["api", "(services)", "(repositories)", "models"]
 
 [[tool.importlinter.contracts]]
-name = "core does not depend on application layers"
+name = "core and domain do not depend on application layers"
 type = "forbidden"
 # flow_tracer_api.schemas joins this list once it exists.
-source_modules = ["flow_tracer_api.core"]
+source_modules = ["flow_tracer_api.core", "flow_tracer_api.domain"]
 forbidden_modules = [
     "flow_tracer_api.api",
     "flow_tracer_api.services",
@@ -82,3 +82,9 @@ forbidden_modules = [
     "flow_tracer_api.models",
 ]
 allow_indirect_imports = false
+
+[[tool.importlinter.contracts]]
+name = "domain is self-contained"
+type = "forbidden"
+source_modules = ["flow_tracer_api.domain"]
+forbidden_modules = ["flow_tracer_api.core"]
