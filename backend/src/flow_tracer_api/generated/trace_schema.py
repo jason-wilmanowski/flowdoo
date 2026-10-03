@@ -39,7 +39,7 @@ class Summary(RootModel[str]):
 
 class Entrypoint(BaseModel):
     """
-    What was run: method on model for the given records.
+    What was run: method on model for the given records (none for model-level methods), called with kwargs.
     """
 
     model_config = ConfigDict(
@@ -60,6 +60,10 @@ class Entrypoint(BaseModel):
     context: dict[str, Any]
     """
     Context the entrypoint was called with.
+    """
+    kwargs: dict[str, Any]
+    """
+    Keyword arguments the method was called with (JSON values; recordsets as ids), like Odoo's JSON-2 API.
     """
 
 
@@ -187,13 +191,13 @@ class Step(BaseModel):
 
 class TracePayload(BaseModel):
     """
-    One recorded run of an Odoo entrypoint, as produced by the flow_tracer addon. Contract between recorder, backend and frontend. Version 0.1.0.
+    One recorded run of an Odoo entrypoint, as produced by the flow_tracer addon. Contract between recorder, backend and frontend. Version 0.2.0.
     """
 
     model_config = ConfigDict(
         extra="forbid",
     )
-    schema_version: Literal["0.1.0"]
+    schema_version: Literal["0.2.0"]
     """
     Version of this schema (semver). Breaking changes bump the major version.
     """

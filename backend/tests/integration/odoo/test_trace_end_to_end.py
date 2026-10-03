@@ -9,7 +9,7 @@ from flow_tracer_api.domain import TraceStatus
 from flow_tracer_api.integrations.odoo import FlowTracerGateway, OdooJson2Client
 from flow_tracer_api.schemas import StartTraceCommand
 from flow_tracer_api.services import TraceService
-from flow_tracer_api.services.payload_validation import SchemaPayloadValidator
+from flow_tracer_api.services.payload_validation import SCHEMA_VERSION, SchemaPayloadValidator
 
 pytestmark = [pytest.mark.integration, pytest.mark.odoo]
 
@@ -43,7 +43,7 @@ async def test_trace_is_recorded_validated_and_stored(
 
     assert trace.status is TraceStatus.SUCCEEDED, trace.error
     assert trace.odoo_version == "19.0"
-    assert trace.schema_version == "0.1.0"
+    assert trace.schema_version == SCHEMA_VERSION
     assert trace.payload is not None
     assert trace.payload["trace_id"] == str(trace.id)
     steps = trace.payload["steps"]

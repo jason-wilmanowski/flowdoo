@@ -110,6 +110,7 @@ class TraceService:
             method=command.entrypoint_method,
             record_ids=command.record_ids,
             context=command.context,
+            call_kwargs=command.call_kwargs,
             dry_run=command.dry_run,
         )
         try:
@@ -191,6 +192,7 @@ def _check_answers_request(request: TraceRequest, payload: dict[str, Any]) -> No
         "entrypoint.model": request.model,
         "entrypoint.method": request.method,
         "entrypoint.record_ids": list(request.record_ids),
+        "entrypoint.kwargs": dict(request.call_kwargs),
         "dry_run": request.dry_run,
     }
     actual: dict[str, object] = {
@@ -198,6 +200,7 @@ def _check_answers_request(request: TraceRequest, payload: dict[str, Any]) -> No
         "entrypoint.model": entrypoint["model"],
         "entrypoint.method": entrypoint["method"],
         "entrypoint.record_ids": list(entrypoint["record_ids"]),
+        "entrypoint.kwargs": entrypoint["kwargs"],
         "dry_run": payload["dry_run"],
     }
     wrong = [

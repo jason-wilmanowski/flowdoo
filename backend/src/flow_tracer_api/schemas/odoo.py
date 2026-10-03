@@ -14,6 +14,7 @@ class TraceRequest(BaseModel):
     method: str
     record_ids: tuple[int, ...] = ()
     context: dict[str, Any] = Field(default_factory=dict)
+    call_kwargs: dict[str, Any] = Field(default_factory=dict)
     dry_run: bool = True
 
 

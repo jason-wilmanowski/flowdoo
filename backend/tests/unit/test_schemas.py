@@ -41,3 +41,15 @@ def test_trace_update_only_reports_explicitly_set_fields() -> None:
 def test_trace_update_rejects_null_status() -> None:
     with pytest.raises(ValidationError, match="status cannot be set to None"):
         TraceUpdate(status=None)
+
+
+def test_start_trace_accepts_kwargs_by_alias_and_name() -> None:
+    by_alias = StartTraceCommand.model_validate(
+        {"entrypoint_model": "res.partner", "entrypoint_method": "write", "kwargs": {"vals": {}}}
+    )
+    by_name = StartTraceCommand(
+        entrypoint_model="res.partner", entrypoint_method="write", call_kwargs={"vals": {}}
+    )
+
+    assert by_alias.call_kwargs == by_name.call_kwargs == {"vals": {}}
+    assert StartTraceCommand(entrypoint_model="a", entrypoint_method="b").call_kwargs == {}

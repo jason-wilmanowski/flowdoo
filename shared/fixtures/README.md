@@ -1,6 +1,6 @@
 # Trace fixtures
 
-Example traces that follow `../schemas/trace.schema.json` (v0.1.0). The frontend is
+Example traces that follow `../schemas/trace.schema.json` (v0.2.0). The frontend is
 developed and tested against them; backend tests validate them against the schema.
 
 | File | Content |

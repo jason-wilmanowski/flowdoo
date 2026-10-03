@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/jason-wilmanowski/flowdoo/shared/schemas/trace.schema.json",
   "title": "TracePayload",
-  "description": "One recorded run of an Odoo entrypoint, as produced by the flow_tracer addon. Contract between recorder, backend and frontend. Version 0.1.0.",
+  "description": "One recorded run of an Odoo entrypoint, as produced by the flow_tracer addon. Contract between recorder, backend and frontend. Version 0.2.0.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -18,7 +18,7 @@
   "properties": {
     "schema_version": {
       "description": "Version of this schema (semver). Breaking changes bump the major version.",
-      "const": "0.1.0"
+      "const": "0.2.0"
     },
     "trace_id": {
       "description": "Id of the trace, assigned by the backend before the run.",
@@ -91,10 +91,10 @@
       "maxLength": 2000
     },
     "Entrypoint": {
-      "description": "What was run: method on model for the given records.",
+      "description": "What was run: method on model for the given records (none for model-level methods), called with kwargs.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["model", "method", "record_ids", "context"],
+      "required": ["model", "method", "record_ids", "context", "kwargs"],
       "properties": {
         "model": {
           "$ref": "#/$defs/ModelName"
@@ -107,6 +107,10 @@
         },
         "context": {
           "description": "Context the entrypoint was called with.",
+          "type": "object"
+        },
+        "kwargs": {
+          "description": "Keyword arguments the method was called with (JSON values; recordsets as ids), like Odoo's JSON-2 API.",
           "type": "object"
         }
       }
