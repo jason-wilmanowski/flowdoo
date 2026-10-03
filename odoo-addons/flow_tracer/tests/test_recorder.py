@@ -33,6 +33,7 @@ class TestRecorder(TraceCase):
                 "method": "create_company",
                 "record_ids": self.contact.ids,
                 "context": {},
+                "kwargs": {},
             },
         )
         self.assertValidTree(payload)

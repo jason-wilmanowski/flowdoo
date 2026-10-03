@@ -71,3 +71,17 @@ async def test_connection_check_passes_with_addon_installed(
     # The test database is not neutralised: a warning, not a problem.
     assert status.database_neutralized is False
     assert len(status.warnings) == 1
+
+
+async def test_entrypoint_signature_from_the_addon(odoo_client: OdooJson2Client) -> None:
+    from flow_tracer_api.services.entrypoint_service import EntrypointService
+
+    service = EntrypointService(odoo_client)
+
+    write = await service.describe("res.partner", "write")
+    name_create = await service.describe("res.partner", "name_create")
+
+    assert [(p.name, p.required) for p in write.parameters] == [("vals", True)]
+    assert write.model_level is False
+    assert name_create.model_level is True
+    assert [p.name for p in name_create.parameters] == ["name"]

@@ -26,6 +26,7 @@ class FlowTracerGateway:
             "method": request.method,
             "record_ids": list(request.record_ids),
             "context": dict(request.context),
+            "kwargs": dict(request.call_kwargs),
             "dry_run": request.dry_run,
         }
         try:

@@ -29,7 +29,7 @@ class FakeOdooClient:
         neutralized: bool = True,
     ) -> None:
         self.addon_status = addon_status or {
-            "addon_version": "19.0.0.2.0",
+            "addon_version": "19.0.0.3.0",
             "odoo_version": serie,
             "enabled": True,
             "is_admin": True,

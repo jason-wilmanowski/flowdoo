@@ -18,6 +18,7 @@ from flow_tracer_api.core.config import Settings, get_settings
 from flow_tracer_api.core.dependencies import get_session_factory
 from flow_tracer_api.main import create_app
 from flow_tracer_api.schemas import GatewayResult
+from flow_tracer_api.services.payload_validation import SCHEMA_VERSION
 from flow_tracer_api.services.ports import OdooGateway, OdooGatewayError
 from tests.fixtures import load_fixture
 from tests.settings import make_settings
@@ -63,7 +64,7 @@ async def test_start_trace_returns_201_with_stored_trace(make_client) -> None:
     assert body["status"] == "succeeded"
     assert body["dry_run"] is True
     assert body["payload"] == answer_for(gateway.requests[0], payload)
-    assert body["schema_version"] == "0.1.0"
+    assert body["schema_version"] == SCHEMA_VERSION
     assert body["odoo_version"] == "19.0"
     assert gateway.requests[0].record_ids == (1,)
 
@@ -157,3 +158,20 @@ async def test_openapi_documents_trace_endpoints(make_client) -> None:
     assert set(spec["paths"]) >= {"/health", "/traces", "/traces/{trace_id}"}
     assert {"post", "get"} <= set(spec["paths"]["/traces"])
     assert "404" in spec["paths"]["/traces/{trace_id}"]["get"]["responses"]
+
+
+async def test_start_trace_passes_kwargs(make_client) -> None:
+    gateway = FakeOdooGateway()
+    async with make_client(gateway) as client:
+        response = await client.post(
+            "/traces",
+            json={
+                "entrypoint_model": "res.partner",
+                "entrypoint_method": "name_create",
+                "kwargs": {"name": "Grace Hopper"},
+            },
+        )
+
+    assert response.status_code == 201, response.text
+    assert gateway.requests[0].call_kwargs == {"name": "Grace Hopper"}
+    assert response.json()["payload"]["entrypoint"]["kwargs"] == {"name": "Grace Hopper"}

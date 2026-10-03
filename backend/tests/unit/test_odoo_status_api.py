@@ -89,3 +89,36 @@ async def test_gateway_is_built_on_the_request_client() -> None:
     assert isinstance(gateway, FlowTracerGateway)
     assert get_odoo_gateway(None, settings) is None
     await client.aclose()
+
+
+async def test_entrypoint_signature_endpoint() -> None:
+    from tests.unit.test_entrypoint_service import SIGNATURE, SignatureClient
+
+    settings = _settings(**CONFIGURED)
+    app = create_app(settings)
+    app.dependency_overrides[get_settings] = lambda: settings
+    app.dependency_overrides[get_odoo_client] = lambda: SignatureClient()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/odoo/entrypoints/res.partner/write")
+
+    assert response.status_code == 200
+    assert response.json() == SIGNATURE
+
+
+async def test_entrypoint_signature_endpoint_passes_404_on() -> None:
+    from flow_tracer_api.integrations.odoo import OdooCallError
+    from tests.unit.test_entrypoint_service import SignatureClient
+
+    settings = _settings(**CONFIGURED)
+    app = create_app(settings)
+    app.dependency_overrides[get_settings] = lambda: settings
+    app.dependency_overrides[get_odoo_client] = lambda: SignatureClient(
+        error=OdooCallError("The method 'res.partner.nope' does not exist", 404)
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/odoo/entrypoints/res.partner/nope")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "The method 'res.partner.nope' does not exist"}

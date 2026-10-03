@@ -1,8 +1,8 @@
-"""Validation of recorder output against the trace schema (shared/schemas, v0.1.0)."""
+"""Validation of recorder output against the trace schema (shared/schemas)."""
 
 import json
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, get_args
 
 from pydantic import ValidationError
 
@@ -11,6 +11,9 @@ from flow_tracer_api.schemas import ValidatedPayload
 from flow_tracer_api.services.ports import PayloadValidationError
 
 _MAX_REPORTED_ERRORS = 5
+
+# The version the generated model accepts, e.g. "0.2.0" (single source: the schema).
+SCHEMA_VERSION: str = get_args(TracePayload.model_fields["schema_version"].annotation)[0]
 
 
 class SchemaPayloadValidator:
@@ -44,7 +47,7 @@ def _describe(exc: ValidationError) -> str:
     shown = "; ".join(parts[:_MAX_REPORTED_ERRORS])
     more = len(parts) - _MAX_REPORTED_ERRORS
     suffix = f" (and {more} more)" if more > 0 else ""
-    return f"Trace payload does not match schema 0.1.0: {shown}{suffix}"
+    return f"Trace payload does not match schema {SCHEMA_VERSION}: {shown}{suffix}"
 
 
 def _check_step_tree(steps: Sequence[Step]) -> None:

@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1.0",
+  "schema_version": "0.2.0",
   "trace_id": "3f2b8c1e-6d4a-4c1e-9b7a-1a2b3c4d5e03",
   "odoo_version": "19.0",
   "dry_run": true,
@@ -10,7 +10,8 @@
     "record_ids": [
       3
     ],
-    "context": {}
+    "context": {},
+    "kwargs": {}
   },
   "steps": [
     {

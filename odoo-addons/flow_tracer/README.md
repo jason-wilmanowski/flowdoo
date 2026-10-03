@@ -59,7 +59,8 @@ curl -X POST "$ODOO_URL/flow_tracer/v1/trace" \
 | Route | Body | Answer |
 |---|---|---|
 | `POST /flow_tracer/v1/status` | `{}` | `{"addon_version", "odoo_version", "enabled", "is_admin", "recorder_available"}` |
-| `POST /flow_tracer/v1/trace` | `trace_id` (UUID), `model`, `method`, `record_ids` (default `[]`), `context` (default `{}`), `dry_run` (default `true`) | the trace (schema v0.1.0) |
+| `POST /flow_tracer/v1/trace` | `trace_id` (UUID), `model`, `method`, `record_ids` (default `[]`), `context` (default `{}`), `kwargs` (default `{}`), `dry_run` (default `true`) | the trace ([format](../../docs/trace-format.md)) |
+| `POST /flow_tracer/v1/signature` | `model`, `method` | `{"model", "method", "model_level", "module", "summary", "parameters": [{"name", "kind", "required", "default", "annotation"}]}` |
 
 `/trace` answers:
 
@@ -70,10 +71,14 @@ curl -X POST "$ODOO_URL/flow_tracer/v1/trace" \
 | `401` | Missing or invalid API key |
 | `403` | Switch off, user not in *Settings*, or a private method (same rules as JSON-2) |
 | `404` | Unknown model or method |
+| `422` | The call cannot be made: wrong or missing `kwargs`, or record ids for a model-level method |
 | `503` | Recorder unavailable (Python < 3.12, or `sys.monitoring` tool id in use) |
 
-Only methods without arguments can be traced (the entrypoint is called as
-`records.method()`).
+The entrypoint is called as `records.method(**kwargs)`, checked first against the method's
+signature, exactly like Odoo's JSON-2 API: keyword arguments only (JSON values, recordsets
+as ids), and model-level (`@api.model`) methods without record ids.
+`/signature` tells which parameters a method takes before tracing it. Both routes need the
+server switch and the *Settings* group, like `/trace`.
 
 ## How recording works
 

@@ -20,7 +20,7 @@ from flow_tracer_api.services import (
     TraceNotFoundError,
     TraceService,
 )
-from flow_tracer_api.services.payload_validation import SchemaPayloadValidator
+from flow_tracer_api.services.payload_validation import SCHEMA_VERSION, SchemaPayloadValidator
 from flow_tracer_api.services.ports import OdooGateway, OdooGatewayError
 from tests.fixtures import load_fixture
 from tests.unit.fakes import (
@@ -67,7 +67,7 @@ async def test_start_trace_succeeds_and_stores_payload() -> None:
     assert result.payload == answer_for(gateway.requests[0], payload)
     assert result.payload["trace_id"] == str(result.id)
     assert result.odoo_version == "19.0"
-    assert result.schema_version == "0.1.0"
+    assert result.schema_version == SCHEMA_VERSION
     assert result.started_at == FIXED_NOW
     assert result.finished_at == FIXED_NOW
     assert result.error is None
@@ -266,6 +266,7 @@ async def test_trace_deleted_during_recording_is_409() -> None:
         (lambda p: p.update(dry_run=False), "dry_run=False (expected True)"),
         (lambda p: p["entrypoint"].update(method="action_cancel"), "entrypoint.method="),
         (lambda p: p["entrypoint"].update(record_ids=[99]), "entrypoint.record_ids=[99]"),
+        (lambda p: p["entrypoint"].update(kwargs={"x": 1}), "entrypoint.kwargs={'x': 1}"),
     ],
 )
 async def test_answer_for_another_run_marks_trace_failed(mutate: Any, fragment: str) -> None:
@@ -284,3 +285,21 @@ async def test_answer_for_another_run_marks_trace_failed(mutate: Any, fragment: 
     assert result.error is not None
     assert result.error.startswith("Recorder answered for a different run")
     assert fragment in result.error
+
+
+async def test_kwargs_and_model_level_calls_reach_the_gateway() -> None:
+    gateway = FakeOdooGateway()
+    command = StartTraceCommand(
+        entrypoint_model="res.partner",
+        entrypoint_method="name_create",
+        kwargs={"name": "Grace Hopper"},
+    )
+
+    result = await _service(FakeSession(), gateway).start_trace(command)
+
+    assert result.status is TraceStatus.SUCCEEDED
+    [request] = gateway.requests
+    assert request.record_ids == ()
+    assert request.call_kwargs == {"name": "Grace Hopper"}
+    assert result.payload is not None
+    assert result.payload["entrypoint"]["kwargs"] == {"name": "Grace Hopper"}

@@ -6,15 +6,28 @@ only checks access and input; recording lives in ``tracing``.
 """
 
 import uuid
+from contextlib import contextmanager
 
 from odoo import http, release
 from odoo.exceptions import AccessError
 from odoo.http import request
 from odoo.modules.module import get_manifest
-from werkzeug.exceptions import BadRequest, Forbidden, NotFound, ServiceUnavailable
+from werkzeug.exceptions import (
+    BadRequest,
+    Forbidden,
+    NotFound,
+    ServiceUnavailable,
+    UnprocessableEntity,
+)
 
 from ..tools import is_enabled
-from ..tracing import RECORDER_AVAILABLE, RecorderUnavailable, run_trace
+from ..tracing import (
+    RECORDER_AVAILABLE,
+    InvalidEntrypoint,
+    RecorderUnavailable,
+    describe_entrypoint,
+    run_trace,
+)
 
 ADMIN_GROUP = "base.group_system"
 
@@ -49,19 +62,15 @@ class FlowTracerController(http.Controller):
         methods=["POST"],
         save_session=False,
     )
-    def trace(self, trace_id, model, method, record_ids=(), context=None, dry_run=True):
-        """Run ``model.method`` on ``record_ids`` under the recorder; returns the trace.
-
-        A run that raises still answers 200: the exception is part of the trace.
+    def trace(
+        self, trace_id, model, method, record_ids=(), context=None, kwargs=None, dry_run=True
+    ):
+        """Run ``model.method(**kwargs)`` on ``record_ids`` under the recorder; returns the
+        trace. A run that raises still answers 200: the exception is part of the trace.
         """
-        if not is_enabled():
-            raise Forbidden(
-                "flow_tracer is disabled: set flow_tracer_enabled = True in the server config"
-            )
-        if not request.env.user.has_group(ADMIN_GROUP):
-            raise Forbidden("Tracing requires the Settings (Administration) group")
-        _check_input(trace_id, model, method, record_ids, context, dry_run)
-        try:
+        _check_access()
+        _check_input(trace_id, model, method, record_ids, context, kwargs, dry_run)
+        with _entrypoint_errors(model):
             return run_trace(
                 request.env,
                 trace_id=trace_id,
@@ -69,19 +78,54 @@ class FlowTracerController(http.Controller):
                 method=method,
                 record_ids=list(record_ids),
                 context=dict(context or {}),
+                kwargs=dict(kwargs or {}),
                 dry_run=dry_run,
             )
-        except KeyError as exc:
-            raise NotFound(f"The model {model!r} does not exist") from exc
-        except AttributeError as exc:
-            raise NotFound(str(exc)) from exc
-        except AccessError as exc:
-            raise Forbidden(str(exc)) from exc
-        except RecorderUnavailable as exc:
-            raise ServiceUnavailable(str(exc)) from exc
+
+    @http.route(
+        "/flow_tracer/v1/signature",
+        type="json2",
+        auth="bearer",
+        methods=["POST"],
+        readonly=True,
+        save_session=False,
+    )
+    def signature(self, model, method):
+        """Parameters of ``model.method``, so the caller knows what to pass as kwargs."""
+        _check_access()
+        if not isinstance(model, str) or not model or not isinstance(method, str) or not method:
+            raise BadRequest("model and method must be non-empty strings")
+        with _entrypoint_errors(model):
+            return describe_entrypoint(request.env, model, method)
 
 
-def _check_input(trace_id, model, method, record_ids, context, dry_run):
+def _check_access():
+    if not is_enabled():
+        raise Forbidden(
+            "flow_tracer is disabled: set flow_tracer_enabled = True in the server config"
+        )
+    if not request.env.user.has_group(ADMIN_GROUP):
+        raise Forbidden("Tracing requires the Settings (Administration) group")
+
+
+@contextmanager
+def _entrypoint_errors(model):
+    """Map errors raised before anything runs to HTTP errors."""
+    try:
+        yield
+    except KeyError as exc:
+        raise NotFound(f"The model {model!r} does not exist") from exc
+    except AttributeError as exc:
+        raise NotFound(str(exc)) from exc
+    except AccessError as exc:
+        raise Forbidden(str(exc)) from exc
+    except InvalidEntrypoint as exc:
+        raise UnprocessableEntity(str(exc)) from exc
+    except RecorderUnavailable as exc:
+        raise ServiceUnavailable(str(exc)) from exc
+
+
+def _check_input(trace_id, model, method, record_ids, context, kwargs, dry_run):
     try:
         uuid.UUID(str(trace_id))
     except ValueError as exc:
@@ -94,5 +138,7 @@ def _check_input(trace_id, model, method, record_ids, context, dry_run):
         raise BadRequest("record_ids must be a list of positive integers")
     if context is not None and not isinstance(context, dict):
         raise BadRequest("context must be an object")
+    if kwargs is not None and not isinstance(kwargs, dict):
+        raise BadRequest("kwargs must be an object")
     if not isinstance(dry_run, bool):
         raise BadRequest("dry_run must be a boolean")

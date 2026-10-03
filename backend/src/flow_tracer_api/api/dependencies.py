@@ -15,6 +15,7 @@ from flow_tracer_api.core.config import Settings, get_settings
 from flow_tracer_api.core.dependencies import SessionDep
 from flow_tracer_api.integrations.odoo import FlowTracerGateway, OdooJson2Client
 from flow_tracer_api.services import TraceService
+from flow_tracer_api.services.entrypoint_service import EntrypointService
 from flow_tracer_api.services.odoo_connection_service import OdooConnectionService
 from flow_tracer_api.services.payload_validation import SchemaPayloadValidator
 from flow_tracer_api.services.ports import OdooGateway, TracePayloadValidator
@@ -82,3 +83,10 @@ def get_odoo_connection_service(
 
 
 OdooConnectionServiceDep = Annotated[OdooConnectionService, Depends(get_odoo_connection_service)]
+
+
+def get_entrypoint_service(client: OdooClientDep) -> EntrypointService:
+    return EntrypointService(client)
+
+
+EntrypointServiceDep = Annotated[EntrypointService, Depends(get_entrypoint_service)]
