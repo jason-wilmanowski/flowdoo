@@ -58,6 +58,7 @@ asyncio_default_test_loop_scope = "session"
 addopts = "-ra --strict-markers"
 markers = [
     "integration: needs the Postgres from docker compose (service db)",
+    "odoo: needs the Odoo 19 test container (compose profile test), see tests/integration/odoo",
 ]
 
 [tool.importlinter]
