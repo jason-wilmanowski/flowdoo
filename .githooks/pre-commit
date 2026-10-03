@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# pre-commit hook
+#   1. refuses commits on main (CLAUDE.md section 8)
+#   2. formats staged backend Python files with ruff and re-stages them
+#   3. runs ruff lint on those files and aborts the commit on findings
+#
+# Activate once per clone:  git config core.hooksPath .githooks
+# Ruff comes from backend/.venv (uv.lock), so run `uv sync` in backend/ first.
+
+set -euo pipefail
+
+branch="$(git symbolic-ref --short -q HEAD || true)"
+if [ "$branch" = "main" ]; then
+    echo "pre-commit: committing on 'main' is not allowed. Create a branch first:" >&2
+    echo "  git switch -c <type>/<short-description>" >&2
+    exit 1
+fi
+
+root="$(git rev-parse --show-toplevel)"
+cd "$root"
+
+staged=()
+while IFS= read -r -d '' file; do
+    staged+=("$file")
+done < <(git diff --cached --name-only --diff-filter=ACMR -z -- 'backend/*.py')
+
+if [ "${#staged[@]}" -eq 0 ]; then
+    exit 0
+fi
+
+# Re-staging after formatting would also stage hunks the user deliberately left out.
+partial="$(git diff --name-only -- "${staged[@]}")"
+if [ -n "$partial" ]; then
+    echo "pre-commit: these files have staged AND unstaged changes:" >&2
+    echo "$partial" | sed 's/^/  /' >&2
+    echo "Stage them completely (git add) or stash the rest (git stash -k), then commit again." >&2
+    exit 1
+fi
+
+if [ ! -x backend/.venv/bin/ruff ]; then
+    echo "pre-commit: ruff not found in backend/.venv. Run 'uv sync' in backend/ first." >&2
+    exit 1
+fi
+
+relative=()
+for file in "${staged[@]}"; do
+    relative+=("${file#backend/}")
+done
+
+echo "pre-commit: ruff format (${#staged[@]} file(s))"
+(cd backend && uv run --no-sync ruff format --quiet -- "${relative[@]}")
+git add -- "${staged[@]}"
+
+echo "pre-commit: ruff check"
+if ! (cd backend && uv run --no-sync ruff check -- "${relative[@]}"); then
+    echo "pre-commit: fix the lint findings above (some: 'uv run ruff check --fix'), then commit again." >&2
+    exit 1
+fi
