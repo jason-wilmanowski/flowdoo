@@ -27,7 +27,11 @@ export default tseslint.config(
   },
   {
     files: ["**/*.test.{ts,tsx}", "src/test/**"],
-    rules: { "@typescript-eslint/no-non-null-assertion": "off" },
+    rules: {
+      "@typescript-eslint/no-non-null-assertion": "off",
+      // tests may use color values as data (e.g. contrast reference values)
+      "no-restricted-syntax": "off",
+    },
   },
   {
     files: ["*.config.js", "eslint.design-rules.js", "lint/**/*.js"],
