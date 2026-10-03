@@ -16,12 +16,8 @@ from flow_tracer_api.core.dependencies import SessionDep
 from flow_tracer_api.integrations.odoo import OdooJson2Client
 from flow_tracer_api.services import TraceService
 from flow_tracer_api.services.odoo_connection_service import OdooConnectionService
-from flow_tracer_api.services.ports import (
-    OdooClient,
-    OdooGateway,
-    OpaquePayloadValidator,
-    TracePayloadValidator,
-)
+from flow_tracer_api.services.payload_validation import SchemaPayloadValidator
+from flow_tracer_api.services.ports import OdooClient, OdooGateway, TracePayloadValidator
 
 
 def get_odoo_gateway() -> OdooGateway | None:
@@ -31,8 +27,7 @@ def get_odoo_gateway() -> OdooGateway | None:
 
 
 def get_payload_validator() -> TracePayloadValidator:
-    # TODO(trace-schema): switch to the validator generated from the trace schema.
-    return OpaquePayloadValidator()
+    return SchemaPayloadValidator()
 
 
 def get_trace_service(

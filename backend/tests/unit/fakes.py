@@ -16,6 +16,7 @@ from flow_tracer_api.schemas import (
     TraceRequest,
     TraceUpdate,
 )
+from tests.fixtures import load_fixture
 
 FIXED_NOW = datetime(2026, 10, 3, 12, 0, tzinfo=UTC)
 
@@ -124,7 +125,9 @@ class FakeOdooGateway:
         error: BaseException | None = None,
         on_call: Callable[[TraceRequest], None] | None = None,
     ) -> None:
-        self.result = result or GatewayResult(payload={"steps": []}, odoo_version="19.0")
+        self.result = result or GatewayResult(
+            payload=load_fixture("trace-small"), odoo_version="19.0"
+        )
         self.error = error
         self.on_call = on_call
         self.requests: list[TraceRequest] = []
