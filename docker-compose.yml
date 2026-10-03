@@ -1,0 +1,93 @@
+# Product stack: db, api, frontend.
+# The developer's own Odoo is NOT part of this stack; "api" connects to it via ODOO_URL.
+# Profile "test" adds a throwaway Odoo 19 (odoo-test + odoo-test-db) for integration tests:
+
+name: flow-tracer
+
+services:
+  db:
+    image: postgres:15.19@sha256:dfbbb0ad8cab91d41e99123664e37a9b25d0413426d4fb3154e4d668e5d35246
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-flow_tracer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-flow_tracer}
+    ports:
+      - "127.0.0.1:${DB_HOST_PORT:-5433}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-flow_tracer}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-flow_tracer}
+      ODOO_URL: ${ODOO_URL:-http://host.docker.internal:8069}
+      ODOO_DB: ${ODOO_DB:-}
+      ODOO_LOGIN: ${ODOO_LOGIN:-}
+      ODOO_API_KEY: ${ODOO_API_KEY:-}
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-8000}:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    ports:
+      - "127.0.0.1:${FRONTEND_HOST_PORT:-5173}:5173"
+    depends_on:
+      - api
+
+  # --- Development / CI only ---------------------------------------------
+
+  odoo-test-db:
+    profiles: ["test"]
+    image: postgres:15.19@sha256:dfbbb0ad8cab91d41e99123664e37a9b25d0413426d4fb3154e4d668e5d35246
+    environment:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: ${ODOO_TEST_DB_PASSWORD:-odoo}
+      POSTGRES_DB: postgres
+    volumes:
+      - odoo-test-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  odoo-test:
+    profiles: ["test"]
+    image: odoo:19.0-20260926
+    environment:
+      HOST: odoo-test-db
+      USER: odoo
+      PASSWORD: ${ODOO_TEST_DB_PASSWORD:-odoo}
+    ports:
+      - "127.0.0.1:${ODOO_TEST_HOST_PORT:-8069}:8069"
+    volumes:
+      - ./odoo-addons:/mnt/extra-addons:ro
+      - odoo-test-data:/var/lib/odoo
+    depends_on:
+      odoo-test-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8069/web/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+volumes:
+  db-data:
+  odoo-test-db-data:
+  odoo-test-data:
