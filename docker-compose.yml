@@ -79,6 +79,7 @@ services:
       - "127.0.0.1:${ODOO_TEST_HOST_PORT:-8069}:8069"
     volumes:
       - ./odoo-addons:/mnt/extra-addons:ro
+      - ./docker/odoo-test/odoo.conf:/etc/odoo/odoo.conf:ro
       - odoo-test-data:/var/lib/odoo
     depends_on:
       odoo-test-db:
