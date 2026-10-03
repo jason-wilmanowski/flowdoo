@@ -88,10 +88,3 @@ name = "domain is self-contained"
 type = "forbidden"
 source_modules = ["flow_tracer_api.domain"]
 forbidden_modules = ["flow_tracer_api.core"]
-
-[[tool.importlinter.contracts]]
-name = "services know no SQL, sessions or concrete repositories"
-type = "forbidden"
-source_modules = ["flow_tracer_api.services"]
-forbidden_modules = ["sqlalchemy", "flow_tracer_api.repositories.sqlalchemy", "flow_tracer_api.core.db"]
-allow_indirect_imports = true

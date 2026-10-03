@@ -1,9 +1,11 @@
 import uuid
+from typing import cast
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from flow_tracer_api.domain import TraceStatus
-from flow_tracer_api.repositories import UnitOfWork
+from flow_tracer_api.repositories import TraceRepository
 from flow_tracer_api.schemas import (
     GatewayResult,
     StartTraceCommand,
@@ -13,7 +15,7 @@ from flow_tracer_api.schemas import (
 )
 from flow_tracer_api.services import NonDryRunNotAllowedError, TraceNotFoundError, TraceService
 from flow_tracer_api.services.ports import OdooGateway, OdooGatewayError, OpaquePayloadValidator
-from tests.unit.fakes import FIXED_NOW, FakeOdooGateway, FakeUnitOfWork
+from tests.unit.fakes import FIXED_NOW, FakeOdooGateway, FakeSession, FakeTraceRepository
 
 CONFIRM = StartTraceCommand(
     entrypoint_model="sale.order",
@@ -24,25 +26,26 @@ CONFIRM = StartTraceCommand(
 
 
 def _service(
-    uow: FakeUnitOfWork, gateway: FakeOdooGateway, *, allow_non_dry_run: bool = False
+    session: FakeSession, gateway: FakeOdooGateway, *, allow_non_dry_run: bool = False
 ) -> TraceService:
     # Static check that the fakes satisfy the protocols the service depends on.
-    typed_uow: UnitOfWork = uow
+    repository: TraceRepository = FakeTraceRepository(session)
     typed_gateway: OdooGateway = gateway
     return TraceService(
-        typed_uow,
+        cast(AsyncSession, session),
         typed_gateway,
         OpaquePayloadValidator(),
         allow_non_dry_run=allow_non_dry_run,
         clock=lambda: FIXED_NOW,
+        trace_repository=repository,
     )
 
 
 async def test_start_trace_succeeds_and_stores_payload() -> None:
-    uow = FakeUnitOfWork()
+    session = FakeSession()
     gateway = FakeOdooGateway(GatewayResult(payload={"steps": [{"id": "s1"}]}, odoo_version="19.0"))
 
-    result = await _service(uow, gateway).start_trace(CONFIRM)
+    result = await _service(session, gateway).start_trace(CONFIRM)
 
     assert type(result) is TraceDetail
     assert result.status is TraceStatus.SUCCEEDED
@@ -53,14 +56,14 @@ async def test_start_trace_succeeds_and_stores_payload() -> None:
     assert result.finished_at == FIXED_NOW
     assert result.error is None
     assert result.dry_run is True
-    assert uow.commits == 2
-    assert uow.committed[result.id].status is TraceStatus.SUCCEEDED
+    assert session.commits == 2
+    assert session.committed[result.id].status is TraceStatus.SUCCEEDED
 
 
 async def test_start_trace_passes_request_to_gateway() -> None:
     gateway = FakeOdooGateway()
 
-    result = await _service(FakeUnitOfWork(), gateway).start_trace(CONFIRM)
+    result = await _service(FakeSession(), gateway).start_trace(CONFIRM)
 
     assert gateway.requests == [
         TraceRequest(
@@ -75,34 +78,34 @@ async def test_start_trace_passes_request_to_gateway() -> None:
 
 
 async def test_trace_is_committed_as_running_before_odoo_is_called() -> None:
-    uow = FakeUnitOfWork()
+    session = FakeSession()
     seen: list[TraceStatus] = []
 
     def check_committed(request: TraceRequest) -> None:
-        seen.append(uow.committed[request.trace_id].status)
+        seen.append(session.committed[request.trace_id].status)
 
-    await _service(uow, FakeOdooGateway(on_call=check_committed)).start_trace(CONFIRM)
+    await _service(session, FakeOdooGateway(on_call=check_committed)).start_trace(CONFIRM)
 
     assert seen == [TraceStatus.RUNNING]
 
 
 async def test_gateway_error_marks_trace_failed() -> None:
-    uow = FakeUnitOfWork()
+    session = FakeSession()
     gateway = FakeOdooGateway(error=OdooGatewayError("flow_tracer addon is not installed"))
 
-    result = await _service(uow, gateway).start_trace(CONFIRM)
+    result = await _service(session, gateway).start_trace(CONFIRM)
 
     assert result.status is TraceStatus.FAILED
     assert result.error == "flow_tracer addon is not installed"
     assert result.payload is None
     assert result.finished_at == FIXED_NOW
-    assert uow.committed[result.id].status is TraceStatus.FAILED
+    assert session.committed[result.id].status is TraceStatus.FAILED
 
 
 async def test_invalid_payload_marks_trace_failed() -> None:
     gateway = FakeOdooGateway(GatewayResult(payload={"value": float("nan")}))
 
-    result = await _service(FakeUnitOfWork(), gateway).start_trace(CONFIRM)
+    result = await _service(FakeSession(), gateway).start_trace(CONFIRM)
 
     assert result.status is TraceStatus.FAILED
     assert result.error is not None
@@ -110,31 +113,31 @@ async def test_invalid_payload_marks_trace_failed() -> None:
 
 
 async def test_unexpected_error_marks_trace_failed_and_propagates() -> None:
-    uow = FakeUnitOfWork()
+    session = FakeSession()
     gateway = FakeOdooGateway(error=KeyError("bug"))
 
     with pytest.raises(KeyError):
-        await _service(uow, gateway).start_trace(CONFIRM)
+        await _service(session, gateway).start_trace(CONFIRM)
 
-    [row] = uow.committed.values()
+    [row] = session.committed.values()
     assert row.status is TraceStatus.FAILED
     assert row.error == "Internal error while recording"
 
 
 async def test_non_dry_run_is_rejected_by_default() -> None:
-    uow = FakeUnitOfWork()
+    session = FakeSession()
     gateway = FakeOdooGateway()
 
     with pytest.raises(NonDryRunNotAllowedError):
-        await _service(uow, gateway).start_trace(CONFIRM.model_copy(update={"dry_run": False}))
+        await _service(session, gateway).start_trace(CONFIRM.model_copy(update={"dry_run": False}))
 
-    assert uow.committed == {}
+    assert session.committed == {}
     assert gateway.requests == []
 
 
 async def test_non_dry_run_runs_when_explicitly_allowed() -> None:
     gateway = FakeOdooGateway()
-    service = _service(FakeUnitOfWork(), gateway, allow_non_dry_run=True)
+    service = _service(FakeSession(), gateway, allow_non_dry_run=True)
 
     result = await service.start_trace(CONFIRM.model_copy(update={"dry_run": False}))
 
@@ -143,8 +146,8 @@ async def test_non_dry_run_runs_when_explicitly_allowed() -> None:
 
 
 async def test_get_trace_returns_dto() -> None:
-    uow = FakeUnitOfWork()
-    service = _service(uow, FakeOdooGateway())
+    session = FakeSession()
+    service = _service(session, FakeOdooGateway())
     started = await service.start_trace(CONFIRM)
 
     loaded = await service.get_trace(started.id)
@@ -154,12 +157,12 @@ async def test_get_trace_returns_dto() -> None:
 
 async def test_get_trace_unknown_id_raises() -> None:
     with pytest.raises(TraceNotFoundError):
-        await _service(FakeUnitOfWork(), FakeOdooGateway()).get_trace(uuid.uuid4())
+        await _service(FakeSession(), FakeOdooGateway()).get_trace(uuid.uuid4())
 
 
 async def test_list_traces_filters_and_reports_total() -> None:
-    uow = FakeUnitOfWork()
-    service = _service(uow, FakeOdooGateway())
+    session = FakeSession()
+    service = _service(session, FakeOdooGateway())
     await service.start_trace(CONFIRM)
     await service.start_trace(CONFIRM)
     await service.start_trace(
@@ -176,15 +179,15 @@ async def test_list_traces_filters_and_reports_total() -> None:
 
 
 async def test_delete_trace_commits() -> None:
-    uow = FakeUnitOfWork()
-    service = _service(uow, FakeOdooGateway())
+    session = FakeSession()
+    service = _service(session, FakeOdooGateway())
     started = await service.start_trace(CONFIRM)
 
     await service.delete_trace(started.id)
 
-    assert started.id not in uow.committed
+    assert started.id not in session.committed
 
 
 async def test_delete_unknown_trace_raises() -> None:
     with pytest.raises(TraceNotFoundError):
-        await _service(FakeUnitOfWork(), FakeOdooGateway()).delete_trace(uuid.uuid4())
+        await _service(FakeSession(), FakeOdooGateway()).delete_trace(uuid.uuid4())

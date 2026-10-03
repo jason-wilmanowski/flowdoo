@@ -3,8 +3,11 @@ import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from flow_tracer_api.domain import TraceStatus
-from flow_tracer_api.repositories import UnitOfWork
+from flow_tracer_api.repositories import TraceRepository
+from flow_tracer_api.repositories.sqlalchemy import SqlAlchemyTraceRepository
 from flow_tracer_api.schemas import (
     StartTraceCommand,
     TraceCreate,
@@ -32,16 +35,26 @@ def _utcnow() -> datetime:
 
 
 class TraceService:
+    """Business logic for traces.
+
+    Gets the request-scoped ``AsyncSession`` injected (see ``api.dependencies``) and builds
+    its repository on it. The service owns the transaction: it decides when to
+    ``commit()``. Anything not committed is rolled back when the request's session closes.
+    """
+
     def __init__(
         self,
-        uow: UnitOfWork,
+        session: AsyncSession,
         gateway: OdooGateway,
         validator: TracePayloadValidator,
         *,
         allow_non_dry_run: bool = False,
         clock: Callable[[], datetime] = _utcnow,
+        trace_repository: TraceRepository | None = None,
     ) -> None:
-        self._uow = uow
+        self._session = session
+        # trace_repository is only overridden in tests (in-memory fake).
+        self._traces: TraceRepository = trace_repository or SqlAlchemyTraceRepository(session)
         self._gateway = gateway
         self._validator = validator
         self._allow_non_dry_run = allow_non_dry_run
@@ -58,18 +71,17 @@ class TraceService:
         if not command.dry_run and not self._allow_non_dry_run:
             raise NonDryRunNotAllowedError
 
-        async with self._uow:
-            trace = await self._uow.traces.create(
-                TraceCreate(
-                    entrypoint_model=command.entrypoint_model,
-                    entrypoint_method=command.entrypoint_method,
-                    dry_run=command.dry_run,
-                    status=TraceStatus.RUNNING,
-                    started_at=self._clock(),
-                )
+        trace = await self._traces.create(
+            TraceCreate(
+                entrypoint_model=command.entrypoint_model,
+                entrypoint_method=command.entrypoint_method,
+                dry_run=command.dry_run,
+                status=TraceStatus.RUNNING,
+                started_at=self._clock(),
             )
-            await self._uow.commit()
+        )
         trace_id = trace.id
+        await self._session.commit()
 
         request = TraceRequest(
             trace_id=trace_id,
@@ -106,11 +118,10 @@ class TraceService:
         )
 
     async def get_trace(self, trace_id: uuid.UUID) -> TraceDetail:
-        async with self._uow:
-            trace = await self._uow.traces.get(trace_id)
-            if trace is None:
-                raise TraceNotFoundError(trace_id)
-            return TraceDetail.model_validate(trace)
+        trace = await self._traces.get(trace_id)
+        if trace is None:
+            raise TraceNotFoundError(trace_id)
+        return TraceDetail.model_validate(trace)
 
     async def list_traces(self, query: TraceListQuery) -> TracePage:
         filters = TraceFilter(
@@ -118,27 +129,25 @@ class TraceService:
             entrypoint_model=query.entrypoint_model,
             entrypoint_method=query.entrypoint_method,
         )
-        async with self._uow:
-            traces = await self._uow.traces.list_by(filters, limit=query.limit, offset=query.offset)
-            total = await self._uow.traces.count(filters)
-            return TracePage(
-                items=[TraceSummary.model_validate(t) for t in traces],
-                total=total,
-                limit=query.limit,
-                offset=query.offset,
-            )
+        traces = await self._traces.list_by(filters, limit=query.limit, offset=query.offset)
+        total = await self._traces.count(filters)
+        return TracePage(
+            items=[TraceSummary.model_validate(t) for t in traces],
+            total=total,
+            limit=query.limit,
+            offset=query.offset,
+        )
 
     async def delete_trace(self, trace_id: uuid.UUID) -> None:
-        async with self._uow:
-            if not await self._uow.traces.delete(trace_id):
-                raise TraceNotFoundError(trace_id)
-            await self._uow.commit()
+        if not await self._traces.delete(trace_id):
+            raise TraceNotFoundError(trace_id)
+        await self._session.commit()
 
     async def _finish(self, trace_id: uuid.UUID, changes: TraceUpdate) -> TraceDetail:
         changes = TraceUpdate(**changes.changed_fields(), finished_at=self._clock())
-        async with self._uow:
-            trace = await self._uow.traces.update(trace_id, changes)
-            if trace is None:  # deleted while Odoo was running
-                raise TraceNotFoundError(trace_id)
-            await self._uow.commit()
-            return TraceDetail.model_validate(trace)
+        trace = await self._traces.update(trace_id, changes)
+        if trace is None:  # deleted while Odoo was running
+            raise TraceNotFoundError(trace_id)
+        detail = TraceDetail.model_validate(trace)
+        await self._session.commit()
+        return detail

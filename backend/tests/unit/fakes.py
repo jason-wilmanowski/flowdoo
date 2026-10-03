@@ -3,8 +3,7 @@
 import uuid
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
-from types import TracebackType
-from typing import Any, Self
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -40,9 +39,33 @@ class _Row(BaseModel):
         return Trace(**self.model_dump())
 
 
+def _copy(rows: dict[uuid.UUID, _Row]) -> dict[uuid.UUID, _Row]:
+    return {key: row.model_copy(deep=True) for key, row in rows.items()}
+
+
+class FakeSession:
+    """Stands in for ``AsyncSession``: only committed rows survive ``rollback()``."""
+
+    def __init__(self) -> None:
+        self.rows: dict[uuid.UUID, _Row] = {}
+        self.committed: dict[uuid.UUID, _Row] = {}
+        self.commits = 0
+
+    async def commit(self) -> None:
+        self.committed = _copy(self.rows)
+        self.commits += 1
+
+    async def rollback(self) -> None:
+        self.rows = _copy(self.committed)
+
+
 class FakeTraceRepository:
-    def __init__(self, rows: dict[uuid.UUID, _Row]) -> None:
-        self.rows = rows
+    def __init__(self, session: FakeSession) -> None:
+        self._session = session
+
+    @property
+    def rows(self) -> dict[uuid.UUID, _Row]:
+        return self._session.rows
 
     async def create(self, data: TraceCreate) -> Trace:
         row = _Row(
@@ -92,37 +115,6 @@ class FakeTraceRepository:
 
     async def delete(self, trace_id: uuid.UUID) -> bool:
         return self.rows.pop(trace_id, None) is not None
-
-
-def _copy(rows: dict[uuid.UUID, _Row]) -> dict[uuid.UUID, _Row]:
-    return {key: row.model_copy(deep=True) for key, row in rows.items()}
-
-
-class FakeUnitOfWork:
-    """Rows only survive a block if ``commit()`` was called, like the real one."""
-
-    def __init__(self) -> None:
-        self.committed: dict[uuid.UUID, _Row] = {}
-        self.commits = 0
-        self.traces = FakeTraceRepository({})
-
-    async def __aenter__(self) -> Self:
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: TracebackType | None,
-    ) -> None:
-        await self.rollback()
-
-    async def commit(self) -> None:
-        self.committed = _copy(self.traces.rows)
-        self.commits += 1
-
-    async def rollback(self) -> None:
-        self.traces.rows = _copy(self.committed)
 
 
 class FakeOdooGateway:
