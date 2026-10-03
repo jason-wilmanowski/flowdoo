@@ -39,7 +39,7 @@ class TestStatusEndpoint(HttpCase):
         body = response.json()
         self.assertFalse(body["enabled"])
         self.assertEqual(body["odoo_version"], "19.0")
-        self.assertEqual(body["addon_version"], "19.0.0.1.0")
+        self.assertEqual(body["addon_version"], "19.0.0.2.0")
 
     def test_enabled_by_server_config(self):
         for raw in ("True", "1", "yes", True):

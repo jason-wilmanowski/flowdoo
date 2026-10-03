@@ -13,7 +13,7 @@ Development databases only. All endpoints are disabled unless the server
 configuration contains ``flow_tracer_enabled = True``; tracing additionally requires
 the Settings (Administration) group.
 """,
-    "version": "19.0.0.1.0",
+    "version": "19.0.0.2.0",
     "category": "Hidden/Tools",
     "author": "Flowdoo",
     "website": "https://github.com/jason-wilmanowski/flowdoo",
