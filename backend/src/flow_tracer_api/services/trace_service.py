@@ -4,13 +4,17 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 
 from flow_tracer_api.domain import TraceStatus
-from flow_tracer_api.repositories import TraceCreate, TraceFilter, TraceUpdate, UnitOfWork
+from flow_tracer_api.repositories import UnitOfWork
 from flow_tracer_api.schemas import (
     StartTraceCommand,
+    TraceCreate,
     TraceDetail,
+    TraceFilter,
     TraceListQuery,
     TracePage,
+    TraceRequest,
     TraceSummary,
+    TraceUpdate,
 )
 from flow_tracer_api.services.errors import NonDryRunNotAllowedError, TraceNotFoundError
 from flow_tracer_api.services.ports import (
@@ -18,7 +22,6 @@ from flow_tracer_api.services.ports import (
     OdooGatewayError,
     PayloadValidationError,
     TracePayloadValidator,
-    TraceRequest,
 )
 
 logger = logging.getLogger(__name__)

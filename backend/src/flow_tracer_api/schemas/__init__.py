@@ -1,5 +1,6 @@
-"""Pydantic v2 DTOs: what the service layer accepts and returns. Never ORM objects."""
+"""Pydantic v2 models for all data passed between layers. Never ORM objects."""
 
+from flow_tracer_api.schemas.odoo import GatewayResult, TraceRequest, ValidatedPayload
 from flow_tracer_api.schemas.trace import (
     StartTraceCommand,
     TraceDetail,
@@ -7,5 +8,18 @@ from flow_tracer_api.schemas.trace import (
     TracePage,
     TraceSummary,
 )
+from flow_tracer_api.schemas.trace_persistence import TraceCreate, TraceFilter, TraceUpdate
 
-__all__ = ["StartTraceCommand", "TraceDetail", "TraceListQuery", "TracePage", "TraceSummary"]
+__all__ = [
+    "GatewayResult",
+    "StartTraceCommand",
+    "TraceCreate",
+    "TraceDetail",
+    "TraceFilter",
+    "TraceListQuery",
+    "TracePage",
+    "TraceRequest",
+    "TraceSummary",
+    "TraceUpdate",
+    "ValidatedPayload",
+]

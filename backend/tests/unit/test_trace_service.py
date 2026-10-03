@@ -4,15 +4,15 @@ import pytest
 
 from flow_tracer_api.domain import TraceStatus
 from flow_tracer_api.repositories import UnitOfWork
-from flow_tracer_api.schemas import StartTraceCommand, TraceDetail, TraceListQuery
-from flow_tracer_api.services import NonDryRunNotAllowedError, TraceNotFoundError, TraceService
-from flow_tracer_api.services.ports import (
+from flow_tracer_api.schemas import (
     GatewayResult,
-    OdooGateway,
-    OdooGatewayError,
-    OpaquePayloadValidator,
+    StartTraceCommand,
+    TraceDetail,
+    TraceListQuery,
     TraceRequest,
 )
+from flow_tracer_api.services import NonDryRunNotAllowedError, TraceNotFoundError, TraceService
+from flow_tracer_api.services.ports import OdooGateway, OdooGatewayError, OpaquePayloadValidator
 from tests.unit.fakes import FIXED_NOW, FakeOdooGateway, FakeUnitOfWork
 
 CONFIRM = StartTraceCommand(

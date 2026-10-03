@@ -6,8 +6,9 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from flow_tracer_api.domain import TraceStatus
-from flow_tracer_api.repositories import TraceCreate, TraceFilter, TraceRepository, TraceUpdate
+from flow_tracer_api.repositories import TraceRepository
 from flow_tracer_api.repositories.sqlalchemy import SqlAlchemyTraceRepository
+from flow_tracer_api.schemas import TraceCreate, TraceFilter, TraceUpdate
 
 pytestmark = pytest.mark.integration
 

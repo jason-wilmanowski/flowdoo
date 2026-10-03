@@ -6,7 +6,7 @@ from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from flow_tracer_api.models import Trace
-from flow_tracer_api.repositories.params import TraceCreate, TraceFilter, TraceUpdate
+from flow_tracer_api.schemas import TraceCreate, TraceFilter, TraceUpdate
 
 
 class SqlAlchemyTraceRepository:

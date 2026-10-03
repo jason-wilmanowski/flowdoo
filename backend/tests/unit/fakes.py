@@ -1,23 +1,27 @@
 """In-memory fakes for service tests (no database)."""
 
-import copy
 import uuid
-from collections.abc import Sequence
-from dataclasses import dataclass, field
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from types import TracebackType
 from typing import Any, Self
 
+from pydantic import BaseModel
+
 from flow_tracer_api.domain import TraceStatus
 from flow_tracer_api.models import Trace
-from flow_tracer_api.repositories import TraceCreate, TraceFilter, TraceUpdate
-from flow_tracer_api.services.ports import GatewayResult, TraceRequest
+from flow_tracer_api.schemas import (
+    GatewayResult,
+    TraceCreate,
+    TraceFilter,
+    TraceRequest,
+    TraceUpdate,
+)
 
 FIXED_NOW = datetime(2026, 10, 3, 12, 0, tzinfo=UTC)
 
 
-@dataclass
-class _Row:
+class _Row(BaseModel):
     id: uuid.UUID
     status: TraceStatus
     entrypoint_model: str
@@ -33,7 +37,7 @@ class _Row:
 
     def to_orm(self) -> Trace:
         # Transient ORM instance, never attached to a session.
-        return Trace(**self.__dict__)
+        return Trace(**self.model_dump())
 
 
 class FakeTraceRepository:
@@ -90,15 +94,17 @@ class FakeTraceRepository:
         return self.rows.pop(trace_id, None) is not None
 
 
-@dataclass
+def _copy(rows: dict[uuid.UUID, _Row]) -> dict[uuid.UUID, _Row]:
+    return {key: row.model_copy(deep=True) for key, row in rows.items()}
+
+
 class FakeUnitOfWork:
     """Rows only survive a block if ``commit()`` was called, like the real one."""
 
-    committed: dict[uuid.UUID, _Row] = field(default_factory=dict)
-    commits: int = 0
-
-    def __post_init__(self) -> None:
-        self.traces = FakeTraceRepository(copy.deepcopy(self.committed))
+    def __init__(self) -> None:
+        self.committed: dict[uuid.UUID, _Row] = {}
+        self.commits = 0
+        self.traces = FakeTraceRepository({})
 
     async def __aenter__(self) -> Self:
         return self
@@ -112,11 +118,11 @@ class FakeUnitOfWork:
         await self.rollback()
 
     async def commit(self) -> None:
-        self.committed = copy.deepcopy(self.traces.rows)
+        self.committed = _copy(self.traces.rows)
         self.commits += 1
 
     async def rollback(self) -> None:
-        self.traces.rows = copy.deepcopy(self.committed)
+        self.traces.rows = _copy(self.committed)
 
 
 class FakeOdooGateway:
@@ -124,7 +130,7 @@ class FakeOdooGateway:
         self,
         result: GatewayResult | None = None,
         error: BaseException | None = None,
-        on_call: Any = None,
+        on_call: Callable[[TraceRequest], None] | None = None,
     ) -> None:
         self.result = result or GatewayResult(payload={"steps": []}, odoo_version="19.0")
         self.error = error

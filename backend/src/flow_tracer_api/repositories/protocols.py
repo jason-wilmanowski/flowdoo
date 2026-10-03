@@ -6,7 +6,7 @@ from types import TracebackType
 from typing import Protocol, Self
 
 from flow_tracer_api.models import Trace
-from flow_tracer_api.repositories.params import TraceCreate, TraceFilter, TraceUpdate
+from flow_tracer_api.schemas import TraceCreate, TraceFilter, TraceUpdate
 
 
 class TraceRepository(Protocol):

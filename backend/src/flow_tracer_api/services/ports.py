@@ -5,26 +5,10 @@ is implemented later; credentials never pass through the service layer or the da
 """
 
 import json
-import uuid
 from collections.abc import Mapping
-from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class TraceRequest:
-    trace_id: uuid.UUID
-    model: str
-    method: str
-    record_ids: tuple[int, ...] = ()
-    context: Mapping[str, Any] = field(default_factory=dict)
-    dry_run: bool = True
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class GatewayResult:
-    payload: Mapping[str, Any]
-    odoo_version: str | None = None
+from flow_tracer_api.schemas import GatewayResult, TraceRequest, ValidatedPayload
 
 
 class OdooGatewayError(Exception):
@@ -38,12 +22,6 @@ class OdooGateway(Protocol):
     async def run_trace(self, request: TraceRequest) -> GatewayResult:
         """Run ``request`` in the user's Odoo via the flow_tracer addon and return its trace."""
         ...
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class ValidatedPayload:
-    payload: dict[str, Any]
-    schema_version: str | None
 
 
 class PayloadValidationError(Exception):

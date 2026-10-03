@@ -3,8 +3,9 @@ from datetime import UTC, datetime
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flow_tracer_api.repositories import TraceCreate, UnitOfWork
+from flow_tracer_api.repositories import UnitOfWork
 from flow_tracer_api.repositories.sqlalchemy import SqlAlchemyUnitOfWork
+from flow_tracer_api.schemas import TraceCreate
 
 pytestmark = pytest.mark.integration
 
