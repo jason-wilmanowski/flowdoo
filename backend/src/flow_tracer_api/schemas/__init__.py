@@ -1,6 +1,12 @@
 """Pydantic v2 models for all data passed between layers. Never ORM objects."""
 
-from flow_tracer_api.schemas.odoo import GatewayResult, TraceRequest, ValidatedPayload
+from flow_tracer_api.schemas.odoo import (
+    GatewayResult,
+    OdooConnectionStatus,
+    OdooVersionInfo,
+    TraceRequest,
+    ValidatedPayload,
+)
 from flow_tracer_api.schemas.trace import (
     StartTraceCommand,
     TraceDetail,
@@ -12,6 +18,8 @@ from flow_tracer_api.schemas.trace_persistence import TraceCreate, TraceFilter, 
 
 __all__ = [
     "GatewayResult",
+    "OdooConnectionStatus",
+    "OdooVersionInfo",
     "StartTraceCommand",
     "TraceCreate",
     "TraceDetail",

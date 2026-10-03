@@ -3,7 +3,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import SecretStr, field_validator
+from pydantic import Field, HttpUrl, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -29,6 +29,24 @@ class Settings(BaseSettings):
     log_level: LogLevel = "INFO"
     # dry_run=false writes to the user's Odoo DB. Dev setups only, off by default.
     allow_non_dry_run: bool = False
+
+    # Connection to the user's existing Odoo 19 (never stored in the database).
+    odoo_url: HttpUrl | None = None
+    odoo_db: str | None = None
+    # Optional: if set, the connection check verifies the API key belongs to this login.
+    odoo_login: str | None = None
+    odoo_api_key: SecretStr | None = None
+    odoo_timeout_seconds: float = Field(default=10.0, gt=0)
+
+    @field_validator("odoo_url", "odoo_db", "odoo_login", "odoo_api_key", mode="before")
+    @classmethod
+    def _empty_means_unset(cls, value: object) -> object:
+        # Compose passes unset variables as empty strings.
+        return None if value == "" else value
+
+    @property
+    def odoo_configured(self) -> bool:
+        return self.odoo_url is not None and bool(self.odoo_db) and self.odoo_api_key is not None
 
     @field_validator("database_url")
     @classmethod
