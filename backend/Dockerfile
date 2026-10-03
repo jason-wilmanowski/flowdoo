@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-# Build context: backend/. Migrations ship inside the package; run them with
-#   docker compose run --rm api alembic upgrade head
+# Build context: backend/. Migrations ship inside the package and run automatically on
+# container start (docker-entrypoint.sh, disable with RUN_MIGRATIONS=false).
 
 FROM python:3.12.15-slim-bookworm
 
@@ -18,7 +18,7 @@ COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project
 
-COPY alembic.ini ./
+COPY alembic.ini docker-entrypoint.sh ./
 COPY src ./src
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
@@ -28,4 +28,5 @@ USER app
 
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["uvicorn", "flow_tracer_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
