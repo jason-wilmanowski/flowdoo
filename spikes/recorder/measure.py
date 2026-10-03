@@ -70,9 +70,10 @@ def collect_targets(e):
 
 start = time.perf_counter()
 TARGETS, N_CLASSES, COLLISIONS = collect_targets(admin_env)
+collect_ms = (time.perf_counter() - start) * 1000
 print(
     f"targets: {len(TARGETS)} functions in {N_CLASSES} addon classes "
-    f"(collisions skipped: {COLLISIONS}), collected in {(time.perf_counter() - start) * 1000:.0f} ms"
+    f"(collisions skipped: {COLLISIONS}), collected in {collect_ms:.0f} ms"
 )
 
 
