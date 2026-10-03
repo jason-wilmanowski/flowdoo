@@ -1,0 +1,14 @@
+# Build context of the api image is backend/. The Dockerfile copies only what it needs;
+# this list keeps local environments, caches and secrets out even if that changes.
+.venv/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.import_linter_cache/
+.coverage
+htmlcov/
+tests/
+.env
+.env.*
