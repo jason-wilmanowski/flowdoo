@@ -10,6 +10,8 @@ from flow_tracer_api.services.ports import OdooClient
 
 SUPPORTED_ODOO_SERIE = "19.0"
 ADDON_NAME = "flow_tracer"
+ADDON_STATUS_ROUTE = "/flow_tracer/v1/status"
+NEUTRALIZE_BANNER = "web.neutralize_banner"
 
 
 class OdooConnectionService:
@@ -106,9 +108,53 @@ class OdooConnectionService:
         elif state != "installed":
             problems.append(f"The {ADDON_NAME} addon is not installed (state: {state})")
 
-        # TODO(addon-dev-flag): check the addon's dev flag once the addon exposes it.
-        warnings.append(
-            "Cannot verify yet that this is a development database; "
-            "never point Odoo Flow Tracer at a production database"
-        )
+        # 4. The addon's server switch (the "dev flag"), recorder and the key's rights.
+        if state == "installed":
+            try:
+                addon = await client.post(ADDON_STATUS_ROUTE, {}, target=f"{ADDON_NAME} status")
+            except OdooClientError as exc:
+                problems.append(f"Could not read the {ADDON_NAME} status: {exc.message}")
+                return finish()
+            enabled = addon.get("enabled") is True
+            recorder = addon.get("recorder_available") is True
+            admin = addon.get("is_admin") is True
+            status = status.model_copy(
+                update={
+                    "tracing_enabled": enabled,
+                    "recorder_available": recorder,
+                    "user_is_admin": admin,
+                }
+            )
+            if not enabled:
+                problems.append(
+                    "Tracing is switched off on the Odoo server: set "
+                    "flow_tracer_enabled = True in its configuration (development servers only)"
+                )
+            if not recorder:
+                problems.append(
+                    f"The {ADDON_NAME} recorder is not available on the Odoo server "
+                    "(it needs Python 3.12+)"
+                )
+            if not admin:
+                problems.append(
+                    "The API key's user must be in the Settings (Administration) group to trace"
+                )
+
+        # 5. Neutralised database? `odoo neutralize` activates the web.neutralize_banner view.
+        try:
+            banners = await client.call(
+                "ir.ui.view",
+                "search_count",
+                domain=[["key", "=", NEUTRALIZE_BANNER], ["active", "=", True]],
+            )
+        except OdooClientError as exc:
+            warnings.append(f"Could not check whether the database is neutralised: {exc.message}")
+        else:
+            neutralized = bool(banners)
+            status = status.model_copy(update={"database_neutralized": neutralized})
+            if not neutralized:
+                warnings.append(
+                    "The database is not neutralised (odoo neutralize): mail servers, crons "
+                    "and payment providers stay active while tracing"
+                )
         return finish()
