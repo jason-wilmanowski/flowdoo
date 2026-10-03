@@ -1,14 +1,19 @@
 """Application settings, read from environment variables (and a local .env file)."""
 
+import re
 from functools import lru_cache
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, HttpUrl, SecretStr, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 _ASYNC_DRIVER_PREFIX = "postgresql+asyncpg://"
+
+# Vite dev server of the frontend service (CLAUDE.md section 3).
+DEFAULT_CORS_ORIGINS = ("http://localhost:5173", "http://127.0.0.1:5173")
+_ORIGIN_PATTERN = re.compile(r"https?://[A-Za-z0-9.-]+(:\d{1,5})?")
 
 
 class Settings(BaseSettings):
@@ -30,6 +35,12 @@ class Settings(BaseSettings):
     # dry_run=false writes to the user's Odoo DB. Dev setups only, off by default.
     allow_non_dry_run: bool = False
 
+    # Browser origins allowed to call the API (the frontend). Comma-separated in the
+    # environment, e.g. CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173.
+    cors_origins: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: list(DEFAULT_CORS_ORIGINS)
+    )
+
     # Connection to the user's existing Odoo 19 (never stored in the database).
     odoo_url: HttpUrl | None = None
     odoo_db: str | None = None
@@ -37,6 +48,24 @@ class Settings(BaseSettings):
     odoo_login: str | None = None
     odoo_api_key: SecretStr | None = None
     odoo_timeout_seconds: float = Field(default=10.0, gt=0)
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _split_origins(cls, value: object) -> object:
+        if isinstance(value, str):
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
+
+    @field_validator("cors_origins")
+    @classmethod
+    def _require_exact_origins(cls, origins: list[str]) -> list[str]:
+        for origin in origins:
+            if not _ORIGIN_PATTERN.fullmatch(origin):
+                raise ValueError(
+                    f"Invalid CORS origin {origin!r}: use scheme://host[:port] without path, "
+                    "trailing slash or wildcard"
+                )
+        return origins
 
     @field_validator("odoo_url", "odoo_db", "odoo_login", "odoo_api_key", mode="before")
     @classmethod
