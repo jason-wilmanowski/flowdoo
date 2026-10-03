@@ -22,6 +22,8 @@ export default tseslint.config(
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       // Values from the user's Odoo can be sensitive: never log them.
       "no-console": "error",
+      // { payload, ...summary } = trace drops a field on purpose
+      "@typescript-eslint/no-unused-vars": ["error", { ignoreRestSiblings: true }],
       ...designRules,
     },
   },
