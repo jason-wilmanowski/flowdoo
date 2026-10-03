@@ -30,3 +30,36 @@ class ValidatedPayload(BaseModel):
 
     payload: dict[str, Any]
     schema_version: str | None
+
+
+class OdooVersionInfo(BaseModel):
+    """Subset of Odoo's ``exp_version()``; extra keys are ignored."""
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    server_version: str
+    server_serie: str
+
+
+class OdooConnectionStatus(BaseModel):
+    """Result of checking the configured connection to the user's Odoo.
+
+    ``ok`` is true only if every check passed. ``problems`` explain what blocks tracing,
+    ``warnings`` what could not be verified.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    configured: bool
+    url: str | None = None
+    database: str | None = None
+    reachable: bool = False
+    server_version: str | None = None
+    version_supported: bool = False
+    authenticated: bool = False
+    user_login: str | None = None
+    addon_installed: bool = False
+    addon_state: str | None = None
+    ok: bool = False
+    problems: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)

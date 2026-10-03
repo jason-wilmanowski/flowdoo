@@ -14,7 +14,6 @@ from types import TracebackType
 from typing import Any, Self
 
 import httpx
-from pydantic import BaseModel, ConfigDict
 
 from flow_tracer_api.integrations.odoo.errors import (
     OdooAuthenticationError,
@@ -23,15 +22,7 @@ from flow_tracer_api.integrations.odoo.errors import (
     OdooDatabaseNotFoundError,
     OdooUnreachableError,
 )
-
-
-class OdooVersionInfo(BaseModel):
-    """Subset of ``exp_version()``; extra keys are ignored."""
-
-    model_config = ConfigDict(frozen=True, extra="ignore")
-
-    server_version: str
-    server_serie: str
+from flow_tracer_api.schemas import OdooVersionInfo
 
 
 class OdooJson2Client:

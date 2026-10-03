@@ -1,14 +1,14 @@
 """Ports to the outside world the service layer depends on.
 
-Only interfaces live here. The Odoo connection (JSON-RPC/HTTP, credentials from .env)
-is implemented later; credentials never pass through the service layer or the database.
+Only interfaces live here. Implementations live in ``integrations`` (e.g. the Odoo JSON-2
+client); credentials stay inside them and never pass through services or the database.
 """
 
 import json
 from collections.abc import Mapping
 from typing import Any, Protocol
 
-from flow_tracer_api.schemas import GatewayResult, TraceRequest, ValidatedPayload
+from flow_tracer_api.schemas import GatewayResult, OdooVersionInfo, TraceRequest, ValidatedPayload
 
 
 class OdooGatewayError(Exception):
@@ -22,6 +22,25 @@ class OdooGateway(Protocol):
     async def run_trace(self, request: TraceRequest) -> GatewayResult:
         """Run ``request`` in the user's Odoo via the flow_tracer addon and return its trace."""
         ...
+
+
+class OdooClient(Protocol):
+    """Low-level access to the user's Odoo (implemented by ``OdooJson2Client``).
+
+    Raises ``integrations.odoo.OdooClientError`` subclasses on failure.
+    """
+
+    async def version_info(self) -> OdooVersionInfo: ...
+
+    async def call(
+        self,
+        model: str,
+        method: str,
+        *,
+        ids: list[int] | None = None,
+        context: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> Any: ...
 
 
 class PayloadValidationError(Exception):
