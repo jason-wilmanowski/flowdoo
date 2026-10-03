@@ -97,6 +97,7 @@ async def test_non_dry_run_is_403_unless_enabled(make_client) -> None:
         allowed = await client.post("/traces", json=body)
 
     assert forbidden.status_code == 403
+    assert "dry_run=false is disabled" in forbidden.json()["detail"]
     assert allowed.status_code == 201
     assert allowed.json()["dry_run"] is False
 
@@ -137,7 +138,9 @@ async def test_get_list_delete_roundtrip(make_client) -> None:
 async def test_unknown_trace_is_404(make_client) -> None:
     async with make_client() as client:
         missing = uuid.uuid4()
-        assert (await client.get(f"/traces/{missing}")).status_code == 404
+        not_found = await client.get(f"/traces/{missing}")
+        assert not_found.status_code == 404
+        assert not_found.json() == {"detail": f"Trace {missing} not found"}
         assert (await client.delete(f"/traces/{missing}")).status_code == 404
         assert (await client.get("/traces/not-a-uuid")).status_code == 422
 

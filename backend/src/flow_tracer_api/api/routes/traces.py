@@ -1,19 +1,26 @@
-"""Trace endpoints. Thin: validate input, call the injected TraceService, return DTOs.
+"""Trace endpoints. Thin: call the injected TraceService, translate its errors, return DTOs.
 
 The service arrives via ``TraceServiceDep``: FastAPI opens one ``AsyncSession`` per
 request (``core.dependencies.get_session``) and passes it to ``TraceService``.
+Every ``ServiceError`` carries ``message`` and ``status_code``; each endpoint catches it
+and raises the matching ``HTTPException``.
 """
 
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
 
 from flow_tracer_api.api.dependencies import TraceServiceDep
-from flow_tracer_api.api.errors import error_responses
+from flow_tracer_api.api.schemas import error_responses
 from flow_tracer_api.schemas import StartTraceCommand, TraceDetail, TraceListQuery, TracePage
+from flow_tracer_api.services import ServiceError
 
 router = APIRouter(prefix="/traces", tags=["traces"])
+
+
+def _http_error(exc: ServiceError) -> HTTPException:
+    return HTTPException(status_code=exc.status_code, detail=exc.message)
 
 
 @router.post(
@@ -26,10 +33,15 @@ router = APIRouter(prefix="/traces", tags=["traces"])
         "(with `error`), a failed recording is still a created trace. "
         "`dry_run=false` is rejected unless ALLOW_NON_DRY_RUN is enabled."
     ),
-    responses=error_responses(status.HTTP_403_FORBIDDEN, status.HTTP_503_SERVICE_UNAVAILABLE),
+    responses=error_responses(
+        status.HTTP_403_FORBIDDEN, status.HTTP_409_CONFLICT, status.HTTP_503_SERVICE_UNAVAILABLE
+    ),
 )
 async def start_trace(command: StartTraceCommand, service: TraceServiceDep) -> TraceDetail:
-    return await service.start_trace(command)
+    try:
+        return await service.start_trace(command)
+    except ServiceError as exc:
+        raise _http_error(exc) from exc
 
 
 @router.get(
@@ -40,7 +52,10 @@ async def start_trace(command: StartTraceCommand, service: TraceServiceDep) -> T
 async def list_traces(
     query: Annotated[TraceListQuery, Query()], service: TraceServiceDep
 ) -> TracePage:
-    return await service.list_traces(query)
+    try:
+        return await service.list_traces(query)
+    except ServiceError as exc:
+        raise _http_error(exc) from exc
 
 
 @router.get(
@@ -49,7 +64,10 @@ async def list_traces(
     responses=error_responses(status.HTTP_404_NOT_FOUND),
 )
 async def get_trace(trace_id: uuid.UUID, service: TraceServiceDep) -> TraceDetail:
-    return await service.get_trace(trace_id)
+    try:
+        return await service.get_trace(trace_id)
+    except ServiceError as exc:
+        raise _http_error(exc) from exc
 
 
 @router.delete(
@@ -59,4 +77,7 @@ async def get_trace(trace_id: uuid.UUID, service: TraceServiceDep) -> TraceDetai
     responses=error_responses(status.HTTP_404_NOT_FOUND),
 )
 async def delete_trace(trace_id: uuid.UUID, service: TraceServiceDep) -> None:
-    await service.delete_trace(trace_id)
+    try:
+        await service.delete_trace(trace_id)
+    except ServiceError as exc:
+        raise _http_error(exc) from exc

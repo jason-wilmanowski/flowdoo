@@ -5,7 +5,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from flow_tracer_api.api.errors import register_error_handlers
 from flow_tracer_api.api.routes import health, traces
 from flow_tracer_api.core.config import Settings, get_settings
 from flow_tracer_api.core.db import create_engine, create_session_factory
@@ -27,7 +26,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await engine.dispose()
 
     app = FastAPI(title="Flowdoo - Odoo Workflow Tracer", version="0.1.0", lifespan=lifespan)
-    register_error_handlers(app)
     app.include_router(health.router)
     app.include_router(traces.router)
     return app
