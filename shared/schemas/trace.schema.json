@@ -1,0 +1,311 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jason-wilmanowski/flowdoo/shared/schemas/trace.schema.json",
+  "title": "TracePayload",
+  "description": "One recorded run of an Odoo entrypoint, as produced by the flow_tracer addon. Contract between recorder, backend and frontend. Version 0.1.0.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "trace_id",
+    "odoo_version",
+    "dry_run",
+    "started_at",
+    "entrypoint",
+    "steps",
+    "error"
+  ],
+  "properties": {
+    "schema_version": {
+      "description": "Version of this schema (semver). Breaking changes bump the major version.",
+      "const": "0.1.0"
+    },
+    "trace_id": {
+      "description": "Id of the trace, assigned by the backend before the run.",
+      "type": "string",
+      "format": "uuid"
+    },
+    "odoo_version": {
+      "description": "Odoo server series the run was recorded on, e.g. \"19.0\".",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32
+    },
+    "dry_run": {
+      "description": "True if the run was rolled back at the end (the default).",
+      "type": "boolean"
+    },
+    "started_at": {
+      "description": "Start of the run (ISO 8601 with timezone).",
+      "type": "string",
+      "format": "date-time"
+    },
+    "entrypoint": {
+      "$ref": "#/$defs/Entrypoint"
+    },
+    "steps": {
+      "description": "Recorded steps in no particular order; replay order is given by seq, the call tree by parent_id.",
+      "type": "array",
+      "maxItems": 20000,
+      "items": {
+        "$ref": "#/$defs/Step"
+      }
+    },
+    "error": {
+      "description": "Set if the entrypoint itself raised; null if the run completed.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RecordedError"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "ModelName": {
+      "description": "Technical Odoo model name, e.g. \"sale.order\".",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "Identifier": {
+      "description": "Python identifier such as a method or field name.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "RecordIds": {
+      "description": "Database ids of a recordset. Recordsets are only ever stored as ids.",
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "type": "integer",
+        "minimum": 1
+      }
+    },
+    "Summary": {
+      "description": "Shortened, human readable text. The recorder truncates to this limit.",
+      "type": "string",
+      "maxLength": 2000
+    },
+    "Entrypoint": {
+      "description": "What was run: method on model for the given records.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "method", "record_ids", "context"],
+      "properties": {
+        "model": {
+          "$ref": "#/$defs/ModelName"
+        },
+        "method": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "record_ids": {
+          "$ref": "#/$defs/RecordIds"
+        },
+        "context": {
+          "description": "Context the entrypoint was called with.",
+          "type": "object"
+        }
+      }
+    },
+    "StepKind": {
+      "description": "What kind of event a step is.",
+      "type": "string",
+      "enum": [
+        "method_call",
+        "orm_create",
+        "orm_write",
+        "orm_unlink",
+        "compute",
+        "onchange",
+        "constraint",
+        "automation",
+        "side_effect_blocked"
+      ]
+    },
+    "Step": {
+      "description": "One event during the run, e.g. a method call or an ORM write.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "parent_id",
+        "seq",
+        "kind",
+        "model",
+        "method",
+        "module",
+        "mro_position",
+        "calls_super",
+        "record_ids",
+        "args_summary",
+        "return_summary",
+        "changes",
+        "duration_ms",
+        "error"
+      ],
+      "properties": {
+        "id": {
+          "description": "Id of the step, unique within the trace.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "parent_id": {
+          "description": "Id of the calling step; null for top-level steps.",
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "seq": {
+          "description": "Position in the replay, starting at 1, unique within the trace.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "kind": {
+          "$ref": "#/$defs/StepKind"
+        },
+        "model": {
+          "$ref": "#/$defs/ModelName"
+        },
+        "method": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "module": {
+          "description": "Odoo module that defines the implementation that ran, e.g. \"sale_stock\"; null if unknown.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Identifier"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mro_position": {
+          "description": "Index of the implementation in the model's MRO (0 = most derived); null if unknown.",
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "calls_super": {
+          "description": "Whether this implementation called super(); null if it could not be determined.",
+          "type": ["boolean", "null"]
+        },
+        "record_ids": {
+          "$ref": "#/$defs/RecordIds"
+        },
+        "args_summary": {
+          "description": "Shortened arguments; null if none.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Summary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "return_summary": {
+          "description": "Shortened return value; null if none.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Summary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "changes": {
+          "description": "Field values this step changed.",
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "$ref": "#/$defs/FieldChange"
+          }
+        },
+        "duration_ms": {
+          "description": "Wall time of the step including its children, in milliseconds.",
+          "type": "number",
+          "minimum": 0
+        },
+        "error": {
+          "description": "Set if the step raised.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordedError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "FieldValue": {
+      "description": "Serialised field value: scalars as JSON, recordsets as list of ids, everything else (binary, large text, dates) as shortened string.",
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "$ref": "#/$defs/Summary"
+        },
+        {
+          "$ref": "#/$defs/RecordIds"
+        }
+      ]
+    },
+    "FieldChange": {
+      "description": "Value of one field of one record before and after a step.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "record_id", "field", "old", "new"],
+      "properties": {
+        "model": {
+          "$ref": "#/$defs/ModelName"
+        },
+        "record_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "field": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "old": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "new": {
+          "$ref": "#/$defs/FieldValue"
+        }
+      }
+    },
+    "RecordedError": {
+      "description": "An exception raised in Odoo during the run.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "message"],
+      "properties": {
+        "type": {
+          "description": "Qualified exception class, e.g. \"odoo.exceptions.UserError\".",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 4000
+        }
+      }
+    }
+  }
+}
