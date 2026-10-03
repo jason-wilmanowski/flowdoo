@@ -27,6 +27,8 @@ class Settings(BaseSettings):
 
     database_url: SecretStr
     log_level: LogLevel = "INFO"
+    # dry_run=false writes to the user's Odoo DB. Dev setups only, off by default.
+    allow_non_dry_run: bool = False
 
     @field_validator("database_url")
     @classmethod
