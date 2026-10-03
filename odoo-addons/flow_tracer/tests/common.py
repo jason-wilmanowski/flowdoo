@@ -13,7 +13,9 @@ class TraceCase(TransactionCase):
         super().setUpClass()
         cls.admin_env = cls.env(user=cls.env.ref("base.user_admin").id)
 
-    def trace(self, model, method, record_ids, *, dry_run=True, context=None, env=None):
+    def trace(
+        self, model, method, record_ids, *, kwargs=None, dry_run=True, context=None, env=None
+    ):
         return run_trace(
             env or self.admin_env,
             trace_id=str(uuid.uuid4()),
@@ -21,11 +23,12 @@ class TraceCase(TransactionCase):
             method=method,
             record_ids=list(record_ids),
             context=context or {},
+            kwargs=kwargs,
             dry_run=dry_run,
         )
 
     def assertValidTree(self, payload):
-        """Rules of schema v0.1.0 that JSON Schema itself cannot express."""
+        """Rules of schema v0.2.0 that JSON Schema itself cannot express."""
         steps = payload["steps"]
         ids = [s["id"] for s in steps]
         self.assertEqual(len(ids), len(set(ids)), "step ids must be unique")

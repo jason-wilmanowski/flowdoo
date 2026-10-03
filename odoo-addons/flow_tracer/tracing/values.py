@@ -1,4 +1,4 @@
-"""Serialise values for the trace (schema v0.1.0 limits) without touching the ORM.
+"""Serialise values for the trace (schema v0.2.0 limits) without touching the ORM.
 
 Field values are read from the ORM cache (``Field._get_cache``), never fetched or
 computed, so recording does not change what it observes.
@@ -21,14 +21,17 @@ def truncate(text: str, limit: int = SUMMARY_MAX) -> str:
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
-def summary(value) -> str | None:
-    """Short repr for args/return values; bounded work even for huge structures."""
-    if value is None:
-        return None
+def short_repr(value) -> str:
+    """Bounded repr, even for huge structures or broken ``__repr__``."""
     try:
         return truncate(_repr.repr(value))
     except Exception as exc:  # a broken __repr__ must not break the trace
         return f"<unrepresentable {type(value).__name__}: {type(exc).__name__}>"
+
+
+def summary(value) -> str | None:
+    """Summary of an argument or return value; ``None`` (nothing) stays null."""
+    return None if value is None else short_repr(value)
 
 
 def ids_of(records) -> list[int]:
