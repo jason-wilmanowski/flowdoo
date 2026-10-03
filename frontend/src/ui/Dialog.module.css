@@ -1,0 +1,38 @@
+/* No dimming scrim: the overlay only blocks the page; the dialog stands out by its shadow. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+}
+
+.content {
+  position: fixed;
+  top: calc(var(--topbar-h) + var(--space-7));
+  left: 50%;
+  z-index: 11;
+  width: min(calc(var(--panel-right-w) * 1.4), calc(100vw - var(--space-7)));
+  max-height: calc(100vh - var(--topbar-h) - var(--space-7) * 2);
+  overflow: auto;
+  transform: translateX(-50%);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-overlay);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
+  border-bottom: var(--border-width) solid var(--border);
+}
+
+.title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.body {
+  padding: var(--space-4) var(--space-5) var(--space-5);
+}
