@@ -1,13 +1,14 @@
 export { Badge, type BadgeProps, type BadgeTone } from "./Badge";
 export { Button, type ButtonProps, type ButtonVariant } from "./Button";
 export { buttonClassName } from "./buttonClassName";
+export { Checkbox, type CheckboxProps } from "./Checkbox";
 export { CodeValue, type CodeValueProps } from "./CodeValue";
 export { Dialog, type DialogProps } from "./Dialog";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
 export { GraphCanvas, type GraphCanvasProps } from "./GraphCanvas";
 export { GraphNode, type GraphNodeData, type GraphNodeType } from "./GraphNode";
 export { Icon, ICON_STROKE, type IconProps } from "./Icon";
-export { Input, type InputProps } from "./Input";
+export { Input, TextArea, type InputProps, type TextAreaProps } from "./Input";
 export { IconButton, type IconButtonProps } from "./IconButton";
 export { Kbd } from "./Kbd";
 export { Select, type SelectOption, type SelectProps } from "./Select";
