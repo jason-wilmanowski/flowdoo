@@ -8,7 +8,6 @@ import {
   Button,
   CodeValue,
   EmptyState,
-  GraphCanvas,
   IconButton,
   Input,
   Kbd,
@@ -24,8 +23,10 @@ import {
   Toolbar,
   ToolbarSpacer,
   TooltipProvider,
-  type GraphNodeType,
 } from "@/ui";
+
+import { GraphCanvas } from "@/ui/GraphCanvas";
+import type { GraphNodeType } from "@/ui/GraphNode";
 
 import styles from "./KitGallery.module.css";
 

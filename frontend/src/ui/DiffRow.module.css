@@ -1,0 +1,49 @@
+.diffRow {
+  display: grid;
+  grid-template-columns: minmax(var(--space-7), 30%) 1fr;
+  align-items: start;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: var(--border-width) solid var(--border);
+  font-size: var(--text-sm);
+}
+
+.field {
+  padding-top: var(--space-1);
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.values {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.side {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.symbol {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.arrow {
+  color: var(--text-subtle);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

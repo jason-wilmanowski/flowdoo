@@ -1,0 +1,54 @@
+.stepRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding-right: var(--space-3);
+}
+
+.kind {
+  display: inline-flex;
+  flex: none;
+  color: var(--text-muted);
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+}
+
+.model {
+  color: var(--text-muted);
+}
+
+.failed {
+  color: var(--danger);
+}
+
+.changes {
+  flex: none;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--diff-change-bg);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.duration {
+  flex: none;
+  color: var(--text-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
