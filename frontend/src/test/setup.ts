@@ -24,3 +24,7 @@ if (typeof window !== "undefined" && !("matchMedia" in window)) {
     }),
   });
 }
+
+if (typeof Element !== "undefined" && !("scrollIntoView" in Element.prototype)) {
+  Object.defineProperty(Element.prototype, "scrollIntoView", { value: () => undefined });
+}
