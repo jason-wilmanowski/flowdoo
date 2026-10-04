@@ -39,8 +39,20 @@ describe("shortcutFor", () => {
   });
 });
 
+describe("activation keys", () => {
+  it("leaves Space and Enter on buttons and links to the element", () => {
+    const all = [shortcut("play", " "), shortcut("open", "Enter"), shortcut("next", "ArrowRight")];
+    const button = document.createElement("button");
+    const link = document.createElement("a");
+    expect(shortcutFor(event(" ", { target: button }), all)).toBeUndefined();
+    expect(shortcutFor(event("Enter", { target: link }), all)).toBeUndefined();
+    expect(shortcutFor(event("ArrowRight", { target: button }), all)?.id).toBe("next");
+    expect(shortcutFor(event(" "), all)?.id).toBe("play");
+  });
+});
+
 describe("isEditableTarget", () => {
-  it("knows text fields from other elements", () => {
+  it("treats every form control as editable", () => {
     const text = document.createElement("input");
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
@@ -48,7 +60,8 @@ describe("isEditableTarget", () => {
     editable.contentEditable = "true";
     expect(isEditableTarget(text)).toBe(true);
     expect(isEditableTarget(document.createElement("textarea"))).toBe(true);
-    expect(isEditableTarget(checkbox)).toBe(false);
+    expect(isEditableTarget(checkbox)).toBe(true);
+    expect(isEditableTarget(document.createElement("select"))).toBe(true);
     expect(isEditableTarget(document.createElement("button"))).toBe(false);
     expect(isEditableTarget(null)).toBe(false);
   });
