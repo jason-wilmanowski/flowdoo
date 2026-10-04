@@ -1,0 +1,39 @@
+.tree {
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  height: var(--row-h);
+  border-left: var(--selection-edge) solid transparent;
+  cursor: default;
+  white-space: nowrap;
+  transition: background-color var(--duration) var(--ease);
+}
+
+.item:hover {
+  background: var(--surface-sunken);
+}
+
+.selected,
+.selected:hover {
+  border-left-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-h-compact);
+  height: var(--control-h-compact);
+  color: var(--text-muted);
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+}
