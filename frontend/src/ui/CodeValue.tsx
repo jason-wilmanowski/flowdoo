@@ -1,4 +1,4 @@
-// avoid-ai-design-ignore: I3 (DESIGN.md 3.5: Lucide is the one icon set; Check confirms a copy)
+// avoid-ai-design-ignore: I3 (Lucide is the only icon set; Check confirms a copy)
 import { Check, ChevronDown, ChevronUp, Copy } from "lucide-react";
 import { useEffect, useState } from "react";
 
