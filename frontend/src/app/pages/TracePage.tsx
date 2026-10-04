@@ -3,26 +3,13 @@ import { Link, useParams } from "react-router";
 import { useStore } from "zustand";
 
 import type { Trace } from "@/datasource";
-import {
-  Badge,
-  Button,
-  buttonClassName,
-  EmptyState,
-  Skeleton,
-  SplitPanel,
-  type BadgeTone,
-} from "@/ui";
+import { Button, buttonClassName, EmptyState, Skeleton, SplitPanel } from "@/ui";
+
+import { DryRunBadge, TraceStatusBadge } from "@/features/traces/TraceBadges";
 
 import { useStores } from "../appContext";
 import { BottomBar } from "../shell/BottomBar";
 import styles from "./Page.module.css";
-
-const STATUS_TONES: Record<Trace["status"], BadgeTone> = {
-  pending: "neutral",
-  running: "accent",
-  succeeded: "success",
-  failed: "danger",
-};
 
 function Pane({ title, children }: { title: string; children: string }) {
   return (
@@ -67,10 +54,8 @@ function TraceWorkspace({ trace, stepCount }: { trace: Trace; stepCount: number 
               <span className={styles.mono}>
                 {trace.entrypoint_model}.{trace.entrypoint_method}
               </span>
-              <Badge tone={STATUS_TONES[trace.status]}>{trace.status}</Badge>
-              <Badge tone={trace.dry_run ? "neutral" : "danger"}>
-                {trace.dry_run ? "dry run" : "not a dry run"}
-              </Badge>
+              <TraceStatusBadge status={trace.status} />
+              <DryRunBadge dryRun={trace.dry_run} />
             </h1>
             {trace.payload === null ? (
               <EmptyState
