@@ -59,12 +59,14 @@ describe("app shell", () => {
     await userEvent.click(screen.getByRole("button", { name: "Use Fixtures" }));
     expect(await screen.findByText("Odoo connected")).toBeInTheDocument();
     expect(onDataSourceChange).toHaveBeenCalledWith("fixtures");
-    expect(await screen.findByText(/traces recorded/)).toBeInTheDocument();
+    expect(await screen.findByRole("grid", { name: "Traces" })).toBeInTheDocument();
   });
 
-  it("goes from the list placeholder to the trace view with its panels", async () => {
+  it("goes from the trace list to the trace view with its panels", async () => {
     renderApp("/traces");
-    await userEvent.click(await screen.findByRole("link", { name: "Open the newest trace" }));
+    const grid = await screen.findByRole("grid", { name: "Traces" });
+    grid.focus();
+    await userEvent.keyboard("{ArrowDown}{Enter}");
     expect(await screen.findByRole("region", { name: "Steps" })).toHaveTextContent(
       /steps recorded/,
     );

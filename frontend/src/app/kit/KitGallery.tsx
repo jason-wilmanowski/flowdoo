@@ -10,14 +10,19 @@ import {
   EmptyState,
   GraphCanvas,
   IconButton,
+  Input,
   Kbd,
+  Select,
   Skeleton,
   Spinner,
   SplitPanel,
+  Table,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
+  Toolbar,
+  ToolbarSpacer,
   TooltipProvider,
   type GraphNodeType,
 } from "@/ui";
@@ -50,6 +55,17 @@ const EDGES: Edge[] = [
   { id: "b-c", source: "b", target: "c" },
 ];
 
+interface KitRow {
+  id: string;
+  model: string;
+  state: string;
+}
+const KIT_ROWS: KitRow[] = [
+  { id: "1", model: "sale.order", state: "sale" },
+  { id: "2", model: "stock.picking", state: "assigned" },
+  { id: "3", model: "account.move", state: "draft" },
+];
+
 const LONG_VALUE =
   "{'partner_id': 12, 'order_line': [(0, 0, {'product_id': 38, 'product_uom_qty': 3.0}), (0, 0, {'product_id': 6})], 'note': 'deliver before noon'}";
 
@@ -61,6 +77,29 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       </h2>
       <div className={styles.row}>{children}</div>
     </section>
+  );
+}
+
+function KitTable() {
+  const [selected, setSelected] = useState<string | null>("2");
+  return (
+    <Table
+      label="Example records"
+      columns={[
+        { id: "id", header: "ID", cell: (row: KitRow) => row.id, shrink: true },
+        { id: "model", header: "Model", cell: (row: KitRow) => <code>{row.model}</code> },
+        {
+          id: "state",
+          header: "State",
+          cell: (row: KitRow) => <code>{row.state}</code>,
+          shrink: true,
+        },
+      ]}
+      rows={KIT_ROWS}
+      rowId={(row) => row.id}
+      selectedId={selected}
+      onSelect={setSelected}
+    />
   );
 }
 
@@ -122,6 +161,31 @@ export function KitGallery() {
             Blocked
           </Badge>
           <Badge tone="danger">failed</Badge>
+        </Section>
+
+        <Section title="Toolbar, Input and Select">
+          <div className={styles.wide}>
+            <Toolbar>
+              <Select
+                label="Status"
+                compact
+                options={[
+                  { value: "", label: "All" },
+                  { value: "failed", label: "failed" },
+                ]}
+              />
+              <Input label="Model" compact mono placeholder="sale.order" />
+              <Input aria-label="Disabled" compact disabled value="disabled" readOnly />
+              <ToolbarSpacer />
+              <Button compact>Apply</Button>
+            </Toolbar>
+          </div>
+        </Section>
+
+        <Section title="Table">
+          <div className={styles.wide}>
+            <KitTable />
+          </div>
         </Section>
 
         <Section title="Kbd">
