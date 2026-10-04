@@ -3,6 +3,8 @@ import { useNavigate } from "react-router";
 import { useStore } from "zustand";
 
 import { useStores } from "@/app/appContext";
+import { useShortcut } from "@/app/shortcuts/shortcutContext";
+import { StartTraceDialog } from "@/features/startTrace/StartTraceDialog";
 import { Button, EmptyState, Skeleton, SplitPanel } from "@/ui";
 
 import { TraceDetails } from "./TraceDetails";
@@ -24,6 +26,14 @@ export function TraceListPage() {
   const load = useStore(traceList, (state) => state.load);
   const remove = useStore(traceList, (state) => state.remove);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
+  const openStart = () => {
+    setStarting(true);
+  };
+  useShortcut(
+    { id: "start-trace", key: "n", label: "N", description: "Start a trace", group: "Traces" },
+    openStart,
+  );
 
   useEffect(() => {
     void load({ limit: PAGE_SIZE });
@@ -58,7 +68,14 @@ export function TraceListPage() {
     content = <EmptyState message="No traces match these filters." />;
   } else if (page.total === 0) {
     content = (
-      <EmptyState message="No traces recorded yet. Record one with POST /traces of the API; starting a trace from here comes next." />
+      <EmptyState
+        message="No traces recorded yet. Start one to record an entrypoint such as sale.order.action_confirm."
+        action={
+          <Button variant="primary" onClick={openStart}>
+            Start trace
+          </Button>
+        }
+      />
     );
   } else {
     content = (
@@ -104,6 +121,7 @@ export function TraceListPage() {
             onReload={() => {
               void load();
             }}
+            onStart={openStart}
           />
           <div className={styles.tableArea}>{content}</div>
           {page && page.total > 0 ? (
@@ -118,6 +136,7 @@ export function TraceListPage() {
           ) : null}
         </div>
       </SplitPanel>
+      {starting ? <StartTraceDialog open onOpenChange={setStarting} /> : null}
     </div>
   );
 }

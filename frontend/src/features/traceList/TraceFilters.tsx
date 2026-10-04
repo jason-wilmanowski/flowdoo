@@ -1,4 +1,4 @@
-import { RefreshCw } from "lucide-react";
+import { Play, RefreshCw } from "lucide-react";
 import { useState, type SubmitEvent } from "react";
 
 import type { TraceListQuery } from "@/api/types";
@@ -28,10 +28,11 @@ export interface TraceFiltersProps {
   loading: boolean;
   onChange: (change: FilterChange) => void;
   onReload: () => void;
+  onStart: () => void;
 }
 
 /** Status applies at once; model and method (exact names) apply on Enter or "Apply". */
-export function TraceFilters({ query, loading, onChange, onReload }: TraceFiltersProps) {
+export function TraceFilters({ query, loading, onChange, onReload, onStart }: TraceFiltersProps) {
   const [model, setModel] = useState(query.entrypoint_model ?? "");
   const [method, setMethod] = useState(query.entrypoint_method ?? "");
   const active = Boolean(query.status ?? query.entrypoint_model ?? query.entrypoint_method);
@@ -107,6 +108,9 @@ export function TraceFilters({ query, loading, onChange, onReload }: TraceFilter
         disabled={loading}
         onClick={onReload}
       />
+      <Button variant="primary" compact icon={Play} onClick={onStart}>
+        Start trace
+      </Button>
     </Toolbar>
   );
 }
