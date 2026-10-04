@@ -104,7 +104,10 @@ The switch in the top bar wins over the environment variable until switched back
 - One `keydown` listener (`ShortcutProvider`). Register a shortcut with
   `useShortcut({ id, key, label, description, group }, run)` while a component is mounted.
 - Shortcuts are single keys (`event.key`). Combinations with Ctrl, Meta or Alt are never
-  taken, and keys typed into text fields are ignored.
+  taken. Keys in form controls (inputs, sliders, selects, checkboxes) belong to the control,
+  and Space or Enter on a button or link activates it instead of running a shortcut.
+- Widgets with their own arrow keys (`Table`, `Tree`) handle them and call
+  `preventDefault()`, so global shortcuts such as the replay's ←/→ do not fire twice.
 - `?` opens the help dialog, which lists everything registered at that moment.
 - Every control is a native button or link or has an ARIA role with keyboard handling
   (`SplitPanel` handles: arrows, Home/End, Enter). `:focus-visible` shows a ring
@@ -157,6 +160,9 @@ The switch in the top bar wins over the environment variable until switched back
 - TypeScript strict with `noUncheckedIndexedAccess`; no `any`; no non-null assertions
   outside tests.
 - Imports via `@/…` (`src/`) and `@shared/…` (`../shared`).
+- `GraphCanvas` and `GraphNode` are imported from their files (`@/ui/GraphCanvas`), not
+  from the `@/ui` barrel, so React Flow only loads with the views that draw graphs. The
+  trace view is a lazy route for the same reason.
 - Tests sit next to the code (`*.test.ts(x)`), run with Vitest and jsdom, and use Testing
   Library queries by role and accessible name. Use fixtures with `delayMs: 0`, not
   hand-made mocks, wherever a data source is needed.
