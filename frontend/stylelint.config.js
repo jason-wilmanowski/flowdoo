@@ -2,7 +2,8 @@
 // src/styles/tokens.css; that file is the only place allowed to define raw values.
 /** @type {import("stylelint").Config} */
 
-const SPACE = "var\\(--space-[1-7]\\)";
+// the spacing scale, plus the one gutter between panels
+const SPACE = "var\\((?:--space-[1-7]|--gutter)\\)";
 const SPACING_VALUE = new RegExp(`^(-?(0|auto|${SPACE}))(\\s+-?(0|auto|${SPACE}))*$`);
 
 export const designRules = {

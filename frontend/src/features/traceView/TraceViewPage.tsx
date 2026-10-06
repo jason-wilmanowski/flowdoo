@@ -122,7 +122,7 @@ export function TraceViewPage() {
   if (phase === "error" && error) {
     const missing = error.status === 404;
     return (
-      <main className={styles.page}>
+      <main className={styles.island}>
         <EmptyState
           tone="danger"
           message={
@@ -151,7 +151,7 @@ export function TraceViewPage() {
   }
   if (!trace || trace.id !== traceId) {
     return (
-      <main className={styles.page}>
+      <main className={styles.island}>
         <Skeleton rows={10} label="Loading trace" />
       </main>
     );
@@ -160,14 +160,16 @@ export function TraceViewPage() {
   const entrypoint = trace.payload?.entrypoint;
   return (
     <div className={styles.page}>
-      <TraceHeader
-        trace={trace}
-        onRunAgain={() => {
-          setRunAgain(true);
-        }}
-      />
+      <div className={styles.headerIsland}>
+        <TraceHeader
+          trace={trace}
+          onRunAgain={() => {
+            setRunAgain(true);
+          }}
+        />
+      </div>
       {trace.payload === null || !index ? (
-        <main className={styles.page}>
+        <main className={styles.island}>
           <EmptyState
             tone="danger"
             message={`The recording failed, so there are no steps: ${trace.error ?? "no reason given"}`}

@@ -1,6 +1,12 @@
 import "@xyflow/react/dist/base.css";
 
-import { ReactFlow, type Edge, type NodeMouseHandler } from "@xyflow/react";
+import {
+  Background,
+  BackgroundVariant,
+  ReactFlow,
+  type Edge,
+  type NodeMouseHandler,
+} from "@xyflow/react";
 
 import styles from "./GraphCanvas.module.css";
 import { GraphNode, type GraphNodeType } from "./GraphNode";
@@ -19,7 +25,7 @@ export interface GraphCanvasProps {
 
 /**
  * Read-only graph on React Flow with our node and edge styling: step-routed 1px edges,
- * no minimap, no background pattern, nodes not draggable or connectable.
+ * no minimap, a quiet dot grid, nodes not draggable or connectable.
  */
 export function GraphCanvas({ label, nodes, edges, onNodeClick }: GraphCanvasProps) {
   return (
@@ -35,7 +41,9 @@ export function GraphCanvas({ label, nodes, edges, onNodeClick }: GraphCanvasPro
         edgesFocusable={false}
         zoomOnDoubleClick={false}
         fitView
-      />
+      >
+        <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
+      </ReactFlow>
     </div>
   );
 }

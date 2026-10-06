@@ -19,8 +19,37 @@ body {
   line-height: var(--leading-dense);
   font-weight: var(--weight-regular);
   color: var(--text);
-  background: var(--bg);
+  background: var(--surface-sunken);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizelegibility;
+  font-feature-settings: "tnum" 1;
+}
+
+::selection {
+  background: var(--accent-subtle);
+  color: var(--text);
+}
+
+/* Thin, quiet scrollbars like an editor's. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: var(--space-3);
+  height: var(--space-3);
+}
+
+::-webkit-scrollbar-thumb {
+  border: var(--space-1) solid transparent;
+  border-radius: var(--radius-lg);
+  background: var(--border-strong) padding-box;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 h1,
