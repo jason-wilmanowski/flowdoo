@@ -36,3 +36,31 @@
 .body {
   padding: var(--space-4) var(--space-5) var(--space-5);
 }
+
+/* Side sheet: a darker panel along the right edge, below the top bar. */
+.sheet {
+  position: fixed;
+  top: var(--topbar-h);
+  right: 0;
+  bottom: 0;
+  z-index: 11;
+  display: flex;
+  flex-direction: column;
+  width: min(var(--panel-right-w), 100vw);
+  overflow: auto;
+  border-left: var(--border-width) solid var(--border);
+  background: var(--surface-sunken);
+  box-shadow: var(--shadow-overlay);
+  animation: slide-in var(--duration) var(--ease);
+}
+
+.sheet .header {
+  border-bottom-color: var(--border);
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(var(--space-6));
+    opacity: 0;
+  }
+}

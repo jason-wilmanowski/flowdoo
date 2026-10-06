@@ -10,8 +10,10 @@ if (!("ResizeObserver" in globalThis)) {
   Object.defineProperty(globalThis, "ResizeObserver", { value: ResizeObserverStub });
 }
 
-if (typeof window !== "undefined" && !("matchMedia" in window)) {
+if (typeof window !== "undefined" && typeof (window as Partial<Window>).matchMedia !== "function") {
   Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
     value: (query: string) => ({
       matches: false,
       media: query,

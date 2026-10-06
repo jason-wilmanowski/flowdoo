@@ -1,29 +1,41 @@
-import { Keyboard, Moon, Sun } from "lucide-react";
+import { Settings, Workflow } from "lucide-react";
+import { useState } from "react";
 import { NavLink } from "react-router";
 
-import { Badge, Button, IconButton } from "@/ui";
+import { Icon, IconButton } from "@/ui";
 
 import { useDataSourceSwitch } from "../appContext";
-import { useOpenShortcutHelp } from "../shortcuts/shortcutContext";
+import { useShortcut } from "../shortcuts/shortcutContext";
 import { ConnectionStatus } from "./ConnectionStatus";
+import { SettingsSheet } from "./SettingsSheet";
 import styles from "./TopBar.module.css";
-import { useTheme } from "./useTheme";
-
-const SOURCE_NAMES = { api: "API", fixtures: "Fixtures" } as const;
 
 function navClass({ isActive }: { isActive: boolean }) {
   return [styles.navLink, isActive ? styles.navActive : ""].join(" ").trim();
 }
 
+/**
+ * Left: product and navigation. Right: what is true right now (read-only status), then
+ * the one action of the bar (settings), separated by a line.
+ */
 export function TopBar() {
-  const { dataSource, switchDataSource } = useDataSourceSwitch();
-  const [theme, setTheme] = useTheme();
-  const openHelp = useOpenShortcutHelp();
-  const otherSource = dataSource === "api" ? "fixtures" : "api";
+  const { dataSource } = useDataSourceSwitch();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  useShortcut(
+    { id: "settings", key: ",", label: ",", description: "Open settings", group: "General" },
+    () => {
+      setSettingsOpen((open) => !open);
+    },
+  );
 
   return (
     <header className={styles.topBar}>
-      <span className={styles.product}>Flowdoo</span>
+      <span className={styles.product}>
+        <span className={styles.mark} aria-hidden="true">
+          <Icon icon={Workflow} compact />
+        </span>
+        Flowdoo
+      </span>
       <nav aria-label="Main" className={styles.nav}>
         <NavLink to="/traces" className={navClass}>
           Traces
@@ -34,30 +46,34 @@ export function TopBar() {
       </nav>
 
       <div className={styles.end}>
-        <Badge title="Every run is rolled back in Odoo; nothing is written.">Dry run</Badge>
-        <ConnectionStatus />
-        <div className={styles.group}>
-          <span className={styles.label}>Data</span>
-          <Badge mono>{SOURCE_NAMES[dataSource]}</Badge>
-          <Button
-            variant="ghost"
-            compact
-            onClick={() => {
-              switchDataSource(otherSource);
-            }}
+        <div className={styles.statusArea} aria-label="Status">
+          {dataSource === "fixtures" ? (
+            <span className={styles.status}>
+              <span className={[styles.dot, styles.pending].join(" ")} aria-hidden="true" />
+              Fixture data
+            </span>
+          ) : (
+            <ConnectionStatus />
+          )}
+          <span
+            className={styles.status}
+            title="Every run is rolled back in Odoo; nothing is written."
           >
-            Use {SOURCE_NAMES[otherSource]}
-          </Button>
+            Dry run
+          </span>
         </div>
+        <span className={styles.divider} aria-hidden="true" />
         <IconButton
-          icon={theme === "dark" ? Sun : Moon}
-          label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          icon={Settings}
+          label="Settings (,)"
+          className={styles.barButton}
+          aria-expanded={settingsOpen}
           onClick={() => {
-            setTheme(theme === "dark" ? "light" : "dark");
+            setSettingsOpen(true);
           }}
         />
-        <IconButton icon={Keyboard} label="Keyboard shortcuts (?)" onClick={openHelp} />
       </div>
+      <SettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} />
     </header>
   );
 }

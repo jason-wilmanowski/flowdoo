@@ -40,9 +40,8 @@ describe("app shell", () => {
 
   it("redirects / to the traces and shows connection, data source and dry run", async () => {
     renderApp("/");
-    expect(await screen.findByText("Odoo connected")).toBeInTheDocument();
+    expect(await screen.findByText("Fixture data")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Traces" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByText("Fixtures")).toBeInTheDocument();
     expect(screen.getByText("Dry run")).toBeInTheDocument();
     const notices = screen.getByRole("region", { name: "Connection notices" });
     expect(notices).toHaveTextContent(/Warning.*Fixture mode/);
@@ -56,9 +55,12 @@ describe("app shell", () => {
     );
     expect(await screen.findByRole("alert")).toHaveTextContent(/Could not load the traces/);
 
-    await userEvent.click(screen.getByRole("button", { name: "Use Fixtures" }));
-    expect(await screen.findByText("Odoo connected")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Settings (,)" }));
+    const sheet = await screen.findByRole("dialog", { name: "Settings" });
+    await userEvent.click(within(sheet).getByRole("radio", { name: "Fixtures" }));
+    expect(await screen.findByText("Fixture data")).toBeInTheDocument();
     expect(onDataSourceChange).toHaveBeenCalledWith("fixtures");
+    await userEvent.keyboard("{Escape}");
     expect(await screen.findByRole("grid", { name: "Traces" })).toBeInTheDocument();
   });
 
@@ -102,10 +104,14 @@ describe("app shell", () => {
   it("switches and remembers the theme", async () => {
     document.documentElement.dataset.theme = "light";
     renderApp("/overview");
-    await userEvent.click(screen.getByRole("button", { name: "Switch to dark theme" }));
+    await userEvent.click(screen.getByRole("button", { name: "Settings (,)" }));
+    const sheet = await screen.findByRole("dialog", { name: "Settings" });
+    expect(within(sheet).getByRole("radio", { name: "System" })).toBeChecked();
+    await userEvent.click(within(sheet).getByRole("radio", { name: "Dark" }));
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(localStorage.getItem("flowdoo.theme")).toBe("dark");
-    expect(screen.getByRole("button", { name: "Switch to light theme" })).toBeInTheDocument();
+    await userEvent.click(within(sheet).getByRole("radio", { name: "System" }));
+    expect(localStorage.getItem("flowdoo.theme")).toBeNull();
   });
 });
 
@@ -124,10 +130,17 @@ describe("keyboard shortcuts", () => {
     expect(trigger).toHaveFocus();
   });
 
-  it("opens the help from the top bar", async () => {
+  it("opens the settings with the comma key; they list connection and shortcuts", async () => {
     renderApp("/overview");
-    await userEvent.click(screen.getByRole("button", { name: "Keyboard shortcuts (?)" }));
-    expect(await screen.findByRole("dialog", { name: "Keyboard shortcuts" })).toBeInTheDocument();
+    await screen.findByText("Fixture data");
+    await userEvent.keyboard(",");
+    const sheet = await screen.findByRole("dialog", { name: "Settings" });
+    const shortcuts = within(sheet).getByRole("region", { name: "Keyboard shortcuts" });
+    expect(shortcuts).toHaveTextContent("Show keyboard shortcuts");
+    expect(shortcuts).toHaveTextContent("Open settings");
+    expect(within(sheet).getByRole("region", { name: "Connection" })).toHaveTextContent("Database");
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("ignores ? typed into a text field", async () => {

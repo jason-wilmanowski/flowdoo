@@ -56,7 +56,7 @@ export function ShortcutProvider({ children }: { children: ReactNode }) {
     [register],
   );
 
-  const value = useMemo(() => ({ register, openHelp }), [register, openHelp]);
+  const value = useMemo(() => ({ register, openHelp, shortcuts }), [register, openHelp, shortcuts]);
   return (
     <ShortcutContext.Provider value={value}>
       {children}

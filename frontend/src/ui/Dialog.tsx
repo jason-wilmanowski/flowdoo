@@ -10,13 +10,15 @@ export interface DialogProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   children: ReactNode;
+  /** "sheet": a panel along the right edge (settings), instead of a centered dialog. */
+  variant?: "dialog" | "sheet";
 }
 
 /**
  * Modal dialog (Radix: focus trap, Escape, focus returns to the trigger). Only for blocking
  * or destructive decisions and the shortcut help.
  */
-export function Dialog({ open, onOpenChange, title, children }: DialogProps) {
+export function Dialog({ open, onOpenChange, title, children, variant = "dialog" }: DialogProps) {
   // Radix returns focus only to a Dialog.Trigger; dialogs opened by a shortcut have none.
   const returnFocusTo = useRef<HTMLElement | null>(null);
   return (
@@ -24,7 +26,7 @@ export function Dialog({ open, onOpenChange, title, children }: DialogProps) {
       <RadixDialog.Portal>
         <RadixDialog.Overlay className={styles.overlay} />
         <RadixDialog.Content
-          className={styles.content}
+          className={variant === "sheet" ? styles.sheet : styles.content}
           aria-describedby={undefined}
           onOpenAutoFocus={() => {
             returnFocusTo.current =

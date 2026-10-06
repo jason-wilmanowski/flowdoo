@@ -1,17 +1,15 @@
 import { useState } from "react";
 
-import { chooseTheme, type Theme } from "@/lib/theme";
+import { chooseThemeChoice, storedChoice, type ThemeChoice } from "@/lib/theme";
 
-/** The theme applied on <html> (set before the first render) and a way to change it. */
-export function useTheme(): [Theme, (theme: Theme) => void] {
-  const [theme, setTheme] = useState<Theme>(() =>
-    document.documentElement.dataset.theme === "dark" ? "dark" : "light",
-  );
+/** The theme choice (light, dark or system) and a way to change it. */
+export function useThemeChoice(): [ThemeChoice, (choice: ThemeChoice) => void] {
+  const [choice, setChoice] = useState<ThemeChoice>(() => storedChoice());
   return [
-    theme,
+    choice,
     (next) => {
-      chooseTheme(next);
-      setTheme(next);
+      chooseThemeChoice(next);
+      setChoice(next);
     },
   ];
 }

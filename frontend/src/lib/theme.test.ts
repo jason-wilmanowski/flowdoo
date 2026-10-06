@@ -5,6 +5,8 @@ import {
   initialTheme,
   storedTheme,
   systemTheme,
+  chooseThemeChoice,
+  storedChoice,
 } from "@/lib/theme";
 
 function media(dark: boolean): Pick<Window, "matchMedia"> {
@@ -52,5 +54,29 @@ describe("theme", () => {
 
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe("dark");
+  });
+});
+
+describe("theme choice", () => {
+  const memory = () => {
+    const data = new Map<string, string>();
+    return {
+      getItem: (key: string) => data.get(key) ?? null,
+      setItem: (key: string, value: string) => void data.set(key, value),
+      removeItem: (key: string) => void data.delete(key),
+    };
+  };
+  const media = (dark: boolean) => ({
+    matchMedia: (query: string) => ({ matches: dark, media: query }) as MediaQueryList,
+  });
+
+  it("stores a fixed choice and forgets it for system", () => {
+    const storage = memory();
+    const root = document.createElement("html");
+    expect(chooseThemeChoice("dark", storage, root, media(false))).toBe("dark");
+    expect(storedChoice(storage)).toBe("dark");
+    expect(chooseThemeChoice("system", storage, root, media(false))).toBe("light");
+    expect(storedChoice(storage)).toBe("system");
+    expect(root.dataset.theme).toBe("light");
   });
 });

@@ -1,4 +1,7 @@
+import { CircleAlert, TriangleAlert } from "lucide-react";
 import { useStore } from "zustand";
+
+import { Icon } from "@/ui";
 
 import { useStores } from "../appContext";
 import styles from "./ConnectionNotices.module.css";
@@ -18,12 +21,20 @@ export function ConnectionNotices() {
       <ul className={styles.list}>
         {problems.map((text) => (
           <li key={`p-${text}`} className={styles.problem}>
-            <strong className={styles.kind}>Problem</strong> {text}
+            <span className={styles.icon}>
+              <Icon icon={CircleAlert} compact />
+            </span>
+            <strong className={styles.kind}>Problem</strong>
+            <span>{text}</span>
           </li>
         ))}
         {warnings.map((text) => (
           <li key={`w-${text}`} className={styles.warning}>
-            <strong className={styles.kind}>Warning</strong> {text}
+            <span className={styles.icon}>
+              <Icon icon={TriangleAlert} compact />
+            </span>
+            <strong className={styles.kind}>Warning</strong>
+            <span>{text}</span>
           </li>
         ))}
       </ul>

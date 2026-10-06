@@ -44,3 +44,31 @@ export function chooseTheme(
     // not persisted; the choice still applies for this session
   }
 }
+
+/** What the user picked in the settings: a fixed theme or the system's. */
+export type ThemeChoice = Theme | "system";
+
+export function storedChoice(storage: Pick<Storage, "getItem"> = localStorage): ThemeChoice {
+  return storedTheme(storage) ?? "system";
+}
+
+/** Apply a choice; "system" forgets the stored theme and follows prefers-color-scheme. */
+export function chooseThemeChoice(
+  choice: ThemeChoice,
+  storage: Pick<Storage, "setItem" | "removeItem"> = localStorage,
+  root: HTMLElement = document.documentElement,
+  media: Pick<Window, "matchMedia"> = window,
+): Theme {
+  if (choice !== "system") {
+    chooseTheme(choice, storage, root);
+    return choice;
+  }
+  try {
+    storage.removeItem(THEME_STORAGE_KEY);
+  } catch {
+    // nothing stored; the system theme applies anyway
+  }
+  const theme = systemTheme(media);
+  applyTheme(theme, root);
+  return theme;
+}

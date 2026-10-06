@@ -5,6 +5,8 @@ import type { Shortcut } from "@/lib/shortcuts/registry";
 export interface ShortcutContextValue {
   register: (shortcut: Shortcut) => () => void;
   openHelp: () => void;
+  /** Everything registered right now, in registration order. */
+  shortcuts: readonly Shortcut[];
 }
 
 export const ShortcutContext = createContext<ShortcutContextValue | null>(null);
@@ -41,4 +43,8 @@ export function useShortcut(shortcut: Omit<Shortcut, "run">, run: () => void): v
 
 export function useOpenShortcutHelp(): () => void {
   return useShortcutContext().openHelp;
+}
+
+export function useRegisteredShortcuts(): readonly Shortcut[] {
+  return useShortcutContext().shortcuts;
 }
