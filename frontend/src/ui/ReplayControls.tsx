@@ -40,42 +40,44 @@ export function ReplayControls({
   const atEnd = empty || position === count - 1;
   return (
     <div className={styles.controls}>
-      <IconButton
-        icon={SkipBack}
-        label="First step (Home)"
-        compact
-        disabled={atStart}
-        onClick={onFirst}
-      />
-      <IconButton
-        icon={StepBack}
-        label="Previous step (←)"
-        compact
-        disabled={atStart}
-        onClick={onPrevious}
-      />
-      <IconButton
-        icon={playing ? Pause : Play}
-        label={playing ? "Pause (Space)" : "Play (Space)"}
-        variant="secondary"
-        compact
-        disabled={empty}
-        onClick={onToggle}
-      />
-      <IconButton
-        icon={StepForward}
-        label="Next step (→)"
-        compact
-        disabled={atEnd}
-        onClick={onNext}
-      />
-      <IconButton
-        icon={SkipForward}
-        label="Last step (End)"
-        compact
-        disabled={atEnd}
-        onClick={onLast}
-      />
+      <div className={styles.transport} role="group" aria-label="Replay">
+        <IconButton
+          icon={SkipBack}
+          label="First step (Home)"
+          compact
+          disabled={atStart}
+          onClick={onFirst}
+        />
+        <IconButton
+          icon={StepBack}
+          label="Previous step (←)"
+          compact
+          disabled={atStart}
+          onClick={onPrevious}
+        />
+        <IconButton
+          icon={playing ? Pause : Play}
+          label={playing ? "Pause (Space)" : "Play (Space)"}
+          variant="secondary"
+          compact
+          disabled={empty}
+          onClick={onToggle}
+        />
+        <IconButton
+          icon={StepForward}
+          label="Next step (→)"
+          compact
+          disabled={atEnd}
+          onClick={onNext}
+        />
+        <IconButton
+          icon={SkipForward}
+          label="Last step (End)"
+          compact
+          disabled={atEnd}
+          onClick={onLast}
+        />
+      </div>
       <input
         type="range"
         className={styles.scrubber}

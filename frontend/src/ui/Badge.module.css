@@ -1,16 +1,31 @@
+/* Tinted label: the dot carries the color, the text carries the meaning. */
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
   max-width: 100%;
+  height: calc(var(--control-h-compact) - var(--space-2));
   padding: 0 var(--space-2);
-  border: var(--border-width) solid currentcolor;
-  border-radius: var(--radius-sm);
-  background: var(--surface);
+  border-radius: var(--radius);
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
-  line-height: var(--leading-prose);
+  line-height: 1;
   white-space: nowrap;
+}
+
+.badge:not(.neutral)::before {
+  content: "";
+  flex: none;
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: 50%;
+  background: currentcolor;
+}
+
+.label {
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
 }
 
 .mono {
@@ -19,23 +34,35 @@
 }
 
 .neutral {
-  border-color: var(--border-strong);
   background: var(--surface-sunken);
+  box-shadow: none;
+}
+
+.neutral .label {
   color: var(--text-muted);
 }
 
 .accent {
+  background: var(--accent-subtle);
   color: var(--accent);
 }
 
 .success {
+  background: var(--diff-add-bg);
   color: var(--success);
 }
 
 .warning {
+  background: var(--diff-change-bg);
   color: var(--warning);
 }
 
 .danger {
+  background: var(--diff-remove-bg);
   color: var(--danger);
+}
+
+/* an icon replaces the dot */
+.withIcon::before {
+  display: none;
 }

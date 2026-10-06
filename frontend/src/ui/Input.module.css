@@ -1,7 +1,7 @@
 .field {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
 .stacked {
@@ -20,13 +20,15 @@
   height: var(--control-h);
   min-width: 0;
   padding: 0 var(--space-3);
-  border: var(--border-width) solid var(--border-strong);
+  border: var(--border-width) solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
   font: inherit;
   font-size: var(--text-base);
-  transition: border-color var(--duration) var(--ease);
+  transition:
+    border-color var(--duration) var(--ease),
+    background-color var(--duration) var(--ease);
 }
 
 .select {
@@ -39,11 +41,22 @@
 
 .input:hover,
 .select:hover {
-  border-color: var(--text-subtle);
+  border-color: var(--border-strong);
+}
+
+.input:focus,
+.select:focus {
+  border-color: var(--accent);
+}
+
+.input:focus-visible,
+.select:focus-visible {
+  outline-offset: 0;
 }
 
 .input:disabled,
 .select:disabled {
+  border-color: var(--border);
   background: var(--surface-sunken);
   color: var(--text-subtle);
 }

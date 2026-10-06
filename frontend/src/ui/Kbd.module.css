@@ -1,11 +1,12 @@
 .kbd {
   display: inline-block;
-  min-width: var(--control-h-compact);
+  min-width: calc(var(--control-h-compact) - var(--space-2));
   padding: 0 var(--space-2);
-  border: var(--border-width) solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface-sunken);
-  color: var(--text);
+  border: var(--border-width) solid var(--border);
+  border-bottom-width: var(--selection-edge);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   line-height: var(--leading-prose);

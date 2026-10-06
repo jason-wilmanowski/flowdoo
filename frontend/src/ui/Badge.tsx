@@ -19,11 +19,13 @@ export interface BadgeProps {
 export function Badge({ children, tone = "neutral", icon, mono = false, title }: BadgeProps) {
   return (
     <span
-      className={[styles.badge, styles[tone], mono ? styles.mono : ""].join(" ").trim()}
+      className={[styles.badge, styles[tone], mono ? styles.mono : "", icon ? styles.withIcon : ""]
+        .join(" ")
+        .trim()}
       title={title}
     >
       {icon ? <Icon icon={icon} compact /> : null}
-      {children}
+      <span className={styles.label}>{children}</span>
     </span>
   );
 }
