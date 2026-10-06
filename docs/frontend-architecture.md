@@ -80,13 +80,13 @@ sequenceDiagram
 
 ## Fixture mode
 
-`VITE_DATA_SOURCE=fixtures`, or the "Use Fixtures" switch in the top bar, replaces the API
+`VITE_DATA_SOURCE=fixtures`, or "Data source: Fixtures" in the settings, replaces the API
 with `createFixtureDataSource()` on `shared/fixtures/*.json`. It behaves like the API
 (filters, paging, 404, delete, start of a run, refusal of `dry_run=false`, a failed
 recording) with an artificial delay, so loading states are visible. The connection notice
 says that fixture mode is active. Details in ADR 0004.
 
-The switch in the top bar wins over the environment variable until switched back
+The choice in the settings wins over the environment variable until switched back
 (`localStorage` key `flowdoo.dataSource`).
 
 ## App shell and routing
@@ -94,9 +94,13 @@ The switch in the top bar wins over the environment variable until switched back
 - Routes: `/` → `/traces`, `/traces`, `/traces/:traceId`, `/overview`, not-found. `/_kit`
   is a development-only gallery of the UI primitives (light and dark), not in production
   builds.
-- `AppShell` (layout route) renders the top bar and the connection notices: dry-run badge,
-  connection state, data source, theme, shortcut help. Pages fill the rest and compose
-  `SplitPanel` (left, main, right; resizable, persisted) and an optional `BottomBar`.
+- `AppShell` (layout route) renders the top bar and the connection notices. The top bar
+  shows state as plain text (connection or fixture data, dry run) and has one action: the
+  settings sheet (gear or `,`). The sheet holds theme (light, dark, system), data source,
+  connection details with "Check again", and the active keyboard shortcuts.
+- Layout: panels are separate surfaces ("islands") on the app background, `--gutter`
+  apart. Pages fill the rest and compose `SplitPanel` (left, main, right; the gutter is the
+  resize handle; sizes persisted) and an optional `BottomBar`.
 - Pages load their data by calling store actions in effects. The router has no loaders.
 
 ## Keyboard
@@ -125,8 +129,8 @@ The switch in the top bar wins over the environment variable until switched back
 - **Contrast:** `styles/contrast.test.ts` checks the token pairs against WCAG AA in both
   themes.
 - **Icons:** Lucide only, through `ui/Icon` (one size, one stroke width).
-- **Theme:** follows the system until the user picks one (`flowdoo.theme`). It is applied
-  before the first render.
+- **Theme:** light, dark or system (the default) in the settings; a fixed choice is stored
+  in `flowdoo.theme`. It is applied before the first render.
 - `node .claude/skills/avoid-ai-design/scripts/detect.mjs frontend/src` (from the repo
   root) scans for generic design defaults. UI pull requests list its result.
 
