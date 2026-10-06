@@ -1,12 +1,16 @@
 .tree {
+  padding: var(--space-2) 0;
   list-style: none;
   font-size: var(--text-sm);
 }
 
 .item {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   height: var(--row-h);
+  margin: 0 var(--space-2);
+  padding-left: var(--space-1);
+  border-radius: var(--radius);
   border-left: var(--selection-edge) solid transparent;
   cursor: default;
   white-space: nowrap;
@@ -23,17 +27,39 @@
   background: var(--accent-subtle);
 }
 
+/* indentation guide: one thin line per level, as in an editor's outline */
+.guide {
+  position: relative;
+  flex: none;
+  width: var(--space-5);
+}
+
+.guide::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--space-5) / 2);
+  border-left: var(--border-width) solid var(--border);
+}
+
 .toggle {
   display: inline-flex;
   flex: none;
   align-items: center;
   justify-content: center;
-  width: var(--control-h-compact);
-  height: var(--control-h-compact);
-  color: var(--text-muted);
+  width: var(--space-5);
+  color: var(--text-subtle);
+}
+
+.toggle:hover {
+  color: var(--text);
 }
 
 .content {
+  display: flex;
   flex: 1;
+  align-items: center;
   min-width: 0;
+  padding-left: var(--space-1);
 }

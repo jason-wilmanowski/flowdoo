@@ -79,7 +79,7 @@ describe("Tree", () => {
     render(<Example />);
     await userEvent.click(screen.getByText("step d"));
     expect(item("d")).toHaveAttribute("aria-selected", "true");
-    await userEvent.click(item("b").querySelector("span")!);
+    await userEvent.click(item("b").querySelector("svg")!.parentElement!);
     expect(item("b")).toHaveAttribute("aria-expanded", "false");
   });
 

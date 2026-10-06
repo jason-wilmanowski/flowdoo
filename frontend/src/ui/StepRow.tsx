@@ -1,6 +1,5 @@
 import type { LucideIcon } from "lucide-react";
 
-import { Badge } from "./Badge";
 import { Icon } from "./Icon";
 import styles from "./StepRow.module.css";
 
@@ -8,6 +7,8 @@ export interface StepRowProps {
   kindIcon: LucideIcon;
   /** Text for the kind, e.g. "write"; read by screen readers and shown as tooltip. */
   kindLabel: string;
+  /** Color of the kind icon: what the step did to data (the label says the same in words). */
+  kindTone?: "neutral" | "add" | "change" | "remove";
   model: string;
   method: string;
   /** Module of the implementation; null = Odoo core. */
@@ -22,6 +23,7 @@ export interface StepRowProps {
 export function StepRow({
   kindIcon,
   kindLabel,
+  kindTone = "neutral",
   model,
   method,
   module,
@@ -31,7 +33,7 @@ export function StepRow({
 }: StepRowProps) {
   return (
     <span className={styles.stepRow}>
-      <span className={styles.kind} title={kindLabel}>
+      <span className={[styles.kind, styles[kindTone]].join(" ")} title={kindLabel}>
         <Icon icon={kindIcon} compact label={kindLabel} />
       </span>
       <span className={[styles.name, failed ? styles.failed : ""].join(" ").trim()}>
@@ -43,8 +45,8 @@ export function StepRow({
           <span className={styles.visuallyHidden}> field changes</span>
         </span>
       ) : null}
-      {failed ? <Badge tone="danger">error</Badge> : null}
-      <Badge mono>{module ?? "core"}</Badge>
+      {failed ? <span className={styles.error}>error</span> : null}
+      <span className={styles.module}>{module ?? "core"}</span>
       <span className={styles.duration}>{duration}</span>
     </span>
   );

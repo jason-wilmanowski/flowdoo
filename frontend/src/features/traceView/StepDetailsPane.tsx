@@ -152,6 +152,7 @@ function Path({
               <StepRow
                 kindIcon={kind.icon}
                 kindLabel={kind.label}
+                kindTone={kind.tone}
                 model={item.model}
                 method={item.method}
                 module={item.module}
