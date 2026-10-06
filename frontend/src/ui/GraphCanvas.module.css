@@ -13,7 +13,6 @@
   --xy-attribution-background-color: var(--surface);
   --xy-edge-label-background-color: var(--bg);
   --xy-edge-label-color: var(--text-muted);
-  --xy-background-pattern-dots-color-default: var(--border-strong);
 
   flex: 1;
   width: 100%;
