@@ -2,7 +2,7 @@ import { loadFixture } from "@/datasource/fixtures/catalog";
 import type { Step } from "@/generated/trace";
 import { indexTrace } from "@/lib/replay/traceIndex";
 
-import { changesByRecord, changesOverTime, netChanges, subtreeSteps } from "./changes";
+import { changesOverTime, netChanges, subtreeSteps } from "./changes";
 import { layoutLayers, modelGraph } from "./modelGraph";
 import { ancestorsOf, collapseBelow, revealStep, visibleRows } from "./treeRows";
 import { formatValue } from "./values";
@@ -77,15 +77,11 @@ describe("tree rows", () => {
 });
 
 describe("changes", () => {
-  it("lists changes in replay order and groups them by record", () => {
+  it("lists changes in replay order", () => {
     expect(changesOverTime(index).map((c) => [c.step.id, c.position, c.change.field])).toEqual([
       ["s4", 3, "state"],
       ["s4", 3, "state"],
       ["s4", 3, "line_ids"],
-    ]);
-    expect(changesByRecord(STEPS[3]!).map((g) => [g.recordId, g.changes.length])).toEqual([
-      [7, 2],
-      [8, 1],
     ]);
   });
 

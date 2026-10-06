@@ -73,15 +73,6 @@
   font-weight: var(--weight-semibold);
 }
 
-.detailTitle {
-  overflow: hidden;
-  font-family: var(--font-mono);
-  font-size: var(--text-base);
-  font-weight: var(--weight-semibold);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .count {
   padding: 0 var(--space-2);
   border-radius: var(--radius-sm);
@@ -102,13 +93,6 @@
   overflow: auto;
 }
 
-.detailTabs {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-}
-
 .hint {
   padding: var(--space-4);
   color: var(--text-muted);
@@ -120,69 +104,6 @@
   color: var(--text-muted);
 }
 
-.changeGroups {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  padding: var(--space-4);
-}
-
-.recordTitle {
-  margin-bottom: var(--space-2);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-}
-
-.callTab {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  padding: var(--space-4);
-}
-
-.facts {
-  display: flex;
-  flex-direction: column;
-  border: var(--border-width) solid var(--border);
-  border-radius: var(--radius);
-  font-size: var(--text-sm);
-}
-
-.fact {
-  display: grid;
-  grid-template-columns: calc(var(--space-7) * 3) 1fr;
-  align-items: center;
-  gap: var(--space-3);
-  min-height: var(--row-h);
-  padding: var(--space-1) var(--space-3);
-}
-
-.fact + .fact {
-  border-top: var(--border-width) solid var(--border);
-}
-
-.fact dt {
-  color: var(--text-muted);
-}
-
-.fact code {
-  font-family: var(--font-mono);
-}
-
-.kindFact {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.summaryBlock {
-  display: flex;
-  flex-direction: column;
-}
-
-.stepError,
 .odooError {
   padding: var(--space-3);
   border-left: var(--selection-edge) solid var(--danger);
@@ -191,41 +112,7 @@
   color: var(--text);
   font-size: var(--text-sm);
   line-height: var(--leading-prose);
-}
-
-.odooError {
   margin: var(--space-3);
-}
-
-.path {
-  display: flex;
-  flex-direction: column;
-  padding: var(--space-2) 0;
-  list-style: none;
-}
-
-.pathItem {
-  display: block;
-  width: 100%;
-  height: var(--row-h);
-  padding: 0 var(--space-3);
-  border: 0;
-  border-left: var(--selection-edge) solid transparent;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: var(--text-sm);
-  text-align: start;
-  cursor: pointer;
-}
-
-.pathItem:hover {
-  background: var(--surface-sunken);
-}
-
-.pathCurrent {
-  border-left-color: var(--accent);
-  background: var(--accent-subtle);
 }
 
 .timeline {
