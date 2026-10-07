@@ -26,6 +26,12 @@ body {
   font-feature-settings: "tnum" 1;
 }
 
+/* The hidden attribute always wins: components may set display on the same element
+   (e.g. inactive tab panels that stay in the DOM). */
+[hidden] {
+  display: none !important;
+}
+
 ::selection {
   background: var(--accent-subtle);
   color: var(--text);
