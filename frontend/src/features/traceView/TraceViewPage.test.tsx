@@ -122,10 +122,22 @@ describe("trace view", () => {
     renderTrace(MEDIUM);
     await tree();
     await userEvent.click(screen.getByRole("tab", { name: "Changes over time" }));
-    expect(screen.getByText(/0 of 5 changes happened/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /^#7/ }));
+    const summary = () =>
+      screen.getByText(
+        (_, element) => element?.tagName === "P" && /changes applied/.test(element.textContent),
+      );
+    expect(summary()).toHaveTextContent("0 of 5 changes applied up to step 1.");
+    const upcoming = screen.getByRole("button", {
+      name: /^Step 7: sale.order 7 delivery_count 0 to 1/,
+    });
+    expect(upcoming).toHaveAccessibleName(/not applied yet$/);
+    await userEvent.click(upcoming);
     expect(screen.getByText("Step 7 of 10")).toBeInTheDocument();
-    expect(screen.getByText(/5 of 5 changes happened/)).toBeInTheDocument();
+    expect(summary()).toHaveTextContent("5 of 5 changes applied up to step 7.");
+    expect(screen.getByRole("button", { name: /^Step 7:/ })).toHaveAttribute(
+      "aria-current",
+      "step",
+    );
   });
 
   it("lists the replay keys in the shortcut help", async () => {

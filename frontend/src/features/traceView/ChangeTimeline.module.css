@@ -1,0 +1,139 @@
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.summary,
+.empty {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-prose);
+}
+
+.summary strong {
+  color: var(--text);
+  font-weight: var(--weight-semibold);
+}
+
+.empty {
+  padding: var(--space-4);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  list-style: none;
+}
+
+.list li + li {
+  border-top: var(--border-width) solid var(--border);
+}
+
+/* marker | step | record | field | old → new */
+.row {
+  display: grid;
+  grid-template-columns:
+    var(--space-5) var(--space-7) minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.2fr)
+    auto minmax(0, 1.2fr);
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: calc(var(--row-h) + var(--space-2));
+  padding: var(--space-1) var(--space-3);
+  border: 0;
+  border-left: var(--selection-edge) solid transparent;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--duration) var(--ease);
+}
+
+.row:hover {
+  background: var(--bg);
+}
+
+.current,
+.current:hover {
+  border-left-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  border-radius: 50%;
+}
+
+.markerDone {
+  background: var(--success);
+  color: var(--surface);
+}
+
+.markerCurrent {
+  border: var(--selection-edge) solid var(--accent);
+  background: var(--accent);
+}
+
+.markerUpcoming {
+  border: var(--selection-edge) solid var(--border-strong);
+}
+
+.step {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-align: right;
+}
+
+.record,
+.field,
+.old,
+.new {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recordId {
+  color: var(--text-muted);
+}
+
+.field {
+  font-weight: var(--weight-semibold);
+}
+
+.old,
+.new {
+  padding: var(--space-1) var(--space-2);
+  border-left: var(--selection-edge) solid;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+}
+
+.old {
+  border-left-color: var(--danger);
+  background: var(--diff-remove-bg);
+}
+
+.new {
+  border-left-color: var(--success);
+  background: var(--diff-add-bg);
+  font-weight: var(--weight-semibold);
+}
+
+.arrow {
+  color: var(--text-muted);
+  font-weight: var(--weight-semibold);
+}
