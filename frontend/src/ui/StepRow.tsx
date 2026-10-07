@@ -15,8 +15,6 @@ export interface StepRowProps {
   module: string | null;
   /** Modules of a super chain, most derived first; shown instead of `module`. */
   chain?: readonly (string | null)[];
-  /** Short context in front of the module, e.g. "in sale" for the layer that made the call. */
-  note?: string;
   duration: string;
   /** Number of field changes in this step, shown as a marker when > 0. */
   changes?: number;
@@ -32,7 +30,6 @@ export function StepRow({
   method,
   module,
   chain,
-  note,
   duration,
   changes = 0,
   failed = false,
@@ -53,7 +50,6 @@ export function StepRow({
         </span>
       ) : null}
       {failed ? <span className={styles.error}>error</span> : null}
-      {note ? <span className={styles.note}>{note}</span> : null}
       <span
         className={styles.module}
         title={

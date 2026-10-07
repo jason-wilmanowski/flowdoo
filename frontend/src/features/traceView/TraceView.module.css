@@ -93,17 +93,6 @@
   overflow: auto;
 }
 
-.hint {
-  padding: var(--space-4);
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  line-height: var(--leading-prose);
-}
-
-.muted {
-  color: var(--text-muted);
-}
-
 .odooError {
   padding: var(--space-3);
   border-left: var(--selection-edge) solid var(--danger);
@@ -113,59 +102,6 @@
   font-size: var(--text-sm);
   line-height: var(--leading-prose);
   margin: var(--space-3);
-}
-
-.timeline {
-  display: flex;
-  flex-direction: column;
-}
-
-.timelineList {
-  display: flex;
-  flex-direction: column;
-  padding: 0 var(--space-4) var(--space-4);
-  list-style: none;
-}
-
-.timelineEarlier,
-.timelineCurrent,
-.timelineLater {
-  padding-left: var(--space-3);
-  border-left: var(--selection-edge) solid transparent;
-}
-
-.timelineCurrent {
-  border-left-color: var(--accent);
-  background: var(--accent-subtle);
-}
-
-.timelineLater {
-  opacity: 0.55;
-}
-
-.timelineStep {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) 0 0;
-  border: 0;
-  background: transparent;
-  color: var(--text-muted);
-  font: inherit;
-  font-size: var(--text-xs);
-  cursor: pointer;
-}
-
-.timelineStep code {
-  font-family: var(--font-mono);
-}
-
-.timelineStep:hover {
-  color: var(--text);
-}
-
-.timelinePosition {
-  font-family: var(--font-mono);
 }
 
 .breadcrumb {
@@ -257,4 +193,122 @@
   color: var(--text-subtle);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
+}
+
+/* one implementation of a super() chain */
+.layerRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding-right: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.layerMro {
+  flex: none;
+  min-width: var(--space-5);
+  padding: 0 var(--space-1);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
+.layerModule {
+  overflow: hidden;
+  color: var(--text);
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+}
+
+.layerSuper {
+  flex: none;
+  color: var(--text-subtle);
+  font-size: var(--text-xs);
+}
+
+.layerSuperNo {
+  flex: none;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--diff-change-bg);
+  color: var(--text);
+  font-size: var(--text-xs);
+}
+
+.layerChanges {
+  flex: none;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--diff-change-bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.hint {
+  padding: var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-prose);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.timelineList {
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--space-4) var(--space-4);
+  list-style: none;
+}
+
+.timelineEarlier,
+.timelineCurrent,
+.timelineLater {
+  padding-left: var(--space-3);
+  border-left: var(--selection-edge) solid transparent;
+}
+
+.timelineCurrent {
+  border-left-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.timelineLater {
+  opacity: 0.55;
+}
+
+.timelineStep {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.timelineStep code {
+  font-family: var(--font-mono);
+}
+
+.timelineStep:hover {
+  color: var(--text);
+}
+
+.timelinePosition {
+  font-family: var(--font-mono);
 }

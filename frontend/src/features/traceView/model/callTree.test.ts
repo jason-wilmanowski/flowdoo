@@ -88,6 +88,27 @@ describe("super chains", () => {
   });
 });
 
+describe("layers of a chain", () => {
+  it("shows the implementations as a stack with the calls each one made", () => {
+    expect(tree.display.get("w1")).toEqual(["layer:w1", "layer:w2", "layer:w3"]);
+    expect(tree.display.get("layer:w1")).toEqual(["h1"]);
+    expect(tree.display.get("layer:w2")).toEqual(["h2"]);
+    expect(firstStepOfRow(tree, "layer:w2")).toBe("w2");
+  });
+
+  it("selects the layer row once the chain is open, and opens it on a jump", () => {
+    expect(rowForStep(tree, new Set(), "w2")).toBe("w1");
+    const revealed = revealStep(tree, new Set(), "w2");
+    expect(rowForStep(tree, revealed, "w2")).toBe("layer:w2");
+    expect(ids(visibleCallRows(tree, revealed)).slice(0, 4)).toEqual([
+      "w1",
+      "layer:w1",
+      "layer:w2",
+      "layer:w3",
+    ]);
+  });
+});
+
 describe("relevance and folding", () => {
   it("expands only paths to changes and folds irrelevant runs on one model", () => {
     const rows = visibleCallRows(tree, new Set());
@@ -97,7 +118,6 @@ describe("relevance and folding", () => {
     const group = tree.groups.get("group:t1")!;
     expect(group.members).toEqual(["t1", "t2", "t3", "t4"]);
     expect(group.model).toBe("account.tax");
-    expect(tree.groups.get("group:h1")?.members).toEqual(["h1", "h2"]);
     expect(rows.find((r) => r.id === "w1")?.expanded).toBe(false);
   });
 
@@ -119,7 +139,21 @@ describe("relevance and folding", () => {
   });
 
   it("expands everything on request and maps rows back to steps", () => {
-    expect(visibleCallRows(tree, expandAll(tree))).toHaveLength(11);
+    expect(ids(visibleCallRows(tree, expandAll(tree)))).toEqual([
+      "w1",
+      "layer:w1",
+      "h1",
+      "layer:w2",
+      "h2",
+      "layer:w3",
+      "c1",
+      "group:t1",
+      "t1",
+      "t2",
+      "t3",
+      "t4",
+      "c2",
+    ]);
     expect(firstStepOfRow(tree, "group:t1")).toBe("t1");
     expect(callPath(tree, "h2")).toEqual(["w1", "h2"]);
   });
@@ -135,6 +169,6 @@ describe("recorded traces", () => {
     const all = visibleCallRows(bigTree, expandAll(bigTree));
     // action_confirm changes 156 values in many places; everything else starts folded
     expect(initial.length).toBeLessThan(big.ordered.length / 5);
-    expect(all.length).toBe(bigTree.nodes.size + bigTree.groups.size);
+    expect(all.length).toBe(bigTree.nodes.size + bigTree.groups.size + bigTree.layers.size);
   });
 });

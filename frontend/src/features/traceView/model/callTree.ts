@@ -7,8 +7,9 @@ import type { TreeRow } from "@/ui";
  *
  * - A **super chain** is one call. When `sale_stock.write` calls `super()`, the recorder
  *   records `sale.write` as its child; here both are layers of one node.
- * - Calls the layers make become children of that node, tagged with the layer that made
- *   them (before or after `super()` matters for overrides).
+ * - Expanding a chain shows its layers as a stack (one row per implementation, in MRO
+ *   order); the calls each layer made sit under that layer (before or after `super()`
+ *   matters for overrides). A call with one implementation shows its calls directly.
  * - A node is **relevant** when it or something below it changed field values or failed.
  *   Only relevant paths start expanded.
  * - Runs of irrelevant sibling calls (tax and rounding helpers, …) are folded into one
@@ -20,6 +21,7 @@ import type { TreeRow } from "@/ui";
 /** Folding starts at this many consecutive irrelevant sibling calls. */
 export const GROUP_MIN = 2;
 const GROUP_PREFIX = "group:";
+const LAYER_PREFIX = "layer:";
 
 export interface CallNode {
   /** Id of the first layer (the most derived implementation). */
@@ -52,9 +54,20 @@ export interface CallGroup {
   stepCount: number;
 }
 
+/** One implementation in a super chain, shown as a row when the chain is expanded. */
+export interface CallLayer {
+  /** `layer:<step id>` */
+  id: string;
+  step: Step;
+  nodeId: string;
+  /** Something the layer called changed values or failed. */
+  relevantBelow: boolean;
+}
+
 export interface CallTree {
   nodes: ReadonlyMap<string, CallNode>;
   groups: ReadonlyMap<string, CallGroup>;
+  layers: ReadonlyMap<string, CallLayer>;
   /** Children as displayed: node ids and group ids, per parent (null = top level). */
   display: ReadonlyMap<string | null, readonly string[]>;
   /** Display parent of a node or group (a node inside a group has the group as parent). */
@@ -64,6 +77,8 @@ export interface CallTree {
 }
 
 export const isGroupId = (id: string) => id.startsWith(GROUP_PREFIX);
+export const isLayerId = (id: string) => id.startsWith(LAYER_PREFIX);
+export const layerId = (stepId: string) => `${LAYER_PREFIX}${stepId}`;
 
 /** `child` is the next implementation of the same call (reached through `super()`). */
 export function isSuperCall(parent: Step, child: Step): boolean {
@@ -187,15 +202,42 @@ export function buildCallTree(index: TraceIndex): CallTree {
     }
     display.set(parentId, shown);
   };
+  // 6. chains show their layers; each layer holds the calls it made
+  const layers = new Map<string, CallLayer>();
   fold(null, roots);
-  for (const node of nodes.values()) fold(node.id, node.children);
+  for (const node of nodes.values()) {
+    if (node.chain.length < 2) {
+      fold(node.id, node.children);
+      continue;
+    }
+    const layerIds: string[] = [];
+    for (const step of node.chain) {
+      const id = layerId(step.id);
+      const calls = node.children.filter((child) => nodes.get(child)?.calledFrom?.id === step.id);
+      layers.set(id, {
+        id,
+        step,
+        nodeId: node.id,
+        relevantBelow: calls.some((child) => nodes.get(child)?.relevant ?? false),
+      });
+      displayParent.set(id, node.id);
+      layerIds.push(id);
+      fold(id, calls);
+    }
+    display.set(node.id, layerIds);
+  }
 
-  return { nodes, groups, display, displayParent, nodeOfStep };
+  return { nodes, groups, layers, display, displayParent, nodeOfStep };
 }
 
-/** Expanded unless the user toggled it: nodes with something relevant below; groups closed. */
+/**
+ * Expanded unless the user toggled it: calls and layers with something relevant below
+ * (their calls, not their own writes); groups closed.
+ */
 export function expandedByDefault(tree: CallTree, id: string): boolean {
   if (isGroupId(id)) return false;
+  const layer = tree.layers.get(id);
+  if (layer) return layer.relevantBelow;
   return tree.nodes.get(id)?.relevantBelow ?? false;
 }
 
@@ -226,7 +268,14 @@ export function visibleCallRows(tree: CallTree, toggled: ReadonlySet<string>): T
   return rows;
 }
 
-/** Display ancestors of a node or group, nearest first. */
+/** The row id that shows a step: its layer row inside a chain, else its call. */
+export function displayIdOfStep(tree: CallTree, stepId: string): string | null {
+  const node = tree.nodeOfStep.get(stepId);
+  if (node === undefined) return null;
+  return tree.layers.has(layerId(stepId)) ? layerId(stepId) : node;
+}
+
+/** Display ancestors of a row, nearest first. */
 export function displayAncestors(tree: CallTree, id: string): string[] {
   const result: string[] = [];
   let parent = tree.displayParent.get(id) ?? null;
@@ -243,24 +292,24 @@ export function rowForStep(
   toggled: ReadonlySet<string>,
   stepId: string,
 ): string | null {
-  const node = tree.nodeOfStep.get(stepId);
-  if (node === undefined) return null;
-  let row = node;
-  for (const ancestor of displayAncestors(tree, node)) {
+  const own = displayIdOfStep(tree, stepId);
+  if (own === null) return null;
+  let row = own;
+  for (const ancestor of displayAncestors(tree, own)) {
     if (!isExpanded(tree, toggled, ancestor)) row = ancestor;
   }
   return row;
 }
 
-/** Toggles so that the step's node is visible (its display ancestors expanded). */
+/** Toggles so that the step's own row is visible (its display ancestors expanded). */
 export function revealStep(
   tree: CallTree,
   toggled: ReadonlySet<string>,
   stepId: string,
 ): ReadonlySet<string> {
-  const node = tree.nodeOfStep.get(stepId);
-  if (node === undefined) return toggled;
-  const closed = displayAncestors(tree, node).filter((a) => !isExpanded(tree, toggled, a));
+  const own = displayIdOfStep(tree, stepId);
+  if (own === null) return toggled;
+  const closed = displayAncestors(tree, own).filter((a) => !isExpanded(tree, toggled, a));
   if (closed.length === 0) return toggled;
   const next = new Set(toggled);
   for (const id of closed) {
@@ -273,14 +322,16 @@ export function revealStep(
 /** Toggles that expand every row with children. */
 export function expandAll(tree: CallTree): Set<string> {
   const toggled = new Set<string>();
-  for (const id of [...tree.nodes.keys(), ...tree.groups.keys()]) {
+  for (const id of [...tree.nodes.keys(), ...tree.groups.keys(), ...tree.layers.keys()]) {
     if (hasChildren(tree, id) && !expandedByDefault(tree, id)) toggled.add(id);
   }
   return toggled;
 }
 
-/** The first step a row stands for (a group: its first member). */
+/** The step a row stands for (a layer: its implementation; a group: its first member). */
 export function firstStepOfRow(tree: CallTree, rowId: string): string | null {
+  const layer = tree.layers.get(rowId);
+  if (layer) return layer.step.id;
   const group = tree.groups.get(rowId);
   return group ? (group.members[0] ?? null) : tree.nodes.has(rowId) ? rowId : null;
 }

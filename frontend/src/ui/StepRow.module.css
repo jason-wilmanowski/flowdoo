@@ -72,12 +72,6 @@
   text-overflow: ellipsis;
 }
 
-.note {
-  flex: none;
-  color: var(--text-subtle);
-  font-size: var(--text-xs);
-}
-
 .duration {
   flex: none;
   min-width: var(--space-7);

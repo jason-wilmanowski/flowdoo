@@ -80,15 +80,43 @@ export function StepTreePane({
           </span>
         );
       }
+      const layer = tree.layers.get(id);
+      if (layer) {
+        const { step } = layer;
+        const last = tree.nodes.get(layer.nodeId)?.chain.at(-1)?.id === step.id;
+        return (
+          <span className={styles.layerRow}>
+            <span className={styles.layerMro} title="Position in the MRO (0 = most derived)">
+              {step.mro_position ?? "?"}
+            </span>
+            <code className={styles.layerModule}>{step.module ?? "core"}</code>
+            <span
+              className={
+                step.calls_super === false && !last ? styles.layerSuperNo : styles.layerSuper
+              }
+            >
+              {step.calls_super === null
+                ? "super() not determined"
+                : step.calls_super
+                  ? "calls super()"
+                  : "no super()"}
+            </span>
+            {step.changes.length > 0 ? (
+              <span
+                className={styles.layerChanges}
+                title={`${String(step.changes.length)} field changes`}
+              >
+                Δ{step.changes.length}
+              </span>
+            ) : null}
+            <span className={styles.groupSteps}>{formatDuration(step.duration_ms)}</span>
+          </span>
+        );
+      }
       const node = tree.nodes.get(id);
       const head = node?.chain[0];
       if (!node || !head) return null;
       const kind = stepKind(head.kind);
-      const parent = node.parentId === null ? undefined : tree.nodes.get(node.parentId);
-      const note =
-        parent && parent.chain.length > 1 && node.calledFrom
-          ? `in ${node.calledFrom.module ?? "core"}`
-          : undefined;
       return (
         <StepRow
           kindIcon={kind.icon}
@@ -98,7 +126,6 @@ export function StepTreePane({
           method={head.method}
           module={head.module}
           chain={node.chain.map((layer) => layer.module)}
-          note={note}
           duration={formatDuration(head.duration_ms)}
           changes={node.ownChanges}
           failed={node.failed}

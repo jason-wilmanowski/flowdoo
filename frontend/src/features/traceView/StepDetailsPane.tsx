@@ -13,6 +13,7 @@ import { formatValue } from "./model/values";
 import styles from "./StepDetails.module.css";
 
 const NOT_DETERMINED = "not determined";
+const ORM_KINDS = new Set(["orm_create", "orm_write", "orm_unlink"]);
 
 function superText(value: boolean | null): string {
   if (value === null) return NOT_DETERMINED;
@@ -166,7 +167,13 @@ function ImplementationChain({
   onSelect: (id: string) => void;
 }) {
   const last = chain[chain.length - 1];
-  const stopsEarly = last !== undefined && last.calls_super === false && last.module !== null;
+  // Only the ORM methods are known to have a core implementation below every module; for
+  // other methods the last layer not calling super() is simply the base implementation.
+  const stopsEarly =
+    last !== undefined &&
+    ORM_KINDS.has(last.kind) &&
+    last.calls_super === false &&
+    last.module !== null;
   return (
     <>
       <ol className={styles.chain} aria-label="Implementation chain">

@@ -188,10 +188,20 @@ describe("trace view", () => {
       expect.stringMatching(/0sale_stockcalls super\(\)/),
       expect.stringMatching(/1saleno super\(\)/),
     ]);
-    expect(details()).toHaveTextContent("sale does not call super()");
+    // sale is the base implementation of _action_confirm: not calling super() is normal
+    expect(details()).not.toHaveTextContent("does not call super()");
 
+    // the open chain shows its implementations as a stack in the tree
+    const items = within(screen.getByRole("tree")).getAllByRole("treeitem");
+    const layerRows = items.filter((li) => li.getAttribute("aria-level") === "3");
+    expect(layerRows.slice(0, 2).map((li) => li.textContent)).toEqual([
+      expect.stringMatching(/^0sale_stockcalls super\(\)/),
+      expect.stringMatching(/^1saleno super\(\)/),
+    ]);
+
+    // a layer in the details jumps to its step and selects its row in the tree
     await userEvent.click(layers[1]!);
     expect(screen.getByText("Step 8 of 10")).toBeInTheDocument();
-    expect(row).toHaveAttribute("aria-selected", "true");
+    expect(selectedItem()).toHaveTextContent(/^1saleno super\(\)/);
   });
 });
