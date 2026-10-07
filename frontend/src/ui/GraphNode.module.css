@@ -1,14 +1,20 @@
 .node {
   min-width: var(--panel-left-w);
   border: var(--border-width) solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--text);
+  transition: border-color var(--duration) var(--ease);
 }
 
-.active {
-  outline: var(--selection-edge) solid var(--accent);
-  outline-offset: calc(var(--border-width) * -1);
+.node:hover {
+  border-color: var(--border-strong);
+}
+
+.active,
+.active:hover {
+  border-color: var(--accent);
+  outline: var(--border-width) solid var(--accent);
 }
 
 .header {
@@ -16,22 +22,25 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-bottom: var(--border-width) solid var(--border);
-  background: var(--surface-sunken);
+  padding: var(--space-3) var(--space-3) var(--space-2);
+}
+
+.active .header {
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--accent-subtle);
 }
 
 .model {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-semibold);
 }
 
 .detail {
-  padding: var(--space-2) var(--space-3);
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border-top: var(--border-width) solid var(--border);
   color: var(--text-muted);
+  font-size: var(--text-xs);
 }
 
 .handle {

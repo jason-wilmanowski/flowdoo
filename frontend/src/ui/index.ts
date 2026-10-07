@@ -12,6 +12,11 @@ export { Input, TextArea, type InputProps, type TextAreaProps } from "./Input";
 export { IconButton, type IconButtonProps } from "./IconButton";
 export { Kbd } from "./Kbd";
 export { ReplayControls, type ReplayControlsProps } from "./ReplayControls";
+export {
+  SegmentedControl,
+  type SegmentedControlProps,
+  type SegmentedOption,
+} from "./SegmentedControl";
 export { Select, type SelectOption, type SelectProps } from "./Select";
 export { Skeleton, type SkeletonProps } from "./Skeleton";
 export { SplitPanel, type SidePane, type SplitPanelProps } from "./SplitPanel";

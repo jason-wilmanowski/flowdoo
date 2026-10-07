@@ -86,7 +86,7 @@ describe("stylelint visual rules", () => {
   test("accepts token-based styles", async () => {
     const code = `.panel {
   padding: var(--space-3) var(--space-4);
-  margin: 0 auto;
+  margin: 0 auto var(--gutter);
   gap: var(--space-2);
   font-size: var(--text-base);
   color: var(--text);

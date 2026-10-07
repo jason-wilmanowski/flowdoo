@@ -1,0 +1,84 @@
+.sheet {
+  display: flex;
+  flex-direction: column;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-5) 0;
+}
+
+.section + .section {
+  border-top: var(--border-width) solid var(--border);
+}
+
+.section:first-child {
+  padding-top: 0;
+}
+
+.sectionTitle {
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-prose);
+}
+
+.problem {
+  color: var(--danger);
+  font-size: var(--text-sm);
+  line-height: var(--leading-prose);
+}
+
+.facts,
+.shortcuts {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.row,
+.shortcut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.row dt,
+.shortcut dt {
+  color: var(--text-muted);
+}
+
+.row dd {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row code {
+  font-family: var(--font-mono);
+}
+
+.shortcutGroup {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  gap: var(--space-2);
+}
+
+.groupTitle {
+  color: var(--text-subtle);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}

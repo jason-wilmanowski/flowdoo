@@ -64,6 +64,9 @@
   --panel-right-w: 360px;
   --selection-edge: 2px;
 
+  /* space between the panels (islands) and around them */
+  --gutter: 6px;
+
   /* focus */
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;

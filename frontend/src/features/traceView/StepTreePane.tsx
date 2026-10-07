@@ -59,6 +59,7 @@ export function StepTreePane({ index, selectedId, onSelect }: StepTreePaneProps)
         <StepRow
           kindIcon={kind.icon}
           kindLabel={kind.label}
+          kindTone={kind.tone}
           model={step.model}
           method={step.method}
           module={step.module}

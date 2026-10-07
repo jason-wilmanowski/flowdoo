@@ -1,33 +1,56 @@
 .list {
   display: flex;
+  flex: none;
+  align-items: stretch;
   gap: var(--space-1);
+  height: var(--topbar-h);
+  padding: 0 var(--space-3);
   border-bottom: var(--border-width) solid var(--border);
 }
 
 .trigger {
-  height: var(--control-h);
-  padding: 0 var(--space-4);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin: var(--space-2) 0;
+  padding: 0 var(--space-3);
   border: 0;
-  border-bottom: var(--selection-edge) solid transparent;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--text-muted);
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
   font-weight: var(--weight-medium);
+  white-space: nowrap;
   cursor: pointer;
   transition:
     color var(--duration) var(--ease),
-    border-color var(--duration) var(--ease);
+    background-color var(--duration) var(--ease);
 }
 
 .trigger:hover {
+  background: var(--surface-sunken);
   color: var(--text);
 }
 
+/* the active tab sits on the list's bottom line */
 .trigger[data-state="active"] {
-  border-bottom-color: var(--accent);
   color: var(--text);
+}
+
+.trigger[data-state="active"]::after {
+  content: "";
+  position: absolute;
+  right: var(--space-3);
+  bottom: calc(var(--space-2) * -1 - var(--border-width));
+  left: var(--space-3);
+  height: var(--selection-edge);
+  background: var(--accent);
 }
 
 .content {
   padding: var(--space-3) 0;
+}
+
+.content:focus-visible {
+  outline-offset: calc(var(--focus-ring-width) * -1);
 }

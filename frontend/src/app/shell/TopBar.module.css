@@ -2,59 +2,122 @@
   display: flex;
   flex: none;
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--space-4);
   height: var(--topbar-h);
-  padding: 0 var(--space-3) 0 var(--space-5);
-  border-bottom: var(--border-width) solid var(--border);
-  background: var(--surface);
+  padding: 0 var(--space-3) 0 var(--space-4);
 }
 
 .product {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
   font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+/* the app's mark: one accent tile, like an editor's app icon */
+.mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--control-h-compact) - var(--space-2));
+  height: calc(var(--control-h-compact) - var(--space-2));
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--surface);
+}
+
+.divider {
+  flex: none;
+  width: var(--border-width);
+  height: var(--space-5);
+  background: var(--border);
 }
 
 .nav {
   display: flex;
   align-self: stretch;
-  gap: var(--space-4);
+  gap: var(--space-1);
 }
 
 .navLink {
+  position: relative;
   display: flex;
   align-items: center;
-  border-bottom: var(--selection-edge) solid transparent;
+  margin: var(--space-3) 0;
+  padding: 0 var(--space-3);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius);
   color: var(--text-muted);
   text-decoration: none;
+  transition:
+    color var(--duration) var(--ease),
+    background-color var(--duration) var(--ease);
 }
 
 .navLink:hover {
+  background: var(--surface);
   color: var(--text);
 }
 
-.navActive {
-  border-bottom-color: var(--accent);
+/* the active page is a raised surface, like the panels below */
+.navActive,
+.navActive:hover {
+  border-color: var(--border);
+  background: var(--surface);
   color: var(--text);
+  font-weight: var(--weight-medium);
+}
+
+/* icon buttons on the app background need a lighter hover than inside panels */
+.end .barButton:hover:not(:disabled) {
+  background: var(--surface);
 }
 
 .end {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
   margin-left: auto;
 }
 
-.group {
+/* read-only status: plain text, not buttons */
+.statusArea {
   display: flex;
   align-items: center;
+  gap: var(--space-5);
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
   gap: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  cursor: default;
 }
 
-.label {
+.statusDetail {
   color: var(--text-subtle);
-  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
 }
 
-.mono {
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
+.dot {
+  flex: none;
+  width: calc(var(--space-2) + var(--space-1));
+  height: calc(var(--space-2) + var(--space-1));
+  border-radius: 50%;
+}
+
+.ok {
+  background: var(--success);
+}
+
+.problem {
+  background: var(--danger);
+}
+
+.pending {
+  background: var(--text-subtle);
 }

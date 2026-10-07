@@ -50,11 +50,13 @@ const TreeItem = memo(function TreeItem({
       aria-selected={selected}
       aria-expanded={row.hasChildren ? row.expanded : undefined}
       className={[styles.item, selected ? styles.selected : ""].join(" ").trim()}
-      style={{ paddingLeft: `calc(var(--space-5) * ${String(row.depth)})` }}
       onClick={() => {
         onSelect(row.id);
       }}
     >
+      {Array.from({ length: row.depth }, (_, level) => (
+        <span key={level} className={styles.guide} aria-hidden="true" />
+      ))}
       {row.hasChildren ? (
         <span
           className={styles.toggle}

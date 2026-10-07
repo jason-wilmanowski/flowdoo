@@ -1,41 +1,60 @@
+/* Panels are islands: separate surfaces on the app background, split by a gutter. */
 .split {
   display: flex;
   min-height: 0;
   height: 100%;
 }
 
-.pane {
-  flex: none;
+.pane,
+.main {
   min-width: 0;
   overflow: auto;
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-lg);
   background: var(--surface);
+}
+
+.pane {
+  flex: none;
 }
 
 .main {
   flex: 1;
-  min-width: 0;
-  overflow: auto;
 }
 
+/* the gutter is the resize handle; a line appears on hover and focus */
 .handle {
   position: relative;
   flex: none;
-  width: var(--border-width);
-  background: var(--border);
+  width: var(--gutter);
   cursor: col-resize;
   touch-action: none;
   z-index: 1;
-  transition: background-color var(--duration) var(--ease);
 }
 
-/* a wider, invisible grab area around the 1px line */
 .handle::before {
   content: "";
   position: absolute;
-  inset: 0 calc(var(--space-2) * -1);
+  inset: 0 calc(var(--space-1) * -1);
 }
 
-.handle:hover,
+.handle::after {
+  content: "";
+  position: absolute;
+  top: var(--space-5);
+  bottom: var(--space-5);
+  left: calc(50% - var(--border-width));
+  width: var(--selection-edge);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  transition: background-color var(--duration) var(--ease);
+}
+
+.handle:hover::after,
+.handle:focus-visible::after {
+  background: var(--accent);
+}
+
 .handle:focus-visible {
-  background-color: var(--accent);
+  outline: none;
 }

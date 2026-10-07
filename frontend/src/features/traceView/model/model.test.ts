@@ -2,7 +2,7 @@ import { loadFixture } from "@/datasource/fixtures/catalog";
 import type { Step } from "@/generated/trace";
 import { indexTrace } from "@/lib/replay/traceIndex";
 
-import { changesByRecord, changesOverTime } from "./changes";
+import { changesOverTime, netChanges, subtreeSteps } from "./changes";
 import { layoutLayers, modelGraph } from "./modelGraph";
 import { ancestorsOf, collapseBelow, revealStep, visibleRows } from "./treeRows";
 import { formatValue } from "./values";
@@ -77,15 +77,11 @@ describe("tree rows", () => {
 });
 
 describe("changes", () => {
-  it("lists changes in replay order and groups them by record", () => {
+  it("lists changes in replay order", () => {
     expect(changesOverTime(index).map((c) => [c.step.id, c.position, c.change.field])).toEqual([
       ["s4", 3, "state"],
       ["s4", 3, "state"],
       ["s4", 3, "line_ids"],
-    ]);
-    expect(changesByRecord(STEPS[3]!).map((g) => [g.recordId, g.changes.length])).toEqual([
-      [7, 2],
-      [8, 1],
     ]);
   });
 
@@ -123,5 +119,65 @@ describe("model graph", () => {
     const graph = modelGraph(indexTrace(await loadFixture("recorded-sale-order-action-confirm")));
     expect(graph.nodes).toHaveLength(33);
     expect(graph.nodes[0]?.model).toBe("sale.order");
+  });
+});
+
+describe("net changes of a call", () => {
+  // s1 ─ s2 (create record 9: name) ─ s3 (write record 9: name, state)
+  //    └ s4 (write record 9: state again)
+  const calls = indexTrace({
+    steps: [
+      step("s1", null, 1, "sale.order"),
+      step("s2", "s1", 2, "sale.order", {
+        kind: "orm_create",
+        changes: [{ model: "sale.order", record_id: 9, field: "name", old: null, new: "S9" }],
+      }),
+      step("s3", "s2", 3, "sale.order", {
+        kind: "orm_write",
+        changes: [
+          { model: "sale.order", record_id: 9, field: "name", old: "S9", new: "S9a" },
+          { model: "sale.order", record_id: 9, field: "state", old: "draft", new: "sent" },
+        ],
+      }),
+      step("s4", "s1", 4, "sale.order", {
+        kind: "orm_write",
+        changes: [{ model: "sale.order", record_id: 9, field: "state", old: "sent", new: "sale" }],
+      }),
+    ],
+  });
+
+  it("collects the step and everything below it in order", () => {
+    expect(subtreeSteps(calls, "s1").map((s) => s.id)).toEqual(["s1", "s2", "s3", "s4"]);
+    expect(subtreeSteps(calls, "s2").map((s) => s.id)).toEqual(["s2", "s3"]);
+  });
+
+  it("reduces writes to the first old and the last new value per field", () => {
+    expect(netChanges(calls, "s1")).toEqual([
+      {
+        model: "sale.order",
+        recordId: 9,
+        created: true,
+        fields: [
+          { field: "name", old: null, new: "S9a", writes: 2, lastStepId: "s3", lastPosition: 2 },
+          {
+            field: "state",
+            old: "draft",
+            new: "sale",
+            writes: 2,
+            lastStepId: "s4",
+            lastPosition: 3,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("only sees what happened below the selected step", () => {
+    const below = netChanges(calls, "s4");
+    expect(below).toHaveLength(1);
+    expect(below[0]?.created).toBe(false);
+    expect(below[0]?.fields.map((f) => [f.field, f.old, f.new])).toEqual([
+      ["state", "sent", "sale"],
+    ]);
   });
 });

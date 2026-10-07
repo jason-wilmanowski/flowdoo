@@ -1,37 +1,34 @@
-import { RefreshCw } from "lucide-react";
 import { useStore } from "zustand";
-
-import { Badge, IconButton, Spinner } from "@/ui";
 
 import { useStores } from "../appContext";
 import styles from "./TopBar.module.css";
 
-/** Short state of the Odoo connection; the details are in the notices below the top bar. */
+type Tone = "ok" | "problem" | "pending";
+
+/** Read-only state of the Odoo connection; details and "check again" are in the settings. */
 export function ConnectionStatus() {
   const { connection } = useStores();
   const status = useStore(connection, (state) => state.status);
   const phase = useStore(connection, (state) => state.phase);
-  const refresh = useStore(connection, (state) => state.refresh);
 
-  let state;
-  if (phase === "error") state = <Badge tone="danger">API unreachable</Badge>;
-  else if (!status) state = <Spinner label="Checking connection" compact />;
-  else if (status.ok) state = <Badge tone="success">Odoo connected</Badge>;
-  else state = <Badge tone="danger">Odoo not ready</Badge>;
+  let tone: Tone = "pending";
+  let text = "Checking connection";
+  if (phase === "error") {
+    tone = "problem";
+    text = "API unreachable";
+  } else if (status?.ok) {
+    tone = "ok";
+    text = "Odoo connected";
+  } else if (status) {
+    tone = "problem";
+    text = "Odoo not ready";
+  }
 
   return (
-    <div className={styles.group}>
-      {state}
-      {status?.database ? <span className={styles.mono}>{status.database}</span> : null}
-      <IconButton
-        icon={RefreshCw}
-        label="Check connection again"
-        compact
-        disabled={phase === "loading"}
-        onClick={() => {
-          void refresh();
-        }}
-      />
-    </div>
+    <span className={styles.status} role="status">
+      <span className={[styles.dot, styles[tone]].join(" ")} aria-hidden="true" />
+      <span>{text}</span>
+      {status?.database ? <span className={styles.statusDetail}>{status.database}</span> : null}
+    </span>
   );
 }

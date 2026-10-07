@@ -7,6 +7,8 @@ import { GraphNode, type GraphNodeType } from "./GraphNode";
 
 const NODE_TYPES = { flowdoo: GraphNode };
 const EDGE_OPTIONS = { type: "step" } as const;
+// The library's corner badge is hidden; React Flow is credited in the README.
+const PRO_OPTIONS = { hideAttribution: true };
 
 export interface GraphCanvasProps {
   /** Accessible name of the graph, e.g. "Call graph of sale.order.action_confirm". */
@@ -34,6 +36,7 @@ export function GraphCanvas({ label, nodes, edges, onNodeClick }: GraphCanvasPro
         nodesConnectable={false}
         edgesFocusable={false}
         zoomOnDoubleClick={false}
+        proOptions={PRO_OPTIONS}
         fitView
       />
     </div>

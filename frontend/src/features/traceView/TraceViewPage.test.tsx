@@ -44,7 +44,9 @@ describe("trace view", () => {
     );
     expect(screen.getByText("succeeded")).toBeInTheDocument();
     expect(selectedItem()).toHaveTextContent("sale.order.action_confirm");
-    expect(within(details()).getByRole("tab", { name: "Changes (0)" })).toBeInTheDocument();
+    expect(within(details()).getByRole("heading", { level: 2 })).toHaveTextContent(
+      "sale.order.action_confirm",
+    );
     expect(screen.getByText("Step 1 of 10")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: /Models of the run: 4 models/ })).toBeInTheDocument();
   });
@@ -72,15 +74,33 @@ describe("trace view", () => {
       .getAllByRole("treeitem")
       .find((li) => /_action_confirm/.test(li.textContent) && /sale_stock/.test(li.textContent));
     await userEvent.click(item!);
-    await userEvent.click(within(details()).getByRole("tab", { name: "Call" }));
-    const facts = within(details()).getByRole("tabpanel");
-    expect(facts).toHaveTextContent("sale_stock");
-    expect(facts).toHaveTextContent("MRO position0 (most derived)");
-    expect(facts).toHaveTextContent("Calls super()yes");
+    expect(details()).toHaveTextContent("Modulesale_stock");
+    expect(details()).toHaveTextContent("MRO0 (most derived)");
+    expect(details()).toHaveTextContent("Supercalls super()");
 
-    await userEvent.click(within(details()).getByRole("tab", { name: "Path" }));
+    await userEvent.click(within(details()).getByText("Call path"));
     const path = within(details()).getByRole("list", { name: "Call path" });
     expect(within(path).getAllByRole("button")).toHaveLength(2);
+  });
+
+  it("shows what a call changed including its children and jumps to the writer", async () => {
+    renderTrace(MEDIUM);
+    await tree();
+    const order = within(details()).getByRole("region", { name: "sale.order 7" });
+    expect(order).toHaveTextContent("state");
+    expect(order).toHaveTextContent("delivery_count");
+    const move = within(details()).getByRole("region", { name: "stock.move 301" });
+    expect(within(move).getByText("created")).toBeInTheDocument();
+
+    await userEvent.click(within(order).getAllByRole("button", { name: "written in step 3" })[0]!);
+    expect(screen.getByText("Step 3 of 10")).toBeInTheDocument();
+  });
+
+  it("says when a call changed nothing", async () => {
+    renderTrace(MEDIUM);
+    await tree();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(details()).toHaveTextContent("No field changed in this call or in the calls it made.");
   });
 
   it("plays and pauses with Space", async () => {
