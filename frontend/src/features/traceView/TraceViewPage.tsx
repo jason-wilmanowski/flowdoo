@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 import { useStore } from "zustand";
 
@@ -22,6 +22,7 @@ import {
 import { formFromCommand } from "../startTrace/command";
 import { StartTraceDialog } from "../startTrace/StartTraceDialog";
 import { ChangeTimeline } from "./ChangeTimeline";
+import { buildCallTree, revealStep } from "./model/callTree";
 import { ModelGraphView } from "./ModelGraphView";
 import { ReplayBar } from "./ReplayBar";
 import { StepDetailsPane } from "./StepDetailsPane";
@@ -34,20 +35,32 @@ function Workspace({ trace, index }: { trace: Trace; index: TraceIndex }) {
   const cursor = useStore(replay, (state) => state.cursor);
   const goTo = useStore(replay, (state) => state.goTo);
   const step = stepAt(index, cursor);
+  const tree = useMemo(() => buildCallTree(index), [index]);
+  // rows whose expansion differs from "relevant paths open"
+  const [toggled, setToggled] = useState<ReadonlySet<string>>(() => new Set());
 
+  /** Move the replay to a step; jumps from elsewhere also unfold the tree to it. */
   const select = useCallback(
-    (id: string) => {
+    (id: string, reveal = false) => {
       const position = cursorOf(index, id);
-      if (position !== null) goTo(position);
+      if (position === null) return;
+      goTo(position);
+      if (reveal) setToggled((current) => revealStep(tree, current, id));
     },
-    [index, goTo],
+    [index, goTo, tree],
+  );
+  const jump = useCallback(
+    (id: string) => {
+      select(id, true);
+    },
+    [select],
   );
 
   const jumpToModel = (model: string) => {
     const from = cursor ?? 0;
-    const later = index.ordered.findIndex((s, i) => i > from && s.model === model);
-    const position = later !== -1 ? later : index.ordered.findIndex((s) => s.model === model);
-    if (position !== -1) goTo(position);
+    const later = index.ordered.find((s, i) => i > from && s.model === model);
+    const target = later ?? index.ordered.find((s) => s.model === model);
+    if (target) jump(target.id);
   };
 
   const odooError = trace.payload?.error;
@@ -57,15 +70,24 @@ function Workspace({ trace, index }: { trace: Trace; index: TraceIndex }) {
         <SplitPanel
           id="trace"
           start={{
-            label: "Steps",
-            content: <StepTreePane index={index} selectedId={step?.id ?? null} onSelect={select} />,
+            label: "Calls",
+            content: (
+              <StepTreePane
+                tree={tree}
+                stepCount={index.ordered.length}
+                toggled={toggled}
+                onToggled={setToggled}
+                selectedStepId={step?.id ?? null}
+                onSelectStep={select}
+              />
+            ),
             defaultWidth: "var(--panel-left-w)",
             minWidth: 220,
             maxWidth: 640,
           }}
           end={{
             label: "Step details",
-            content: <StepDetailsPane step={step} index={index} onSelect={select} />,
+            content: <StepDetailsPane step={step} index={index} tree={tree} onSelect={jump} />,
             defaultWidth: "var(--panel-right-w)",
             minWidth: 300,
             maxWidth: 720,
@@ -91,7 +113,7 @@ function Workspace({ trace, index }: { trace: Trace; index: TraceIndex }) {
                 />
               </TabsContent>
               <TabsContent value="changes" className={styles.scroll}>
-                <ChangeTimeline index={index} position={cursor} onSelect={select} />
+                <ChangeTimeline index={index} position={cursor} onSelect={jump} />
               </TabsContent>
             </Tabs>
           </div>

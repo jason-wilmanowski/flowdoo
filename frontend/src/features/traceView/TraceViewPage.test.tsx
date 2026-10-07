@@ -24,10 +24,10 @@ function renderTrace(id: string) {
   );
 }
 
-const tree = () => screen.findByRole("tree", { name: "Steps" });
+const tree = () => screen.findByRole("tree", { name: "Calls" });
 const details = () => screen.getByRole("region", { name: "Step details" });
 const selectedItem = () =>
-  within(screen.getByRole("tree", { name: "Steps" }))
+  within(screen.getByRole("tree", { name: "Calls" }))
     .getAllByRole("treeitem")
     .find((item) => item.getAttribute("aria-selected") === "true");
 
@@ -152,11 +152,46 @@ describe("trace view", () => {
     expect(within(dialog).getByRole("textbox", { name: "Model" })).toHaveValue("account.move");
   });
 
-  it("opens the 879-step recording with collapsed depth", async () => {
+  it("opens the 879-step recording with only the relevant calls unfolded", async () => {
     renderTrace(RECORDED);
-    const items = within(await tree()).getAllByRole("treeitem");
-    expect(items.length).toBeLessThan(879);
+    const initial = within(await tree()).getAllByRole("treeitem").length;
+    expect(initial).toBeLessThan(200);
     await userEvent.click(screen.getByRole("button", { name: "Expand all" }));
-    expect(within(screen.getByRole("tree")).getAllByRole("treeitem")).toHaveLength(879);
+    const all = within(screen.getByRole("tree")).getAllByRole("treeitem").length;
+    expect(all).toBeGreaterThan(initial);
+    await userEvent.click(screen.getByRole("button", { name: "Relevant only" }));
+    expect(within(screen.getByRole("tree")).getAllByRole("treeitem")).toHaveLength(initial);
+  });
+
+  it("marks the folded call that holds the replay position without unfolding it", async () => {
+    renderTrace(MEDIUM);
+    await tree();
+    await userEvent.keyboard("{End}");
+    expect(screen.getByText("Step 10 of 10")).toBeInTheDocument();
+    expect(selectedItem()).toHaveTextContent("_send_order_confirmation_mail");
+    expect(selectedItem()).toHaveAttribute("aria-expanded", "false");
+    expect(within(details()).getByRole("heading", { level: 2 })).toHaveTextContent(
+      "mail.mail.send",
+    );
+  });
+
+  it("shows a super() chain as one call and lists its implementations", async () => {
+    renderTrace(MEDIUM);
+    const row = within(await tree())
+      .getAllByRole("treeitem")
+      .find((li) => li.textContent.includes("sale_stock → sale"));
+    expect(row).toHaveTextContent("_action_confirm");
+    await userEvent.click(row!);
+    const chain = within(details()).getByRole("list", { name: "Implementation chain" });
+    const layers = within(chain).getAllByRole("button");
+    expect(layers.map((b) => b.textContent)).toEqual([
+      expect.stringMatching(/0sale_stockcalls super\(\)/),
+      expect.stringMatching(/1saleno super\(\)/),
+    ]);
+    expect(details()).toHaveTextContent("sale does not call super()");
+
+    await userEvent.click(layers[1]!);
+    expect(screen.getByText("Step 8 of 10")).toBeInTheDocument();
+    expect(row).toHaveAttribute("aria-selected", "true");
   });
 });

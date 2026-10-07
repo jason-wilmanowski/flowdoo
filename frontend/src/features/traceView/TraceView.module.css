@@ -237,3 +237,24 @@
   color: var(--danger);
   font-size: var(--text-sm);
 }
+
+.groupRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding-right: var(--space-3);
+  color: var(--text-muted);
+  font-style: normal;
+}
+
+.groupRow code {
+  font-family: var(--font-mono);
+}
+
+.groupSteps {
+  margin-left: auto;
+  color: var(--text-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}

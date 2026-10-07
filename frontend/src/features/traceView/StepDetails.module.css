@@ -274,3 +274,76 @@
   border-left-color: var(--accent);
   background: var(--accent-subtle);
 }
+
+.chain {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  list-style: none;
+}
+
+.chain li + li {
+  border-top: var(--border-width) solid var(--border);
+}
+
+.layer {
+  display: grid;
+  grid-template-columns: var(--space-5) 1fr auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--row-h);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-left: var(--selection-edge) solid transparent;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: start;
+  cursor: pointer;
+}
+
+.layer:hover {
+  background: var(--bg);
+}
+
+.layerCurrent,
+.layerCurrent:hover {
+  border-left-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.layerPosition {
+  color: var(--text-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-align: right;
+}
+
+.layerModule {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+}
+
+.superText {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.superNo {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--diff-change-bg);
+  color: var(--text);
+  font-size: var(--text-xs);
+}
+
+.layerDuration {
+  color: var(--text-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}

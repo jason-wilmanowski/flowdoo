@@ -1,88 +1,126 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Layers } from "lucide-react";
+import { useCallback, useMemo } from "react";
 
 import { formatDuration } from "@/lib/format";
-import type { TraceIndex } from "@/lib/replay/traceIndex";
-import { Button, StepRow, Tree } from "@/ui";
+import { Button, Icon, StepRow, Tree } from "@/ui";
 
 import { stepKind } from "../traces/stepKinds";
-import { ancestorsOf, collapseBelow, revealStep, visibleRows } from "./model/treeRows";
+import {
+  expandAll,
+  firstStepOfRow,
+  rowForStep,
+  visibleCallRows,
+  type CallTree,
+} from "./model/callTree";
 import styles from "./TraceView.module.css";
 
-/** Steps deeper than this start collapsed, so a big trace opens readable. */
-const INITIAL_DEPTH = 2;
-
 export interface StepTreePaneProps {
-  index: TraceIndex;
-  selectedId: string | null;
-  onSelect: (id: string) => void;
+  tree: CallTree;
+  stepCount: number;
+  /** Rows whose expansion differs from the default (relevant paths open). */
+  toggled: ReadonlySet<string>;
+  onToggled: (toggled: ReadonlySet<string>) => void;
+  /** The step at the replay position. */
+  selectedStepId: string | null;
+  onSelectStep: (stepId: string) => void;
 }
 
-/** Call tree of the run; the selected step is the replay position. */
-export function StepTreePane({ index, selectedId, onSelect }: StepTreePaneProps) {
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() =>
-    collapseBelow(index, INITIAL_DEPTH),
-  );
-
-  // The replay can move into a collapsed part: the way to the selected step stays open.
-  const effective = useMemo(
-    () => (selectedId === null ? collapsed : revealStep(index, collapsed, selectedId)),
-    [index, collapsed, selectedId],
-  );
-  const rows = useMemo(() => visibleRows(index, effective), [index, effective]);
-
-  const selectedRef = useRef(selectedId);
-  useEffect(() => {
-    selectedRef.current = selectedId;
-  });
+/**
+ * The call tree: one row per call (super chains merged), only the paths to changes and
+ * errors open at first, irrelevant runs folded. The row holding the replay position is
+ * selected; replaying does not unfold the tree.
+ */
+export function StepTreePane({
+  tree,
+  stepCount,
+  toggled,
+  onToggled,
+  selectedStepId,
+  onSelectStep,
+}: StepTreePaneProps) {
+  const rows = useMemo(() => visibleCallRows(tree, toggled), [tree, toggled]);
+  const selectedRow = selectedStepId === null ? null : rowForStep(tree, toggled, selectedStepId);
 
   const onToggle = useCallback(
-    (id: string, expanded: boolean) => {
-      // Collapsing around the selected step moves the selection up, so it stays visible.
-      const selected = selectedRef.current;
-      if (!expanded && selected !== null && ancestorsOf(index, selected).includes(id)) onSelect(id);
-      setCollapsed((current) => {
-        const next = new Set(current);
-        if (expanded) next.delete(id);
-        else next.add(id);
-        return next;
-      });
+    (id: string) => {
+      const next = new Set(toggled);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      onToggled(next);
     },
-    [index, onSelect],
+    [toggled, onToggled],
+  );
+
+  const onSelect = useCallback(
+    (rowId: string) => {
+      const stepId = firstStepOfRow(tree, rowId);
+      if (stepId !== null) onSelectStep(stepId);
+    },
+    [tree, onSelectStep],
   );
 
   const renderRow = useCallback(
     (id: string) => {
-      const step = index.byId.get(id);
-      if (!step) return null;
-      const kind = stepKind(step.kind);
+      const group = tree.groups.get(id);
+      if (group) {
+        return (
+          <span className={styles.groupRow}>
+            <Icon icon={Layers} compact />
+            <span>
+              {group.members.length} calls{" "}
+              {group.model ? (
+                <>
+                  in <code>{group.model}</code>
+                </>
+              ) : (
+                "without changes"
+              )}
+            </span>
+            <span className={styles.groupSteps}>{group.stepCount} steps</span>
+          </span>
+        );
+      }
+      const node = tree.nodes.get(id);
+      const head = node?.chain[0];
+      if (!node || !head) return null;
+      const kind = stepKind(head.kind);
+      const parent = node.parentId === null ? undefined : tree.nodes.get(node.parentId);
+      const note =
+        parent && parent.chain.length > 1 && node.calledFrom
+          ? `in ${node.calledFrom.module ?? "core"}`
+          : undefined;
       return (
         <StepRow
           kindIcon={kind.icon}
           kindLabel={kind.label}
           kindTone={kind.tone}
-          model={step.model}
-          method={step.method}
-          module={step.module}
-          duration={formatDuration(step.duration_ms)}
-          changes={step.changes.length}
-          failed={step.error !== null}
+          model={head.model}
+          method={head.method}
+          module={head.module}
+          chain={node.chain.map((layer) => layer.module)}
+          note={note}
+          duration={formatDuration(head.duration_ms)}
+          changes={node.ownChanges}
+          failed={node.failed}
         />
       );
     },
-    [index],
+    [tree],
   );
 
   return (
     <div className={styles.pane}>
       <div className={styles.paneHeader}>
-        <h2 className={styles.paneTitle}>Steps</h2>
-        <span className={styles.count}>{index.ordered.length}</span>
+        <h2 className={styles.paneTitle}>Calls</h2>
+        <span className={styles.count} title={`${String(stepCount)} recorded steps`}>
+          {tree.nodes.size}
+        </span>
         <span className={styles.spacer} />
         <Button
           variant="ghost"
           compact
           onClick={() => {
-            setCollapsed(new Set());
+            onToggled(expandAll(tree));
           }}
         >
           Expand all
@@ -90,19 +128,20 @@ export function StepTreePane({ index, selectedId, onSelect }: StepTreePaneProps)
         <Button
           variant="ghost"
           compact
+          disabled={toggled.size === 0}
           onClick={() => {
-            setCollapsed(collapseBelow(index, 1));
+            onToggled(new Set());
           }}
         >
-          Collapse
+          Relevant only
         </Button>
       </div>
       <div className={styles.scroll}>
         <Tree
-          label="Steps"
+          label="Calls"
           rows={rows}
           renderRow={renderRow}
-          selectedId={selectedId}
+          selectedId={selectedRow}
           onSelect={onSelect}
           onToggle={onToggle}
         />

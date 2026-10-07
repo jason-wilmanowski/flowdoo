@@ -62,7 +62,7 @@ describe("start trace dialog", () => {
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Record IDs" }), "1");
 
     await userEvent.click(within(dialog).getByRole("button", { name: "Start dry run" }));
-    expect(await screen.findByRole("region", { name: "Steps" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Calls" })).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
