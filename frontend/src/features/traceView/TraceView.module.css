@@ -254,3 +254,35 @@
   flex: 1;
   min-height: 0;
 }
+
+/* search results in the tree, like an editor's find highlight */
+.match,
+.matchRow {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+}
+
+.match {
+  border-radius: var(--radius-sm);
+  background: var(--diff-change-bg);
+}
+
+.matchDot {
+  flex: none;
+  width: var(--space-2);
+  height: var(--space-2);
+  margin-right: var(--space-3);
+  border-radius: 50%;
+  background: var(--warning);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

@@ -22,7 +22,7 @@ import {
 import { formFromCommand } from "../startTrace/command";
 import { StartTraceDialog } from "../startTrace/StartTraceDialog";
 import { ChangeTimeline } from "./ChangeTimeline";
-import { buildCallTree, revealStep } from "./model/callTree";
+import { buildCallTree, revealRow, revealStep } from "./model/callTree";
 import { ModelGraphView } from "./ModelGraphView";
 import { ReplayBar } from "./ReplayBar";
 import { StepDetailsPane } from "./StepDetailsPane";
@@ -56,6 +56,15 @@ function Workspace({ trace, index }: { trace: Trace; index: TraceIndex }) {
     [select],
   );
 
+  /** Show a call (search result): its own row, without opening its layers. */
+  const jumpToCall = useCallback(
+    (nodeId: string) => {
+      select(nodeId);
+      setToggled((current) => revealRow(tree, current, nodeId));
+    },
+    [select, tree],
+  );
+
   const jumpToModel = (model: string) => {
     const from = cursor ?? 0;
     const later = index.ordered.find((s, i) => i > from && s.model === model);
@@ -79,6 +88,7 @@ function Workspace({ trace, index }: { trace: Trace; index: TraceIndex }) {
                 onToggled={setToggled}
                 selectedStepId={step?.id ?? null}
                 onSelectStep={select}
+                onJumpToCall={jumpToCall}
               />
             ),
             defaultWidth: "var(--panel-left-w)",

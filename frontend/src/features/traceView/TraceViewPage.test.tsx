@@ -217,3 +217,49 @@ describe("trace view", () => {
     expect(selectedItem()).toHaveTextContent(/^1saleno super\(\)/);
   });
 });
+
+describe("call search", () => {
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it("opens below the header and steps through the matches", async () => {
+    renderTrace(MEDIUM);
+    await tree();
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    const input = screen.getByRole("searchbox", { name: "Search calls" });
+    expect(input).toHaveFocus();
+
+    await userEvent.type(input, "stock");
+    expect(screen.getByText("4 calls")).toBeInTheDocument();
+
+    await userEvent.keyboard("{Enter}");
+    expect(screen.getByText("1 of 4")).toBeInTheDocument();
+    expect(screen.getByText("Step 4 of 10")).toBeInTheDocument();
+    await userEvent.keyboard("{Enter}");
+    expect(screen.getByText("Step 5 of 10")).toBeInTheDocument();
+    expect(selectedItem()).toHaveTextContent("_action_launch_stock_rule");
+    await userEvent.keyboard("{Shift>}{Enter}{/Shift}");
+    expect(screen.getByText("1 of 4")).toBeInTheDocument();
+
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+  });
+
+  it("opens with / and marks folded rows that hold matches", async () => {
+    renderTrace(MEDIUM);
+    await tree();
+    await userEvent.keyboard("/");
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search calls" }), "mail.mail");
+    expect(screen.getByText("1 call")).toBeInTheDocument();
+    const folded = within(screen.getByRole("tree"))
+      .getAllByRole("treeitem")
+      .find((li) => li.textContent.includes("_send_order_confirmation_mail"));
+    expect(folded).toHaveTextContent("contains search results");
+
+    await userEvent.clear(screen.getByRole("searchbox"));
+    await userEvent.type(screen.getByRole("searchbox"), "no such call");
+    expect(screen.getByText("No calls")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next match (Enter)" })).toBeDisabled();
+  });
+});

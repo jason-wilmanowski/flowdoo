@@ -301,15 +301,13 @@ export function rowForStep(
   return row;
 }
 
-/** Toggles so that the step's own row is visible (its display ancestors expanded). */
-export function revealStep(
+/** Toggles so that a row is visible (its display ancestors expanded). */
+export function revealRow(
   tree: CallTree,
   toggled: ReadonlySet<string>,
-  stepId: string,
+  rowId: string,
 ): ReadonlySet<string> {
-  const own = displayIdOfStep(tree, stepId);
-  if (own === null) return toggled;
-  const closed = displayAncestors(tree, own).filter((a) => !isExpanded(tree, toggled, a));
+  const closed = displayAncestors(tree, rowId).filter((a) => !isExpanded(tree, toggled, a));
   if (closed.length === 0) return toggled;
   const next = new Set(toggled);
   for (const id of closed) {
@@ -317,6 +315,16 @@ export function revealStep(
     else next.add(id);
   }
   return next;
+}
+
+/** Toggles so that the step's own row is visible (its layer row inside a chain). */
+export function revealStep(
+  tree: CallTree,
+  toggled: ReadonlySet<string>,
+  stepId: string,
+): ReadonlySet<string> {
+  const own = displayIdOfStep(tree, stepId);
+  return own === null ? toggled : revealRow(tree, toggled, own);
 }
 
 /** Toggles that expand every row with children. */

@@ -1,17 +1,22 @@
-import { Layers } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { Layers, Search } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 
 import { formatDuration } from "@/lib/format";
 import { Button, Icon, StepRow, Tree } from "@/ui";
 
+import { useShortcut } from "@/app/shortcuts/shortcutContext";
+
 import { stepKind } from "../traces/stepKinds";
+import { CallSearchBar } from "./CallSearchBar";
 import {
   expandAll,
   firstStepOfRow,
+  isExpanded,
   rowForStep,
   visibleCallRows,
   type CallTree,
 } from "./model/callTree";
+import { rowsContainingMatches, searchCalls } from "./model/search";
 import styles from "./TraceView.module.css";
 
 export interface StepTreePaneProps {
@@ -23,6 +28,8 @@ export interface StepTreePaneProps {
   /** The step at the replay position. */
   selectedStepId: string | null;
   onSelectStep: (stepId: string) => void;
+  /** Move the replay to a call and unfold the tree to its row (search results). */
+  onJumpToCall: (nodeId: string) => void;
 }
 
 /**
@@ -37,8 +44,35 @@ export function StepTreePane({
   onToggled,
   selectedStepId,
   onSelectStep,
+  onJumpToCall,
 }: StepTreePaneProps) {
   const rows = useMemo(() => visibleCallRows(tree, toggled), [tree, toggled]);
+
+  // search: matches are calls (node ids = their first step), in call order
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [current, setCurrent] = useState(-1);
+  const matches = useMemo(() => searchCalls(tree, query), [tree, query]);
+  const matchSet = useMemo(() => new Set(matches), [matches]);
+  const holdsMatches = useMemo(() => rowsContainingMatches(tree, matches), [tree, matches]);
+  const goToMatch = (index: number) => {
+    if (matches.length === 0) return;
+    const next = (index + matches.length) % matches.length;
+    setCurrent(next);
+    const id = matches[next];
+    if (id !== undefined) onJumpToCall(id);
+  };
+  const closeSearch = () => {
+    setSearchOpen(false);
+    setQuery("");
+    setCurrent(-1);
+  };
+  useShortcut(
+    { id: "search-calls", key: "/", label: "/", description: "Search calls", group: "Trace" },
+    () => {
+      setSearchOpen(true);
+    },
+  );
   const selectedRow = selectedStepId === null ? null : rowForStep(tree, toggled, selectedStepId);
 
   const onToggle = useCallback(
@@ -59,7 +93,7 @@ export function StepTreePane({
     [tree, onSelectStep],
   );
 
-  const renderRow = useCallback(
+  const renderContent = useCallback(
     (id: string) => {
       const group = tree.groups.get(id);
       if (group) {
@@ -135,6 +169,25 @@ export function StepTreePane({
     [tree],
   );
 
+  const renderRow = useCallback(
+    (id: string) => {
+      const content = renderContent(id);
+      const hidden = holdsMatches.has(id) && !isExpanded(tree, toggled, id);
+      if (!matchSet.has(id) && !hidden) return content;
+      return (
+        <span className={matchSet.has(id) ? styles.match : styles.matchRow}>
+          {content}
+          {hidden ? (
+            <span className={styles.matchDot} title="Contains search results">
+              <span className={styles.visuallyHidden}>contains search results</span>
+            </span>
+          ) : null}
+        </span>
+      );
+    },
+    [holdsMatches, matchSet, toggled, tree, renderContent],
+  );
+
   return (
     <div className={styles.pane}>
       <div className={styles.paneHeader}>
@@ -143,6 +196,19 @@ export function StepTreePane({
           {tree.nodes.size}
         </span>
         <span className={styles.spacer} />
+        <Button
+          variant="ghost"
+          compact
+          icon={Search}
+          aria-expanded={searchOpen}
+          title="Search calls (/)"
+          onClick={() => {
+            if (searchOpen) closeSearch();
+            else setSearchOpen(true);
+          }}
+        >
+          Search
+        </Button>
         <Button
           variant="ghost"
           compact
@@ -163,6 +229,24 @@ export function StepTreePane({
           Relevant only
         </Button>
       </div>
+      {searchOpen ? (
+        <CallSearchBar
+          query={query}
+          onQuery={(next) => {
+            setQuery(next);
+            setCurrent(-1);
+          }}
+          count={matches.length}
+          current={current}
+          onNext={() => {
+            goToMatch(current + 1);
+          }}
+          onPrevious={() => {
+            goToMatch(current === -1 ? -1 : current - 1);
+          }}
+          onClose={closeSearch}
+        />
+      ) : null}
       <div className={styles.treeArea}>
         <Tree
           label="Calls"
