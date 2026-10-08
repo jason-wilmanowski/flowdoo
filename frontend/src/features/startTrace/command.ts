@@ -56,6 +56,8 @@ export function buildCommand(
   form: StartForm,
   /** Template values of optional arguments (left out when unchanged). */
   defaults: Record<string, unknown> = {},
+  /** The method runs on records (known from its signature): ids are required. */
+  recordsRequired = false,
 ): { command: StartTraceCommand; errors?: never } | { command?: never; errors: FormErrors } {
   const errors: FormErrors = {};
   const model = form.model.trim();
@@ -68,6 +70,9 @@ export function buildCommand(
   }
   const recordIds = parseRecordIds(form.recordIds);
   if (typeof recordIds === "string") errors.recordIds = recordIds;
+  else if (recordsRequired && recordIds.length === 0) {
+    errors.recordIds = "This method runs on records: enter at least one record ID.";
+  }
   const parsed = parseJsonObject(form.kwargs);
   let kwargs: Record<string, unknown> | string = parsed;
   if (typeof parsed === "string") {

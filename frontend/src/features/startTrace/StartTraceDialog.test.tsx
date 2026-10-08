@@ -122,6 +122,7 @@ describe("start trace dialog", () => {
     const dialog = await openDialog();
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Model" }), "sale.order");
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Method" }), "action_confirm");
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Record IDs" }), "1");
     await userEvent.click(within(dialog).getByRole("checkbox"));
     expect(within(dialog).getByText(/cannot be undone by Flowdoo/)).toBeInTheDocument();
 
@@ -180,6 +181,7 @@ describe("start trace dialog", () => {
     const dialog = await openDialog();
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Model" }), "sale.order");
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Method" }), "action_confirm");
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Record IDs" }), "1");
     await userEvent.click(within(dialog).getByRole("checkbox"));
     await userEvent.click(within(dialog).getByRole("button", { name: "Run and commit" }));
     expect(await within(dialog).findByText(/The run could not be recorded/)).toBeInTheDocument();
@@ -188,5 +190,16 @@ describe("start trace dialog", () => {
     await userEvent.click(screen.getByRole("button", { name: "Start trace" }));
     const again = await screen.findByRole("dialog", { name: "Start a trace" });
     expect(within(again).queryByText(/The run could not be recorded/)).toBeNull();
+  });
+
+  it("asks for record IDs when the method runs on records", async () => {
+    const dialog = await openDialog();
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Model" }), "sale.order");
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Method" }), "action_confirm");
+    await within(dialog).findByText(/called on records/);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Start dry run" }));
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      "This method runs on records: enter at least one record ID.",
+    );
   });
 });

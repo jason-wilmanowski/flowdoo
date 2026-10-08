@@ -145,3 +145,18 @@ describe("arguments template", () => {
     );
   });
 });
+
+describe("record ids", () => {
+  const form = { ...EMPTY_FORM, model: "sale.order", method: "action_cancel" };
+
+  it("are required when the method runs on records", () => {
+    expect(buildCommand(form, {}, true).errors?.recordIds).toBe(
+      "This method runs on records: enter at least one record ID.",
+    );
+    expect(buildCommand({ ...form, recordIds: "5" }, {}, true).command?.record_ids).toEqual([5]);
+  });
+
+  it("are optional when the signature is not known or the method is model-level", () => {
+    expect(buildCommand(form).command?.record_ids).toEqual([]);
+  });
+});

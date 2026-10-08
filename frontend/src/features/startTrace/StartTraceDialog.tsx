@@ -64,6 +64,7 @@ export function StartTraceDialog({ open, onOpenChange, initial }: StartTraceDial
     const result = buildCommand(
       modelLevel ? { ...form, recordIds: "" } : form,
       template?.defaults ?? {},
+      signature.phase === "ready" && !signature.signature.model_level,
     );
     if (result.errors) {
       setErrors(result.errors);
