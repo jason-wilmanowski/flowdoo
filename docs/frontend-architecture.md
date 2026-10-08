@@ -96,6 +96,10 @@ The trace view (`features/traceView/`) shows one recorded run. Its pure logic li
     expand like any row.
   - Expansion is stored as the rows that differ from that default. "Expand all" and
     "Relevant only" set or clear it.
+- **Search** (`model/search.ts`, "Search" or `/` in the calls pane): finds calls by
+  `model.method` and the modules of their implementations (every word must match). Enter
+  and Shift+Enter jump between matches and unfold the tree to the call; folded rows that
+  hold matches are marked.
 - **Replay position and the tree:** the selected row is the visible row that holds the
   replay step (its layer, its call or a folded ancestor). Playing does not unfold the
   tree; jumps from the details, the timeline or the graph do (`revealStep`).
