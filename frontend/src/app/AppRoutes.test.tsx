@@ -69,10 +69,10 @@ describe("app shell", () => {
     const grid = await screen.findByRole("grid", { name: "Traces" });
     grid.focus();
     await userEvent.keyboard("{ArrowDown}{Enter}");
-    expect(await screen.findByRole("tree", { name: "Steps" })).toBeInTheDocument();
+    expect(await screen.findByRole("tree", { name: "Calls" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Step details" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Replay controls" })).toBeInTheDocument();
-    expect(screen.getByRole("separator", { name: "Resize Steps" })).toBeInTheDocument();
+    expect(screen.getByRole("separator", { name: "Resize Calls" })).toBeInTheDocument();
   });
 
   it("explains an unknown trace id and a failed recording", async () => {

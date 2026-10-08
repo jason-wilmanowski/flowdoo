@@ -21,7 +21,7 @@ frontend/src/
 ├── lib/           # pure logic without React: replay core, shortcut matching, theme
 ├── ui/            # presentational primitives (no stores, no data access)
 ├── app/           # composition: providers, router, shell, pages, dev-only /_kit
-├── features/      # feature modules (trace list, start dialog, replay, …), still empty
+├── features/      # feature modules: traceList, startTrace, traceView, shared traces/
 ├── styles/        # tokens.css (all design values), base.css
 └── test/          # test setup (jsdom stubs)
 ```
@@ -77,6 +77,40 @@ sequenceDiagram
 - **Replay core** (`lib/replay/`): `indexTrace` builds the order (`seq`), the call tree
   (`parent_id`) and lookups once per trace; cursor functions clamp and never wrap. The
   replay store only holds the cursor; views derive everything else from the index.
+
+## Trace view
+
+The trace view (`features/traceView/`) shows one recorded run. Its pure logic lives in
+`features/traceView/model/` and is tested on hand-made steps and on recorded traces.
+
+- **Call tree** (`model/callTree.ts`), built once per trace from the index:
+  - A **super() chain** is one call: when an implementation calls `super()`, the recorder
+    records the next implementation as its child (same model and method, further down the
+    MRO). These steps become the *layers* of one node; expanding the node lists the layers
+    in MRO order, each with the calls it made. A direct call of the same method on other
+    records starts at MRO position 0 again and stays a separate call.
+  - **Relevance:** a call is relevant when it or something below it changed field values
+    or failed. Only calls with something relevant *below* them start expanded.
+  - **Folding:** runs of at least two irrelevant sibling calls become one group row
+    ("7 calls without changes", "3 calls in account.tax"). Nothing is dropped; groups
+    expand like any row.
+  - Expansion is stored as the rows that differ from that default. "Expand all" and
+    "Relevant only" set or clear it.
+- **Search** (`model/search.ts`, "Search" or `/` in the calls pane): finds calls by
+  `model.method` and the modules of their implementations (every word must match). Enter
+  and Shift+Enter jump between matches and unfold the tree to the call; folded rows that
+  hold matches are marked.
+- **Replay position and the tree:** the selected row is the visible row that holds the
+  replay step (its layer, its call or a folded ancestor). Playing does not unfold the
+  tree; jumps from the details, the timeline or the graph do (`revealStep`).
+- **Details** (right): the selected step in one column — implementation facts, the net
+  changes of the whole call including the calls it made (`netChanges`: first old, last new
+  value per field, with the step that wrote last), the implementation chain with
+  `super()` per layer, arguments and result, the call path.
+- **Main area:** the model graph (models and who calls whom) and "Changes over time", a
+  dense list of every field change marked as applied, current or upcoming.
+- **Large traces:** the `Tree` primitive is virtualized (only rows in view are rendered),
+  and the trace view is a lazy route so React Flow loads only when it is needed.
 
 ## Fixture mode
 

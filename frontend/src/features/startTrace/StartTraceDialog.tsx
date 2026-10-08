@@ -1,11 +1,11 @@
-import { useState, type SubmitEvent } from "react";
+import { useEffect, useState, type SubmitEvent } from "react";
 import { useNavigate } from "react-router";
 import { useStore } from "zustand";
 
 import { useStores } from "@/app/appContext";
 import { Button, Checkbox, Dialog, Input, Spinner, TextArea } from "@/ui";
 
-import { buildCommand, EMPTY_FORM, type FormErrors, type StartForm } from "./command";
+import { addParameter, buildCommand, EMPTY_FORM, type FormErrors, type StartForm } from "./command";
 import { SignatureHint } from "./SignatureHint";
 import styles from "./StartTrace.module.css";
 import { useEntrypointSignature } from "./useEntrypointSignature";
@@ -23,12 +23,18 @@ export function StartTraceDialog({ open, onOpenChange, initial }: StartTraceDial
   const run = useStore(currentTrace, (state) => state.run);
   const start = useStore(currentTrace, (state) => state.start);
   const cancelStart = useStore(currentTrace, (state) => state.cancelStart);
+  const dismissRunError = useStore(currentTrace, (state) => state.dismissRunError);
   const navigate = useNavigate();
   const [form, setForm] = useState<StartForm>(initial ?? EMPTY_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
   const signature = useEntrypointSignature(source, form.model, form.method);
   const running = run.phase === "running";
   const modelLevel = signature.phase === "ready" && signature.signature.model_level;
+
+  // an error from an earlier attempt does not belong to this one
+  useEffect(() => {
+    dismissRunError();
+  }, [dismissRunError]);
 
   const set = <K extends keyof StartForm>(key: K, value: StartForm[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -99,7 +105,22 @@ export function StartTraceDialog({ open, onOpenChange, initial }: StartTraceDial
           </div>
         </div>
 
-        <SignatureHint state={signature} />
+        <SignatureHint
+          state={signature}
+          onAddParameter={(parameter) => {
+            const result = addParameter(
+              form.kwargs,
+              parameter.name,
+              parameter.required,
+              parameter.default ?? null,
+            );
+            if ("error" in result) {
+              setErrors((current) => ({ ...current, kwargs: result.error }));
+            } else {
+              set("kwargs", result.text);
+            }
+          }}
+        />
 
         <div className={styles.field}>
           <Input

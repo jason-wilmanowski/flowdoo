@@ -93,3 +93,53 @@ describe("Tree", () => {
     document.removeEventListener("keydown", global);
   });
 });
+
+describe("Tree virtualization", () => {
+  const ROWS: TreeRow[] = Array.from({ length: 5000 }, (_, i) => ({
+    id: `r${String(i)}`,
+    depth: 0,
+    parentId: null,
+    hasChildren: false,
+    expanded: false,
+  }));
+
+  function Big() {
+    const [selected, setSelected] = useState<string | null>(null);
+    return (
+      <Tree
+        label="Big"
+        rows={ROWS}
+        renderRow={(id) => id}
+        selectedId={selected}
+        onSelect={setSelected}
+        onToggle={() => undefined}
+      />
+    );
+  }
+
+  // jsdom has no layout: give the viewport a height so the tree can measure it
+  beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(280);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("renders only the rows in view plus a margin", () => {
+    render(<Big />);
+    const items = screen.getAllByRole("treeitem");
+    expect(items.length).toBeGreaterThan(9);
+    expect(items.length).toBeLessThan(40);
+    expect(screen.getByRole("tree")).toHaveStyle({ height: `${String(5000 * 28)}px` });
+  });
+
+  it("keeps the selected row in the DOM and scrolls to it", async () => {
+    render(<Big />);
+    screen.getByRole("tree").focus();
+    await userEvent.keyboard("{End}");
+    const last = screen.getByText("r4999").closest("li")!;
+    expect(last).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tree")).toHaveAttribute("aria-activedescendant", last.id);
+    expect(screen.getByRole("tree").parentElement!.scrollTop).toBe(4999 * 28 + 28 - 280);
+  });
+});

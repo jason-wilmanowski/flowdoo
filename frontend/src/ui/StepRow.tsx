@@ -13,6 +13,8 @@ export interface StepRowProps {
   method: string;
   /** Module of the implementation; null = Odoo core. */
   module: string | null;
+  /** Modules of a super chain, most derived first; shown instead of `module`. */
+  chain?: readonly (string | null)[];
   duration: string;
   /** Number of field changes in this step, shown as a marker when > 0. */
   changes?: number;
@@ -27,10 +29,12 @@ export function StepRow({
   model,
   method,
   module,
+  chain,
   duration,
   changes = 0,
   failed = false,
 }: StepRowProps) {
+  const modules = chain && chain.length > 1 ? chain : [module];
   return (
     <span className={styles.stepRow}>
       <span className={[styles.kind, styles[kindTone]].join(" ")} title={kindLabel}>
@@ -46,7 +50,16 @@ export function StepRow({
         </span>
       ) : null}
       {failed ? <span className={styles.error}>error</span> : null}
-      <span className={styles.module}>{module ?? "core"}</span>
+      <span
+        className={styles.module}
+        title={
+          modules.length > 1
+            ? `super() chain: ${modules.map((m) => m ?? "core").join(", ")}`
+            : undefined
+        }
+      >
+        {modules.map((m) => m ?? "core").join(" → ")}
+      </span>
       <span className={styles.duration}>{duration}</span>
     </span>
   );

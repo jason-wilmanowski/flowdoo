@@ -24,10 +24,10 @@ function renderTrace(id: string) {
   );
 }
 
-const tree = () => screen.findByRole("tree", { name: "Steps" });
+const tree = () => screen.findByRole("tree", { name: "Calls" });
 const details = () => screen.getByRole("region", { name: "Step details" });
 const selectedItem = () =>
-  within(screen.getByRole("tree", { name: "Steps" }))
+  within(screen.getByRole("tree", { name: "Calls" }))
     .getAllByRole("treeitem")
     .find((item) => item.getAttribute("aria-selected") === "true");
 
@@ -122,10 +122,22 @@ describe("trace view", () => {
     renderTrace(MEDIUM);
     await tree();
     await userEvent.click(screen.getByRole("tab", { name: "Changes over time" }));
-    expect(screen.getByText(/0 of 5 changes happened/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /^#7/ }));
+    const summary = () =>
+      screen.getByText(
+        (_, element) => element?.tagName === "P" && /changes applied/.test(element.textContent),
+      );
+    expect(summary()).toHaveTextContent("0 of 5 changes applied up to step 1.");
+    const upcoming = screen.getByRole("button", {
+      name: /^Step 7: sale.order 7 delivery_count 0 to 1/,
+    });
+    expect(upcoming).toHaveAccessibleName(/not applied yet$/);
+    await userEvent.click(upcoming);
     expect(screen.getByText("Step 7 of 10")).toBeInTheDocument();
-    expect(screen.getByText(/5 of 5 changes happened/)).toBeInTheDocument();
+    expect(summary()).toHaveTextContent("5 of 5 changes applied up to step 7.");
+    expect(screen.getByRole("button", { name: /^Step 7:/ })).toHaveAttribute(
+      "aria-current",
+      "step",
+    );
   });
 
   it("lists the replay keys in the shortcut help", async () => {
@@ -152,11 +164,102 @@ describe("trace view", () => {
     expect(within(dialog).getByRole("textbox", { name: "Model" })).toHaveValue("account.move");
   });
 
-  it("opens the 879-step recording with collapsed depth", async () => {
+  it("opens the 879-step recording with only the relevant calls unfolded", async () => {
     renderTrace(RECORDED);
-    const items = within(await tree()).getAllByRole("treeitem");
-    expect(items.length).toBeLessThan(879);
+    const initial = within(await tree()).getAllByRole("treeitem").length;
+    expect(initial).toBeLessThan(200);
     await userEvent.click(screen.getByRole("button", { name: "Expand all" }));
-    expect(within(screen.getByRole("tree")).getAllByRole("treeitem")).toHaveLength(879);
+    const all = within(screen.getByRole("tree")).getAllByRole("treeitem").length;
+    expect(all).toBeGreaterThan(initial);
+    await userEvent.click(screen.getByRole("button", { name: "Relevant only" }));
+    expect(within(screen.getByRole("tree")).getAllByRole("treeitem")).toHaveLength(initial);
+  });
+
+  it("marks the folded call that holds the replay position without unfolding it", async () => {
+    renderTrace(MEDIUM);
+    await tree();
+    await userEvent.keyboard("{End}");
+    expect(screen.getByText("Step 10 of 10")).toBeInTheDocument();
+    expect(selectedItem()).toHaveTextContent("_send_order_confirmation_mail");
+    expect(selectedItem()).toHaveAttribute("aria-expanded", "false");
+    expect(within(details()).getByRole("heading", { level: 2 })).toHaveTextContent(
+      "mail.mail.send",
+    );
+  });
+
+  it("shows a super() chain as one call and lists its implementations", async () => {
+    renderTrace(MEDIUM);
+    const row = within(await tree())
+      .getAllByRole("treeitem")
+      .find((li) => li.textContent.includes("sale_stock → sale"));
+    expect(row).toHaveTextContent("_action_confirm");
+    await userEvent.click(row!);
+    const chain = within(details()).getByRole("list", { name: "Implementation chain" });
+    const layers = within(chain).getAllByRole("button");
+    expect(layers.map((b) => b.textContent)).toEqual([
+      expect.stringMatching(/0sale_stockcalls super\(\)/),
+      expect.stringMatching(/1saleno super\(\)/),
+    ]);
+    // sale is the base implementation of _action_confirm: not calling super() is normal
+    expect(details()).not.toHaveTextContent("does not call super()");
+
+    // the open chain shows its implementations as a stack in the tree
+    const items = within(screen.getByRole("tree")).getAllByRole("treeitem");
+    const layerRows = items.filter((li) => li.getAttribute("aria-level") === "3");
+    expect(layerRows.slice(0, 2).map((li) => li.textContent)).toEqual([
+      expect.stringMatching(/^0sale_stockcalls super\(\)/),
+      expect.stringMatching(/^1saleno super\(\)/),
+    ]);
+
+    // a layer in the details jumps to its step and selects its row in the tree
+    await userEvent.click(layers[1]!);
+    expect(screen.getByText("Step 8 of 10")).toBeInTheDocument();
+    expect(selectedItem()).toHaveTextContent(/^1saleno super\(\)/);
+  });
+});
+
+describe("call search", () => {
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it("opens below the header and steps through the matches", async () => {
+    renderTrace(MEDIUM);
+    await tree();
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    const input = screen.getByRole("searchbox", { name: "Search calls" });
+    expect(input).toHaveFocus();
+
+    await userEvent.type(input, "stock");
+    expect(screen.getByText("4 calls")).toBeInTheDocument();
+
+    await userEvent.keyboard("{Enter}");
+    expect(screen.getByText("1 of 4")).toBeInTheDocument();
+    expect(screen.getByText("Step 4 of 10")).toBeInTheDocument();
+    await userEvent.keyboard("{Enter}");
+    expect(screen.getByText("Step 5 of 10")).toBeInTheDocument();
+    expect(selectedItem()).toHaveTextContent("_action_launch_stock_rule");
+    await userEvent.keyboard("{Shift>}{Enter}{/Shift}");
+    expect(screen.getByText("1 of 4")).toBeInTheDocument();
+
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+  });
+
+  it("opens with / and marks folded rows that hold matches", async () => {
+    renderTrace(MEDIUM);
+    await tree();
+    await userEvent.keyboard("/");
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search calls" }), "mail.mail");
+    expect(screen.getByText("1 call")).toBeInTheDocument();
+    const folded = within(screen.getByRole("tree"))
+      .getAllByRole("treeitem")
+      .find((li) => li.textContent.includes("_send_order_confirmation_mail"));
+    expect(folded).toHaveTextContent("contains search results");
+
+    await userEvent.clear(screen.getByRole("searchbox"));
+    await userEvent.type(screen.getByRole("searchbox"), "no such call");
+    expect(screen.getByText("No calls")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next match (Enter)" })).toBeDisabled();
   });
 });

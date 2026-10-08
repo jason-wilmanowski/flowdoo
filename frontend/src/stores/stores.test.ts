@@ -136,6 +136,19 @@ describe("stores: errors, stale answers, cancellation", () => {
     expect(currentTrace.getState().trace).toBeNull();
   });
 
+  it("dismissing a failed start goes back to idle, but never interrupts a running one", async () => {
+    const { currentTrace } = createAppStores(createFixtureDataSource({ delayMs: 0 }));
+
+    await currentTrace.getState().start({ ...CONFIRM, dry_run: false });
+    currentTrace.getState().dismissRunError();
+    expect(currentTrace.getState().run).toMatchObject({ phase: "idle", error: null });
+
+    const pending = currentTrace.getState().start(CONFIRM);
+    currentTrace.getState().dismissRunError();
+    expect(currentTrace.getState().run.phase).toBe("running");
+    await pending;
+  });
+
   it("a failed start keeps the command and the error", async () => {
     const { currentTrace } = createAppStores(createFixtureDataSource({ delayMs: 0 }));
 

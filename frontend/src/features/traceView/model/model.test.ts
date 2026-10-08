@@ -4,7 +4,6 @@ import { indexTrace } from "@/lib/replay/traceIndex";
 
 import { changesOverTime, netChanges, subtreeSteps } from "./changes";
 import { layoutLayers, modelGraph } from "./modelGraph";
-import { ancestorsOf, collapseBelow, revealStep, visibleRows } from "./treeRows";
 import { formatValue } from "./values";
 
 const step = (
@@ -47,34 +46,6 @@ const STEPS = [
   }),
 ];
 const index = indexTrace({ steps: STEPS });
-
-describe("tree rows", () => {
-  it("lists steps depth-first in seq order and hides collapsed children", () => {
-    expect(visibleRows(index, new Set()).map((r) => [r.id, r.depth, r.parentId])).toEqual([
-      ["s1", 0, null],
-      ["s2", 1, "s1"],
-      ["s3", 2, "s2"],
-      ["s4", 1, "s1"],
-    ]);
-    expect(visibleRows(index, new Set(["s2"])).map((r) => r.id)).toEqual(["s1", "s2", "s4"]);
-  });
-
-  it("finds ancestors and reveals a hidden step", () => {
-    expect(ancestorsOf(index, "s3")).toEqual(["s2", "s1"]);
-    const revealed = revealStep(index, new Set(["s1", "s2", "s4"]), "s3");
-    expect([...revealed]).toEqual(["s4"]);
-  });
-
-  it("collapses below a depth", () => {
-    expect([...collapseBelow(index, 1)]).toEqual(["s2"]);
-  });
-
-  it("handles the recorded 879-step trace", async () => {
-    const big = indexTrace(await loadFixture("recorded-sale-order-action-confirm"));
-    expect(visibleRows(big, new Set())).toHaveLength(879);
-    expect(visibleRows(big, collapseBelow(big, 2)).length).toBeLessThan(879);
-  });
-});
 
 describe("changes", () => {
   it("lists changes in replay order", () => {

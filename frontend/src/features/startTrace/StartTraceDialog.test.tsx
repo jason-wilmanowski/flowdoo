@@ -6,13 +6,51 @@ import { AppProviders } from "@/app/AppProviders";
 import { AppRoutes } from "@/app/AppRoutes";
 import { createFixtureDataSource } from "@/datasource";
 
+// Fixtures know no parameters; res.partner.write answers like Odoo 19 does.
+function createSource() {
+  const fixtures = createFixtureDataSource({ delayMs: 0 });
+  return {
+    ...fixtures,
+    describeEntrypoint: (model: string, method: string, call?: { signal?: AbortSignal }) =>
+      model === "res.partner" && method === "write"
+        ? Promise.resolve({
+            model,
+            method,
+            model_level: false,
+            module: "account",
+            summary: "Update all records in self with the provided values.",
+            parameters: [
+              {
+                name: "vals",
+                kind: "positional_or_keyword",
+                required: true,
+                default: null,
+                annotation: null,
+              },
+              {
+                name: "notify",
+                kind: "keyword_only",
+                required: false,
+                default: "False",
+                annotation: null,
+              },
+              {
+                name: "kwargs",
+                kind: "var_keyword",
+                required: false,
+                default: null,
+                annotation: null,
+              },
+            ],
+          })
+        : fixtures.describeEntrypoint(model, method, call),
+  };
+}
+
 function renderList() {
   render(
     <MemoryRouter initialEntries={["/traces"]}>
-      <AppProviders
-        initialDataSource="fixtures"
-        createSource={() => createFixtureDataSource({ delayMs: 0 })}
-      >
+      <AppProviders initialDataSource="fixtures" createSource={createSource}>
         <AppRoutes />
       </AppProviders>
     </MemoryRouter>,
@@ -62,7 +100,7 @@ describe("start trace dialog", () => {
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Record IDs" }), "1");
 
     await userEvent.click(within(dialog).getByRole("button", { name: "Start dry run" }));
-    expect(await screen.findByRole("region", { name: "Steps" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Calls" })).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -88,5 +126,38 @@ describe("start trace dialog", () => {
     const dialog = await openDialog();
     await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("adds parameters to the arguments with a click", async () => {
+    const dialog = await openDialog();
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Model" }), "res.partner");
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Method" }), "write");
+    await userEvent.click(
+      await within(dialog).findByRole("button", { name: "Add vals to the arguments" }),
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Add notify to the arguments" }),
+    );
+    expect(within(dialog).getByRole("textbox", { name: /Arguments/ })).toHaveValue(
+      '{\n  "vals": null,\n  "notify": false\n}',
+    );
+    // **kwargs cannot be passed by name
+    expect(
+      within(dialog).queryByRole("button", { name: "Add kwargs to the arguments" }),
+    ).toBeNull();
+  });
+
+  it("does not show the error of an earlier attempt when opened again", async () => {
+    const dialog = await openDialog();
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Model" }), "sale.order");
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Method" }), "action_confirm");
+    await userEvent.click(within(dialog).getByRole("checkbox"));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Run and commit" }));
+    expect(await within(dialog).findByText(/The run could not be recorded/)).toBeInTheDocument();
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await userEvent.click(screen.getByRole("button", { name: "Start trace" }));
+    const again = await screen.findByRole("dialog", { name: "Start a trace" });
+    expect(within(again).queryByText(/The run could not be recorded/)).toBeNull();
   });
 });

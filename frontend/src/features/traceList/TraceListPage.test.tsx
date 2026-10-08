@@ -114,7 +114,7 @@ describe("trace list", () => {
     renderList();
     (await grid()).focus();
     await userEvent.keyboard("{ArrowDown}{Enter}");
-    expect(await screen.findByRole("region", { name: "Steps" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Calls" })).toBeInTheDocument();
   });
 
   it("shows the error with a retry when the API is unreachable", async () => {

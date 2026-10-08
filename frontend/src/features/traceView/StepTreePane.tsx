@@ -1,88 +1,219 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Layers, Search } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 
 import { formatDuration } from "@/lib/format";
-import type { TraceIndex } from "@/lib/replay/traceIndex";
-import { Button, StepRow, Tree } from "@/ui";
+import { Button, Icon, StepRow, Tree } from "@/ui";
+
+import { useShortcut } from "@/app/shortcuts/shortcutContext";
 
 import { stepKind } from "../traces/stepKinds";
-import { ancestorsOf, collapseBelow, revealStep, visibleRows } from "./model/treeRows";
+import { CallSearchBar } from "./CallSearchBar";
+import {
+  expandAll,
+  firstStepOfRow,
+  isExpanded,
+  rowForStep,
+  visibleCallRows,
+  type CallTree,
+} from "./model/callTree";
+import { rowsContainingMatches, searchCalls } from "./model/search";
 import styles from "./TraceView.module.css";
 
-/** Steps deeper than this start collapsed, so a big trace opens readable. */
-const INITIAL_DEPTH = 2;
-
 export interface StepTreePaneProps {
-  index: TraceIndex;
-  selectedId: string | null;
-  onSelect: (id: string) => void;
+  tree: CallTree;
+  stepCount: number;
+  /** Rows whose expansion differs from the default (relevant paths open). */
+  toggled: ReadonlySet<string>;
+  onToggled: (toggled: ReadonlySet<string>) => void;
+  /** The step at the replay position. */
+  selectedStepId: string | null;
+  onSelectStep: (stepId: string) => void;
+  /** Move the replay to a call and unfold the tree to its row (search results). */
+  onJumpToCall: (nodeId: string) => void;
 }
 
-/** Call tree of the run; the selected step is the replay position. */
-export function StepTreePane({ index, selectedId, onSelect }: StepTreePaneProps) {
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() =>
-    collapseBelow(index, INITIAL_DEPTH),
-  );
+/**
+ * The call tree: one row per call (super chains merged), only the paths to changes and
+ * errors open at first, irrelevant runs folded. The row holding the replay position is
+ * selected; replaying does not unfold the tree.
+ */
+export function StepTreePane({
+  tree,
+  stepCount,
+  toggled,
+  onToggled,
+  selectedStepId,
+  onSelectStep,
+  onJumpToCall,
+}: StepTreePaneProps) {
+  const rows = useMemo(() => visibleCallRows(tree, toggled), [tree, toggled]);
 
-  // The replay can move into a collapsed part: the way to the selected step stays open.
-  const effective = useMemo(
-    () => (selectedId === null ? collapsed : revealStep(index, collapsed, selectedId)),
-    [index, collapsed, selectedId],
+  // search: matches are calls (node ids = their first step), in call order
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [current, setCurrent] = useState(-1);
+  const matches = useMemo(() => searchCalls(tree, query), [tree, query]);
+  const matchSet = useMemo(() => new Set(matches), [matches]);
+  const holdsMatches = useMemo(() => rowsContainingMatches(tree, matches), [tree, matches]);
+  const goToMatch = (index: number) => {
+    if (matches.length === 0) return;
+    const next = (index + matches.length) % matches.length;
+    setCurrent(next);
+    const id = matches[next];
+    if (id !== undefined) onJumpToCall(id);
+  };
+  const closeSearch = () => {
+    setSearchOpen(false);
+    setQuery("");
+    setCurrent(-1);
+  };
+  useShortcut(
+    { id: "search-calls", key: "/", label: "/", description: "Search calls", group: "Trace" },
+    () => {
+      setSearchOpen(true);
+    },
   );
-  const rows = useMemo(() => visibleRows(index, effective), [index, effective]);
-
-  const selectedRef = useRef(selectedId);
-  useEffect(() => {
-    selectedRef.current = selectedId;
-  });
+  const selectedRow = selectedStepId === null ? null : rowForStep(tree, toggled, selectedStepId);
 
   const onToggle = useCallback(
-    (id: string, expanded: boolean) => {
-      // Collapsing around the selected step moves the selection up, so it stays visible.
-      const selected = selectedRef.current;
-      if (!expanded && selected !== null && ancestorsOf(index, selected).includes(id)) onSelect(id);
-      setCollapsed((current) => {
-        const next = new Set(current);
-        if (expanded) next.delete(id);
-        else next.add(id);
-        return next;
-      });
+    (id: string) => {
+      const next = new Set(toggled);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      onToggled(next);
     },
-    [index, onSelect],
+    [toggled, onToggled],
   );
 
-  const renderRow = useCallback(
+  const onSelect = useCallback(
+    (rowId: string) => {
+      const stepId = firstStepOfRow(tree, rowId);
+      if (stepId !== null) onSelectStep(stepId);
+    },
+    [tree, onSelectStep],
+  );
+
+  const renderContent = useCallback(
     (id: string) => {
-      const step = index.byId.get(id);
-      if (!step) return null;
-      const kind = stepKind(step.kind);
+      const group = tree.groups.get(id);
+      if (group) {
+        return (
+          <span className={styles.groupRow}>
+            <Icon icon={Layers} compact />
+            <span>
+              {group.members.length} calls{" "}
+              {group.model ? (
+                <>
+                  in <code>{group.model}</code>
+                </>
+              ) : (
+                "without changes"
+              )}
+            </span>
+            <span className={styles.groupSteps}>{group.stepCount} steps</span>
+          </span>
+        );
+      }
+      const layer = tree.layers.get(id);
+      if (layer) {
+        const { step } = layer;
+        const last = tree.nodes.get(layer.nodeId)?.chain.at(-1)?.id === step.id;
+        return (
+          <span className={styles.layerRow}>
+            <span className={styles.layerMro} title="Position in the MRO (0 = most derived)">
+              {step.mro_position ?? "?"}
+            </span>
+            <code className={styles.layerModule}>{step.module ?? "core"}</code>
+            <span
+              className={
+                step.calls_super === false && !last ? styles.layerSuperNo : styles.layerSuper
+              }
+            >
+              {step.calls_super === null
+                ? "super() not determined"
+                : step.calls_super
+                  ? "calls super()"
+                  : "no super()"}
+            </span>
+            {step.changes.length > 0 ? (
+              <span
+                className={styles.layerChanges}
+                title={`${String(step.changes.length)} field changes`}
+              >
+                Δ{step.changes.length}
+              </span>
+            ) : null}
+            <span className={styles.groupSteps}>{formatDuration(step.duration_ms)}</span>
+          </span>
+        );
+      }
+      const node = tree.nodes.get(id);
+      const head = node?.chain[0];
+      if (!node || !head) return null;
+      const kind = stepKind(head.kind);
       return (
         <StepRow
           kindIcon={kind.icon}
           kindLabel={kind.label}
           kindTone={kind.tone}
-          model={step.model}
-          method={step.method}
-          module={step.module}
-          duration={formatDuration(step.duration_ms)}
-          changes={step.changes.length}
-          failed={step.error !== null}
+          model={head.model}
+          method={head.method}
+          module={head.module}
+          chain={node.chain.map((layer) => layer.module)}
+          duration={formatDuration(head.duration_ms)}
+          changes={node.ownChanges}
+          failed={node.failed}
         />
       );
     },
-    [index],
+    [tree],
+  );
+
+  const renderRow = useCallback(
+    (id: string) => {
+      const content = renderContent(id);
+      const hidden = holdsMatches.has(id) && !isExpanded(tree, toggled, id);
+      if (!matchSet.has(id) && !hidden) return content;
+      return (
+        <span className={matchSet.has(id) ? styles.match : styles.matchRow}>
+          {content}
+          {hidden ? (
+            <span className={styles.matchDot} title="Contains search results">
+              <span className={styles.visuallyHidden}>contains search results</span>
+            </span>
+          ) : null}
+        </span>
+      );
+    },
+    [holdsMatches, matchSet, toggled, tree, renderContent],
   );
 
   return (
     <div className={styles.pane}>
       <div className={styles.paneHeader}>
-        <h2 className={styles.paneTitle}>Steps</h2>
-        <span className={styles.count}>{index.ordered.length}</span>
+        <h2 className={styles.paneTitle}>Calls</h2>
+        <span className={styles.count} title={`${String(stepCount)} recorded steps`}>
+          {tree.nodes.size}
+        </span>
         <span className={styles.spacer} />
         <Button
           variant="ghost"
           compact
+          icon={Search}
+          aria-expanded={searchOpen}
+          title="Search calls (/)"
           onClick={() => {
-            setCollapsed(new Set());
+            if (searchOpen) closeSearch();
+            else setSearchOpen(true);
+          }}
+        >
+          Search
+        </Button>
+        <Button
+          variant="ghost"
+          compact
+          onClick={() => {
+            onToggled(expandAll(tree));
           }}
         >
           Expand all
@@ -90,19 +221,38 @@ export function StepTreePane({ index, selectedId, onSelect }: StepTreePaneProps)
         <Button
           variant="ghost"
           compact
+          disabled={toggled.size === 0}
           onClick={() => {
-            setCollapsed(collapseBelow(index, 1));
+            onToggled(new Set());
           }}
         >
-          Collapse
+          Relevant only
         </Button>
       </div>
-      <div className={styles.scroll}>
+      {searchOpen ? (
+        <CallSearchBar
+          query={query}
+          onQuery={(next) => {
+            setQuery(next);
+            setCurrent(-1);
+          }}
+          count={matches.length}
+          current={current}
+          onNext={() => {
+            goToMatch(current + 1);
+          }}
+          onPrevious={() => {
+            goToMatch(current === -1 ? -1 : current - 1);
+          }}
+          onClose={closeSearch}
+        />
+      ) : null}
+      <div className={styles.treeArea}>
         <Tree
-          label="Steps"
+          label="Calls"
           rows={rows}
           renderRow={renderRow}
-          selectedId={selectedId}
+          selectedId={selectedRow}
           onSelect={onSelect}
           onToggle={onToggle}
         />

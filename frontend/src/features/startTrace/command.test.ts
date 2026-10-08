@@ -1,4 +1,6 @@
 import {
+  addParameter,
+  jsonFromPythonDefault,
   buildCommand,
   EMPTY_FORM,
   formFromCommand,
@@ -73,5 +75,30 @@ describe("buildCommand", () => {
   it("round-trips through the form", () => {
     const command = buildCommand({ ...form, kwargs: '{"a": 1}' }).command!;
     expect(buildCommand(formFromCommand(command)).command).toEqual(command);
+  });
+});
+
+describe("adding parameters to kwargs", () => {
+  it("converts Python defaults to JSON", () => {
+    expect(jsonFromPythonDefault("None")).toBeNull();
+    expect(jsonFromPythonDefault("True")).toBe(true);
+    expect(jsonFromPythonDefault("False")).toBe(false);
+    expect(jsonFromPythonDefault("3")).toBe(3);
+    expect(jsonFromPythonDefault("'notification'")).toBe("notification");
+    expect(jsonFromPythonDefault("{}")).toEqual({});
+    expect(jsonFromPythonDefault("SomeConstant")).toBeNull();
+  });
+
+  it("adds a parameter and keeps what is there", () => {
+    expect(addParameter("", "vals", true, null)).toEqual({ text: '{\n  "vals": null\n}' });
+    const result = addParameter('{"res_id": 2}', "force_send", false, "False");
+    expect(result).toEqual({ text: '{\n  "res_id": 2,\n  "force_send": false\n}' });
+  });
+
+  it("leaves existing parameters and invalid text alone", () => {
+    expect(addParameter('{"res_id": 2}', "res_id", true, null)).toEqual({ text: '{"res_id": 2}' });
+    expect(addParameter("{", "x", true, null)).toEqual({
+      error: expect.stringMatching(/^Not valid JSON/) as unknown,
+    });
   });
 });

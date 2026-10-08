@@ -46,9 +46,41 @@
 
 .parameters {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  flex-wrap: wrap;
+  gap: var(--space-2);
   list-style: none;
+}
+
+/* a parameter as a chip; a click adds it to the arguments */
+.parameter,
+.parameterText {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-h-compact);
+  padding: 0 var(--space-3) 0 var(--space-2);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.parameter {
+  cursor: pointer;
+  transition:
+    border-color var(--duration) var(--ease),
+    background-color var(--duration) var(--ease);
+}
+
+.parameter:hover {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.parameterText {
+  padding-left: var(--space-3);
 }
 
 .muted {
@@ -56,6 +88,7 @@
 }
 
 .required {
+  margin-left: var(--space-1);
   color: var(--warning);
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);

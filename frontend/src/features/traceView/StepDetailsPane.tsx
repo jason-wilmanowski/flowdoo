@@ -8,11 +8,12 @@ import { Badge, CodeValue, DiffRow, Icon, StepRow } from "@/ui";
 
 import { stepKind } from "../traces/stepKinds";
 import { netChanges, type RecordEffect } from "./model/changes";
-import { ancestorsOf } from "./model/treeRows";
+import { callPath, chainOfStep, type CallTree } from "./model/callTree";
 import { formatValue } from "./model/values";
 import styles from "./StepDetails.module.css";
 
 const NOT_DETERMINED = "not determined";
+const ORM_KINDS = new Set(["orm_create", "orm_write", "orm_unlink"]);
 
 function superText(value: boolean | null): string {
   if (value === null) return NOT_DETERMINED;
@@ -107,28 +108,30 @@ function Changes({
 
 function CallPath({
   step,
-  index,
+  tree,
   onSelect,
 }: {
   step: Step;
-  index: TraceIndex;
+  tree: CallTree;
   onSelect: (id: string) => void;
 }) {
-  const path = [...ancestorsOf(index, step.id).reverse(), step.id];
+  const path = callPath(tree, step.id);
+  const current = tree.nodeOfStep.get(step.id);
   return (
     <ol className={styles.path} aria-label="Call path">
       {path.map((id) => {
-        const item = index.byId.get(id);
-        if (!item) return null;
-        const kind = stepKind(item.kind);
+        const node = tree.nodes.get(id);
+        const head = node?.chain[0];
+        if (!node || !head) return null;
+        const kind = stepKind(head.kind);
         return (
           <li key={id}>
             <button
               type="button"
-              className={[styles.pathItem, id === step.id ? styles.pathCurrent : ""]
+              className={[styles.pathItem, id === current ? styles.pathCurrent : ""]
                 .join(" ")
                 .trim()}
-              aria-current={id === step.id ? "step" : undefined}
+              aria-current={id === current ? "step" : undefined}
               onClick={() => {
                 onSelect(id);
               }}
@@ -137,12 +140,13 @@ function CallPath({
                 kindIcon={kind.icon}
                 kindLabel={kind.label}
                 kindTone={kind.tone}
-                model={item.model}
-                method={item.method}
-                module={item.module}
-                duration={formatDuration(item.duration_ms)}
-                changes={item.changes.length}
-                failed={item.error !== null}
+                model={head.model}
+                method={head.method}
+                module={head.module}
+                chain={node.chain.map((layer) => layer.module)}
+                duration={formatDuration(head.duration_ms)}
+                changes={node.ownChanges}
+                failed={node.failed}
               />
             </button>
           </li>
@@ -152,9 +156,73 @@ function CallPath({
   );
 }
 
+/** The implementations this call ran through, along the MRO, and whether each passed on. */
+function ImplementationChain({
+  step,
+  chain,
+  onSelect,
+}: {
+  step: Step;
+  chain: Step[];
+  onSelect: (id: string) => void;
+}) {
+  const last = chain[chain.length - 1];
+  // Only the ORM methods are known to have a core implementation below every module; for
+  // other methods the last layer not calling super() is simply the base implementation.
+  const stopsEarly =
+    last !== undefined &&
+    ORM_KINDS.has(last.kind) &&
+    last.calls_super === false &&
+    last.module !== null;
+  return (
+    <>
+      <ol className={styles.chain} aria-label="Implementation chain">
+        {chain.map((layer) => (
+          <li key={layer.id}>
+            <button
+              type="button"
+              className={[styles.layer, layer.id === step.id ? styles.layerCurrent : ""]
+                .join(" ")
+                .trim()}
+              aria-current={layer.id === step.id ? "step" : undefined}
+              onClick={() => {
+                onSelect(layer.id);
+              }}
+            >
+              <span className={styles.layerPosition}>
+                {layer.mro_position === null ? "?" : String(layer.mro_position)}
+              </span>
+              <code className={styles.layerModule}>{layer.module ?? "core"}</code>
+              <span
+                className={
+                  layer.calls_super === false && layer !== last ? styles.superNo : styles.superText
+                }
+              >
+                {layer.calls_super === null
+                  ? NOT_DETERMINED
+                  : layer.calls_super
+                    ? "calls super()"
+                    : "no super()"}
+              </span>
+              <span className={styles.layerDuration}>{formatDuration(layer.duration_ms)}</span>
+            </button>
+          </li>
+        ))}
+      </ol>
+      {stopsEarly ? (
+        <p className={styles.hint}>
+          <code>{last.module}</code> does not call <code>super()</code>: implementations further
+          down the MRO, including Odoo core, did not run for this call.
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 export interface StepDetailsPaneProps {
   step: Step | null;
   index: TraceIndex;
+  tree: CallTree;
   onSelect: (id: string) => void;
 }
 
@@ -162,14 +230,15 @@ export interface StepDetailsPaneProps {
  * Everything about the selected step in one column: who implements it, what the call
  * changed (including the calls it made), its arguments, and how it was reached.
  */
-export function StepDetailsPane({ step, index, onSelect }: StepDetailsPaneProps) {
+export function StepDetailsPane({ step, index, tree, onSelect }: StepDetailsPaneProps) {
   const effects = useMemo(() => (step ? netChanges(index, step.id) : []), [index, step]);
   if (!step) {
     return <p className={styles.hint}>This trace has no steps.</p>;
   }
   const kind = stepKind(step.kind);
   const fieldCount = effects.reduce((sum, record) => sum + record.fields.length, 0);
-  const depth = ancestorsOf(index, step.id).length;
+  const chain = chainOfStep(tree, step.id);
+  const pathLength = callPath(tree, step.id).length;
 
   return (
     <div className={styles.panel}>
@@ -214,6 +283,11 @@ export function StepDetailsPane({ step, index, onSelect }: StepDetailsPaneProps)
         <Section title="Changes" count={fieldCount} hint="this call and the calls it made">
           <Changes effects={effects} onJump={onSelect} />
         </Section>
+        {chain.length > 1 ? (
+          <Section title="Implementation chain" count={chain.length} hint="super() along the MRO">
+            <ImplementationChain step={step} chain={chain} onSelect={onSelect} />
+          </Section>
+        ) : null}
         <Section title="Arguments and result">
           <div className={styles.values}>
             <span className={styles.valueLabel}>Arguments</span>
@@ -230,8 +304,8 @@ export function StepDetailsPane({ step, index, onSelect }: StepDetailsPaneProps)
             )}
           </div>
         </Section>
-        <Section title="Call path" count={depth + 1} defaultOpen={false}>
-          <CallPath step={step} index={index} onSelect={onSelect} />
+        <Section title="Call path" count={pathLength} defaultOpen={false}>
+          <CallPath step={step} tree={tree} onSelect={onSelect} />
         </Section>
       </div>
     </div>
