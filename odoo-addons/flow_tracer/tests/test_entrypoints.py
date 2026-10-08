@@ -1,6 +1,7 @@
-from odoo.tests import tagged
+from odoo.tests import BaseCase, tagged
 
 from ..tracing import InvalidEntrypoint, describe_entrypoint
+from ..tracing.signature import merged_parameters, summary_of
 from .common import TraceCase
 
 
@@ -82,3 +83,66 @@ class TestEntrypoints(TraceCase):
         [adr_pref] = description["parameters"]
         self.assertFalse(adr_pref["required"])
         self.assertEqual(adr_pref["default"], "None")  # a default of None, not "no default"
+
+
+@tagged("post_install", "-at_install")
+class TestSignatureMerging(BaseCase):
+    """Overrides that only pass **kwargs on must not hide the arguments further down."""
+
+    def test_arguments_of_the_next_implementation_are_reachable(self):
+        def sale_override(self, **kwargs):
+            pass
+
+        def mail_thread(self, *, body="", subject=None, partner_ids=None, **kwargs):
+            pass
+
+        def core(self, body, *, notify=True):
+            pass
+
+        merged = merged_parameters([sale_override, mail_thread, core])
+
+        self.assertEqual(
+            [(p["name"], p["required"], p["default"]) for p in merged],
+            [
+                ("body", False, "''"),
+                ("subject", False, "None"),
+                ("partner_ids", False, "None"),
+                ("notify", False, "True"),
+            ],
+        )
+
+    def test_collecting_stops_at_an_implementation_without_kwargs(self):
+        def override(self, vals, **kwargs):
+            pass
+
+        def base(self, vals, check=False):
+            pass
+
+        def never_reached(self, vals, hidden=None):
+            pass
+
+        merged = merged_parameters([override, base, never_reached])
+
+        self.assertEqual([p["name"] for p in merged], ["vals", "check"])
+        self.assertTrue(merged[0]["required"])
+
+    def test_open_kwargs_are_reported_where_the_chain_ends(self):
+        def only(self, record_id, **options):
+            pass
+
+        merged = merged_parameters([only])
+
+        self.assertEqual(
+            [(p["name"], p["kind"]) for p in merged],
+            [
+                ("record_id", "positional_or_keyword"),
+                ("options", "var_keyword"),
+            ],
+        )
+
+    def test_summary_is_the_first_paragraph(self):
+        doc = "Sends the selected emails immediately, ignoring their current\nstate.\n\nDetails."
+        self.assertEqual(
+            summary_of(doc), "Sends the selected emails immediately, ignoring their current state."
+        )
+        self.assertIsNone(summary_of("   "))

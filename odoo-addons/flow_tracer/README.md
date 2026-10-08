@@ -77,8 +77,11 @@ curl -X POST "$ODOO_URL/flow_tracer/v1/trace" \
 The entrypoint is called as `records.method(**kwargs)`, checked first against the method's
 signature, exactly like Odoo's JSON-2 API: keyword arguments only (JSON values, recordsets
 as ids), and model-level (`@api.model`) methods without record ids.
-`/signature` tells which parameters a method takes before tracing it. Both routes need the
-server switch and the *Settings* group, like `/trace`.
+`/signature` tells which parameters a method takes before tracing it. When an override
+only passes `**kwargs` on (e.g. `sale`'s `message_post`), the parameters of the next
+implementations along the MRO are included, up to the first one without `**kwargs`. The
+`summary` is the first paragraph of the first docstring found along the MRO. Both routes
+need the server switch and the *Settings* group, like `/trace`.
 
 ## How recording works
 
