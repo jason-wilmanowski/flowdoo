@@ -26,6 +26,8 @@ export interface CurrentTraceState {
   /** Record a new run; resolves with the stored trace (status succeeded or failed). */
   start: (command: StartTraceCommand) => Promise<Trace | null>;
   cancelStart: () => void;
+  /** Forget the error of the last start (e.g. when the start dialog opens again). */
+  dismissRunError: () => void;
   clear: () => void;
 }
 
@@ -93,6 +95,10 @@ export function createCurrentTraceStore(source: DataSource) {
 
     cancelStart() {
       running?.abort();
+    },
+
+    dismissRunError() {
+      set((state) => (state.run.phase === "error" ? { run: IDLE_RUN } : state));
     },
 
     clear() {
