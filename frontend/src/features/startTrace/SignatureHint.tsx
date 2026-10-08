@@ -1,8 +1,25 @@
+import { Plus } from "lucide-react";
+
+import type { EntrypointParameter } from "@/api/types";
+import { Icon } from "@/ui";
+
 import type { SignatureState } from "./useEntrypointSignature";
 import styles from "./StartTrace.module.css";
 
-/** What Odoo knows about the method: where it comes from and which arguments it takes. */
-export function SignatureHint({ state }: { state: SignatureState }) {
+/** Parameters that can be passed by name (not *args/**kwargs). */
+const NAMED_KINDS = new Set(["positional_or_keyword", "keyword_only"]);
+
+export interface SignatureHintProps {
+  state: SignatureState;
+  /** Add a parameter to the arguments (kwargs) field. */
+  onAddParameter?: (parameter: EntrypointParameter) => void;
+}
+
+/**
+ * What Odoo knows about the method: where it comes from and which arguments it takes.
+ * Named parameters can be added to the arguments with a click.
+ */
+export function SignatureHint({ state, onAddParameter }: SignatureHintProps) {
   if (state.phase === "idle") {
     return (
       <p className={styles.hint}>Enter model and method to see the parameters Odoo expects.</p>
@@ -29,19 +46,40 @@ export function SignatureHint({ state }: { state: SignatureState }) {
       {signature.summary ? <p className={styles.hint}>{signature.summary}</p> : null}
       {signature.parameters.length > 0 ? (
         <ul className={styles.parameters} aria-label="Parameters">
-          {signature.parameters.map((parameter) => (
-            <li key={parameter.name}>
-              <code>{parameter.name}</code>
-              {parameter.annotation ? (
-                <code className={styles.muted}>: {parameter.annotation}</code>
-              ) : null}
-              {parameter.required ? (
-                <span className={styles.required}> required</span>
-              ) : (
-                <code className={styles.muted}> = {parameter.default ?? "None"}</code>
-              )}
-            </li>
-          ))}
+          {signature.parameters.map((parameter) => {
+            const description = (
+              <>
+                <code>{parameter.name}</code>
+                {parameter.annotation ? (
+                  <code className={styles.muted}>: {parameter.annotation}</code>
+                ) : null}
+                {parameter.required ? (
+                  <span className={styles.required}>required</span>
+                ) : (
+                  <code className={styles.muted}> = {parameter.default ?? "None"}</code>
+                )}
+              </>
+            );
+            return (
+              <li key={parameter.name}>
+                {onAddParameter && NAMED_KINDS.has(parameter.kind) ? (
+                  <button
+                    type="button"
+                    className={styles.parameter}
+                    aria-label={`Add ${parameter.name} to the arguments`}
+                    onClick={() => {
+                      onAddParameter(parameter);
+                    }}
+                  >
+                    <Icon icon={Plus} compact />
+                    {description}
+                  </button>
+                ) : (
+                  <span className={styles.parameterText}>{description}</span>
+                )}
+              </li>
+            );
+          })}
         </ul>
       ) : (
         <p className={styles.hint}>No parameters besides the records.</p>

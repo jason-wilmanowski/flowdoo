@@ -104,3 +104,38 @@ export function formFromCommand(command: StartTraceCommand): StartForm {
     commit: !command.dry_run,
   };
 }
+
+/**
+ * A Python default as JSON: None/True/False, numbers and quoted strings convert; anything
+ * else (expressions, objects) becomes null for the user to fill in.
+ */
+export function jsonFromPythonDefault(python: string | null): unknown {
+  if (python === null) return null;
+  const text = python.trim();
+  if (text === "None") return null;
+  if (text === "True") return true;
+  if (text === "False") return false;
+  if (/^-?\d+(\.\d+)?$/.test(text)) return Number(text);
+  const quoted = /^(['"])(.*)\1$/s.exec(text);
+  if (quoted) return quoted[2];
+  if (text === "{}") return {};
+  if (text === "[]" || text === "()") return [];
+  return null;
+}
+
+/**
+ * Add a parameter to the kwargs JSON text, keeping what is there. Required parameters get
+ * null as a placeholder. Returns an error message when the current text is not an object.
+ */
+export function addParameter(
+  kwargsText: string,
+  name: string,
+  required: boolean,
+  pythonDefault: string | null,
+): { text: string } | { error: string } {
+  const current = parseJsonObject(kwargsText);
+  if (typeof current === "string") return { error: current };
+  if (name in current) return { text: kwargsText };
+  const value = required ? null : jsonFromPythonDefault(pythonDefault);
+  return { text: JSON.stringify({ ...current, [name]: value }, null, 2) };
+}
