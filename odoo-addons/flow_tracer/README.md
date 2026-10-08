@@ -9,6 +9,9 @@ implementation that executes and the field values that change, and returns the t
 > Development databases only. Tracing runs real business logic. Runs are rolled back by
 > default, but side effects such as mails or HTTP calls are **not** blocked: use a
 > neutralised database (`odoo neutralize -d <db>`). Never enable this addon on production.
+> Numbers from standard `ir.sequence`s (pickings, quotations, …) drawn during a dry run
+> stay used, because PostgreSQL sequences ignore rollbacks; the next real document skips
+> them.
 
 ## Requirements
 
