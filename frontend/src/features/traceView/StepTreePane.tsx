@@ -163,7 +163,7 @@ export function StepTreePane({
           Relevant only
         </Button>
       </div>
-      <div className={styles.scroll}>
+      <div className={styles.treeArea}>
         <Tree
           label="Calls"
           rows={rows}

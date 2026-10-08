@@ -1,4 +1,10 @@
+.viewport {
+  height: 100%;
+  overflow: auto;
+}
+
 .tree {
+  position: relative;
   padding: var(--space-2) 0;
   list-style: none;
   font-size: var(--text-sm);
@@ -19,6 +25,12 @@
 
 .item:hover {
   background: var(--surface-sunken);
+}
+
+.placed {
+  position: absolute;
+  right: 0;
+  left: 0;
 }
 
 .selected,

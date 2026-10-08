@@ -1,5 +1,13 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { memo, useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
+import {
+  memo,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 
 import { Icon } from "./Icon";
 import styles from "./Tree.module.css";
@@ -27,6 +35,8 @@ export interface TreeProps {
 
 interface ItemProps {
   row: TreeRow;
+  /** Offset in px when the tree is virtualized; undefined renders in normal flow. */
+  top: number | undefined;
   domId: string;
   selected: boolean;
   renderRow: (id: string) => ReactNode;
@@ -36,6 +46,7 @@ interface ItemProps {
 
 const TreeItem = memo(function TreeItem({
   row,
+  top,
   domId,
   selected,
   renderRow,
@@ -49,7 +60,14 @@ const TreeItem = memo(function TreeItem({
       aria-level={row.depth + 1}
       aria-selected={selected}
       aria-expanded={row.hasChildren ? row.expanded : undefined}
-      className={[styles.item, selected ? styles.selected : ""].join(" ").trim()}
+      className={[
+        styles.item,
+        selected ? styles.selected : "",
+        top === undefined ? "" : styles.placed,
+      ]
+        .join(" ")
+        .trim()}
+      style={top === undefined ? undefined : { top: `${String(top)}px` }}
       onClick={() => {
         onSelect(row.id);
       }}
@@ -76,23 +94,68 @@ const TreeItem = memo(function TreeItem({
   );
 });
 
+/** Rows rendered above and below the visible part when virtualized. */
+const OVERSCAN = 12;
+/** Below this many rows everything is rendered. */
+const VIRTUALIZE_FROM = 200;
+
+function rowHeightOf(element: HTMLElement): number {
+  const value = Number.parseFloat(getComputedStyle(element).getPropertyValue("--row-h"));
+  return Number.isFinite(value) && value > 0 ? value : 28;
+}
+
 /**
  * Tree with one tab stop (tree pattern): ↑/↓ move, → expands or goes to the first child,
  * ← collapses or goes to the parent, Home/End jump. Keys it handles do not reach global
  * shortcuts.
+ *
+ * The tree scrolls itself. Large trees are virtualized: only the rows in view (plus a
+ * margin and the selected row) are in the DOM, so tens of thousands of rows stay fast.
+ * Without a measured layout (e.g. in tests) every row is rendered.
  */
 export function Tree({ label, rows, renderRow, selectedId, onSelect, onToggle }: TreeProps) {
   const prefix = useId();
-  const listRef = useRef<HTMLUListElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [view, setView] = useState({ top: 0, height: 0, rowHeight: 28 });
   const position = selectedId === null ? -1 : rows.findIndex((row) => row.id === selectedId);
   const current = rows[position];
+  const virtual = view.height > 0 && rows.length >= VIRTUALIZE_FROM;
 
-  useEffect(() => {
-    if (selectedId === null) return;
-    listRef.current?.ownerDocument
-      .getElementById(`${prefix}-${selectedId}`)
-      ?.scrollIntoView({ block: "nearest" });
-  }, [prefix, selectedId]);
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const measure = () => {
+      setView({
+        top: viewport.scrollTop,
+        height: viewport.clientHeight,
+        rowHeight: rowHeightOf(viewport),
+      });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(viewport);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  // keep the selected row in view (it may not be in the DOM yet when virtualized)
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || position === -1) return;
+    const rowHeight = view.rowHeight;
+    const rowTop = position * rowHeight;
+    if (viewport.clientHeight === 0) {
+      viewport.ownerDocument
+        .getElementById(`${prefix}-${rows[position]?.id ?? ""}`)
+        ?.scrollIntoView({ block: "nearest" });
+    } else if (rowTop < viewport.scrollTop) {
+      viewport.scrollTop = rowTop;
+    } else if (rowTop + rowHeight > viewport.scrollTop + viewport.clientHeight) {
+      viewport.scrollTop = rowTop + rowHeight - viewport.clientHeight;
+    }
+    // not on scroll: the user may scroll away from the selection
+  }, [position, prefix, rows, view.rowHeight]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
     if (event.altKey || event.ctrlKey || event.metaKey || rows.length === 0) return;
@@ -131,27 +194,55 @@ export function Tree({ label, rows, renderRow, selectedId, onSelect, onToggle }:
     }
   };
 
+  let indexes: number[];
+  if (virtual) {
+    const first = Math.max(0, Math.floor(view.top / view.rowHeight) - OVERSCAN);
+    const last = Math.min(
+      rows.length,
+      Math.ceil((view.top + view.height) / view.rowHeight) + OVERSCAN,
+    );
+    indexes = Array.from({ length: last - first }, (_, i) => first + i);
+    // the active descendant must exist in the DOM
+    if (position !== -1 && (position < first || position >= last)) indexes.push(position);
+  } else {
+    indexes = rows.map((_, i) => i);
+  }
+
   return (
-    <ul
-      ref={listRef}
-      role="tree"
-      aria-label={label}
-      aria-activedescendant={current ? `${prefix}-${current.id}` : undefined}
-      tabIndex={0}
-      className={styles.tree}
-      onKeyDown={onKeyDown}
+    <div
+      ref={viewportRef}
+      className={styles.viewport}
+      onScroll={(event) => {
+        const top = event.currentTarget.scrollTop;
+        setView((current) => (current.top === top ? current : { ...current, top }));
+      }}
     >
-      {rows.map((row) => (
-        <TreeItem
-          key={row.id}
-          row={row}
-          domId={`${prefix}-${row.id}`}
-          selected={row.id === selectedId}
-          renderRow={renderRow}
-          onSelect={onSelect}
-          onToggle={onToggle}
-        />
-      ))}
-    </ul>
+      <ul
+        role="tree"
+        aria-label={label}
+        aria-activedescendant={current ? `${prefix}-${current.id}` : undefined}
+        tabIndex={0}
+        className={styles.tree}
+        style={virtual ? { height: `${String(rows.length * view.rowHeight)}px` } : undefined}
+        onKeyDown={onKeyDown}
+      >
+        {indexes.map((i) => {
+          const row = rows[i];
+          if (!row) return null;
+          return (
+            <TreeItem
+              key={row.id}
+              row={row}
+              top={virtual ? i * view.rowHeight : undefined}
+              domId={`${prefix}-${row.id}`}
+              selected={row.id === selectedId}
+              renderRow={renderRow}
+              onSelect={onSelect}
+              onToggle={onToggle}
+            />
+          );
+        })}
+      </ul>
+    </div>
   );
 }

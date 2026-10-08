@@ -248,3 +248,9 @@
   font-family: var(--font-mono);
   font-size: var(--text-xs);
 }
+
+/* the tree scrolls itself (it is virtualized) */
+.treeArea {
+  flex: 1;
+  min-height: 0;
+}
