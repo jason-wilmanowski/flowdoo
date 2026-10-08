@@ -1,5 +1,7 @@
 import {
-  addParameter,
+  argumentsToSend,
+  kwargsTemplate,
+  REQUIRED,
   jsonFromPythonDefault,
   buildCommand,
   EMPTY_FORM,
@@ -78,8 +80,27 @@ describe("buildCommand", () => {
   });
 });
 
-describe("adding parameters to kwargs", () => {
-  it("converts Python defaults to JSON", () => {
+describe("arguments template", () => {
+  const PARAMETERS = [
+    { name: "res_id", kind: "positional_or_keyword", required: true, default: null },
+    { name: "force_send", kind: "positional_or_keyword", required: false, default: "False" },
+    { name: "email_values", kind: "positional_or_keyword", required: false, default: "None" },
+    { name: "notify", kind: "keyword_only", required: false, default: "'comment'" },
+    { name: "kwargs", kind: "var_keyword", required: false, default: null },
+  ];
+
+  it("lists every named argument: required ones as a placeholder, the rest with defaults", () => {
+    const template = kwargsTemplate(PARAMETERS);
+    expect(JSON.parse(template.text)).toEqual({
+      res_id: REQUIRED,
+      force_send: false,
+      email_values: null,
+      notify: "comment",
+    });
+    expect(template.defaults).toEqual({ force_send: false, email_values: null, notify: "comment" });
+  });
+
+  it("converts Python defaults to JSON (None as null)", () => {
     expect(jsonFromPythonDefault("None")).toBeNull();
     expect(jsonFromPythonDefault("True")).toBe(true);
     expect(jsonFromPythonDefault("False")).toBe(false);
@@ -89,16 +110,38 @@ describe("adding parameters to kwargs", () => {
     expect(jsonFromPythonDefault("SomeConstant")).toBeNull();
   });
 
-  it("adds a parameter and keeps what is there", () => {
-    expect(addParameter("", "vals", true, null)).toEqual({ text: '{\n  "vals": null\n}' });
-    const result = addParameter('{"res_id": 2}', "force_send", false, "False");
-    expect(result).toEqual({ text: '{\n  "res_id": 2,\n  "force_send": false\n}' });
+  it("is empty for methods without named arguments", () => {
+    expect(kwargsTemplate([{ name: "kwargs", kind: "var_keyword", required: false }])).toEqual({
+      text: "",
+      defaults: {},
+    });
   });
 
-  it("leaves existing parameters and invalid text alone", () => {
-    expect(addParameter('{"res_id": 2}', "res_id", true, null)).toEqual({ text: '{"res_id": 2}' });
-    expect(addParameter("{", "x", true, null)).toEqual({
-      error: expect.stringMatching(/^Not valid JSON/) as unknown,
+  it("refuses unfilled required arguments and drops unchanged optional ones", () => {
+    const { defaults } = kwargsTemplate(PARAMETERS);
+    expect(argumentsToSend({ res_id: REQUIRED, force_send: false }, defaults)).toEqual({
+      error: "Fill in the required argument: res_id.",
     });
+    expect(
+      argumentsToSend(
+        { res_id: 2, force_send: true, email_values: null, notify: "comment" },
+        defaults,
+      ),
+    ).toEqual({ kwargs: { res_id: 2, force_send: true } });
+  });
+
+  it("builds the command with only the arguments that matter", () => {
+    const template = kwargsTemplate(PARAMETERS);
+    const form = {
+      ...EMPTY_FORM,
+      model: "mail.template",
+      method: "send_mail",
+      recordIds: "16",
+      kwargs: template.text.replace(JSON.stringify(REQUIRED), "2"),
+    };
+    expect(buildCommand(form, template.defaults).command?.kwargs).toEqual({ res_id: 2 });
+    expect(buildCommand({ ...form, kwargs: template.text }, template.defaults).errors?.kwargs).toBe(
+      "Fill in the required argument: res_id.",
+    );
   });
 });

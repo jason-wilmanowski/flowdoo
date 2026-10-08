@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { AppError } from "@/api/errors";
 import type { EntrypointSignature } from "@/api/types";
@@ -14,9 +14,21 @@ export type SignatureState =
   | { phase: "ready"; signature: EntrypointSignature }
   | { phase: "error"; error: AppError };
 
-/** Parameters of model.method from the connected Odoo, looked up while the user types. */
-export function useEntrypointSignature(source: DataSource, model: string, method: string) {
+/**
+ * Parameters of model.method from the connected Odoo, looked up while the user types.
+ * `onLoaded` runs once per signature that arrives (e.g. to prefill the arguments).
+ */
+export function useEntrypointSignature(
+  source: DataSource,
+  model: string,
+  method: string,
+  onLoaded?: (signature: EntrypointSignature) => void,
+) {
   const [state, setState] = useState<SignatureState>({ phase: "idle" });
+  const latestOnLoaded = useRef(onLoaded);
+  useEffect(() => {
+    latestOnLoaded.current = onLoaded;
+  });
   const ready = model.trim() !== "" && method.trim() !== "";
 
   useEffect(() => {
@@ -28,6 +40,7 @@ export function useEntrypointSignature(source: DataSource, model: string, method
         .describeEntrypoint(model.trim(), method.trim(), { signal: controller.signal })
         .then((signature) => {
           setState({ phase: "ready", signature });
+          latestOnLoaded.current?.(signature);
         })
         .catch((error: unknown) => {
           if (!isAbort(error)) setState({ phase: "error", error: toAppError(error) });

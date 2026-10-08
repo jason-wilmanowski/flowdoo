@@ -1,25 +1,12 @@
-import { Plus } from "lucide-react";
-
-import type { EntrypointParameter } from "@/api/types";
-import { Icon } from "@/ui";
-
 import type { SignatureState } from "./useEntrypointSignature";
 import styles from "./StartTrace.module.css";
 
-/** Parameters that can be passed by name (not *args/**kwargs). */
-const NAMED_KINDS = new Set(["positional_or_keyword", "keyword_only"]);
-
 export interface SignatureHintProps {
   state: SignatureState;
-  /** Add a parameter to the arguments (kwargs) field. */
-  onAddParameter?: (parameter: EntrypointParameter) => void;
 }
 
-/**
- * What Odoo knows about the method: where it comes from and which arguments it takes.
- * Named parameters can be added to the arguments with a click.
- */
-export function SignatureHint({ state, onAddParameter }: SignatureHintProps) {
+/** What Odoo knows about the method: where it comes from and which arguments it takes. */
+export function SignatureHint({ state }: SignatureHintProps) {
   if (state.phase === "idle") {
     return (
       <p className={styles.hint}>Enter model and method to see the parameters Odoo expects.</p>
@@ -62,21 +49,7 @@ export function SignatureHint({ state, onAddParameter }: SignatureHintProps) {
             );
             return (
               <li key={parameter.name}>
-                {onAddParameter && NAMED_KINDS.has(parameter.kind) ? (
-                  <button
-                    type="button"
-                    className={styles.parameter}
-                    aria-label={`Add ${parameter.name} to the arguments`}
-                    onClick={() => {
-                      onAddParameter(parameter);
-                    }}
-                  >
-                    <Icon icon={Plus} compact />
-                    {description}
-                  </button>
-                ) : (
-                  <span className={styles.parameterText}>{description}</span>
-                )}
+                <span className={styles.parameterText}>{description}</span>
               </li>
             );
           })}

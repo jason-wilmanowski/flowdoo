@@ -1,16 +1,23 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 
 import { AppProviders } from "@/app/AppProviders";
 import { AppRoutes } from "@/app/AppRoutes";
+import type { StartTraceCommand } from "@/api/types";
 import { createFixtureDataSource } from "@/datasource";
 
 // Fixtures know no parameters; res.partner.write answers like Odoo 19 does.
+const started = vi.fn();
+
 function createSource() {
   const fixtures = createFixtureDataSource({ delayMs: 0 });
   return {
     ...fixtures,
+    startTrace: (command: StartTraceCommand, call?: { signal?: AbortSignal }) => {
+      started(command);
+      return fixtures.startTrace(command, call);
+    },
     describeEntrypoint: (model: string, method: string, call?: { signal?: AbortSignal }) =>
       model === "res.partner" && method === "write"
         ? Promise.resolve({
@@ -128,23 +135,45 @@ describe("start trace dialog", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("adds parameters to the arguments with a click", async () => {
+  it("fills in every argument and sends only what matters", async () => {
+    started.mockClear();
     const dialog = await openDialog();
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Model" }), "res.partner");
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Method" }), "write");
-    await userEvent.click(
-      await within(dialog).findByRole("button", { name: "Add vals to the arguments" }),
+    const area = within(dialog).getByRole("textbox", { name: /Arguments/ });
+    // required as a placeholder, optional with its default; **kwargs cannot be named
+    await waitFor(() => {
+      expect(area).toHaveValue('{\n  "vals": "<required>",\n  "notify": false\n}');
+    });
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Record IDs" }), "7");
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Start dry run" }));
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      "Fill in the required argument: vals.",
     );
-    await userEvent.click(
-      within(dialog).getByRole("button", { name: "Add notify to the arguments" }),
+    expect(started).not.toHaveBeenCalled();
+
+    await userEvent.clear(area);
+    await userEvent.click(area);
+    await userEvent.paste('{"vals": {"name": "Ada"}, "notify": false}');
+    await userEvent.click(within(dialog).getByRole("button", { name: "Start dry run" }));
+    expect(started).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entrypoint_model: "res.partner",
+        kwargs: { vals: { name: "Ada" } },
+      }),
     );
-    expect(within(dialog).getByRole("textbox", { name: /Arguments/ })).toHaveValue(
-      '{\n  "vals": null,\n  "notify": false\n}',
-    );
-    // **kwargs cannot be passed by name
-    expect(
-      within(dialog).queryByRole("button", { name: "Add kwargs to the arguments" }),
-    ).toBeNull();
+  });
+
+  it("keeps arguments the user wrote when the method changes", async () => {
+    const dialog = await openDialog();
+    const area = within(dialog).getByRole("textbox", { name: /Arguments/ });
+    await userEvent.click(area);
+    await userEvent.paste('{"custom": 1}');
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Model" }), "res.partner");
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Method" }), "write");
+    await within(dialog).findByText(/called on records/);
+    expect(area).toHaveValue('{"custom": 1}');
   });
 
   it("does not show the error of an earlier attempt when opened again", async () => {
