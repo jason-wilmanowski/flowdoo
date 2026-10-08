@@ -78,6 +78,16 @@ sequenceDiagram
   (`parent_id`) and lookups once per trace; cursor functions clamp and never wrap. The
   replay store only holds the cursor; views derive everything else from the index.
 
+## Starting a trace
+
+The start dialog (`features/startTrace/`) looks up the method's signature while the user
+types (`GET /odoo/entrypoints/{model}/{method}`) and fills the arguments field with every
+argument the method takes by name: required ones as `"<required>"`, optional ones with
+their default (`None` as `null`). The template only replaces an empty field or its own
+untouched text. On start, required placeholders must be filled in, and optional arguments
+still at their default are not sent, so Odoo applies its own default
+(`kwargsTemplate`, `argumentsToSend` in `command.ts`).
+
 ## Trace view
 
 The trace view (`features/traceView/`) shows one recorded run. Its pure logic lives in
