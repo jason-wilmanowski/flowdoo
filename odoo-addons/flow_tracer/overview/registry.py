@@ -26,7 +26,8 @@ def _layers(env, model: str, registry_classes: dict[type, str]) -> tuple[list[st
         name = registry_classes.get(cls)
         if name is not None:
             in_own_layers = False
-            if name != model:
+            # every model inherits from "base"; listing it would only add noise
+            if name not in (model, "base"):
                 parents.append(name)
             continue
         if in_own_layers:

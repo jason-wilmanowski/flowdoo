@@ -37,6 +37,7 @@ class TestRegistry(TransactionCase):
         self.assertEqual(model["modules"][-1], "base")
         self.assertTrue(set(model["modules"]) <= set(mro_modules))
         self.assertNotIn("res.partner", model["parents"])
+        self.assertNotIn("base", model["parents"])
 
     def test_describes_fields(self):
         fields = {f["name"]: f for f in describe_model(self.env, "res.partner")["fields"]}
