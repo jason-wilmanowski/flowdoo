@@ -86,7 +86,9 @@ async def test_odoo_failures_are_bad_gateway(error: OdooClientError) -> None:
 
 
 async def test_unusable_answer_is_bad_gateway() -> None:
-    with pytest.raises(OdooRequestError, match="Unexpected signature answer"):
+    with pytest.raises(
+        OdooRequestError, match=r"Unexpected answer from flow_tracer \(x.y signature\)"
+    ):
         await _service(SignatureClient(answer={"model": "x"})).describe("x", "y")
 
 

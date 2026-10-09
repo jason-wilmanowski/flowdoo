@@ -19,6 +19,7 @@ from flow_tracer_api.services.entrypoint_service import EntrypointService
 from flow_tracer_api.services.odoo_connection_service import OdooConnectionService
 from flow_tracer_api.services.payload_validation import SchemaPayloadValidator
 from flow_tracer_api.services.ports import OdooGateway, TracePayloadValidator
+from flow_tracer_api.services.registry_service import RegistryService
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 
@@ -90,3 +91,10 @@ def get_entrypoint_service(client: OdooClientDep) -> EntrypointService:
 
 
 EntrypointServiceDep = Annotated[EntrypointService, Depends(get_entrypoint_service)]
+
+
+def get_registry_service(client: OdooClientDep) -> RegistryService:
+    return RegistryService(client)
+
+
+RegistryServiceDep = Annotated[RegistryService, Depends(get_registry_service)]

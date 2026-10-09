@@ -85,3 +85,17 @@ async def test_entrypoint_signature_from_the_addon(odoo_client: OdooJson2Client)
     assert write.model_level is False
     assert name_create.model_level is True
     assert [p.name for p in name_create.parameters] == ["name"]
+
+
+async def test_model_registry_from_the_addon(odoo_client: OdooJson2Client) -> None:
+    from flow_tracer_api.services.registry_service import RegistryService
+
+    service = RegistryService(odoo_client)
+
+    listing = await service.list_models()
+    partner = next(m for m in listing.models if m.model == "res.partner")
+    assert partner.module == "base"
+    assert any(r.field == "parent_id" and r.target == "res.partner" for r in partner.relations)
+
+    detail = await service.describe_model("res.partner")
+    assert {f.name for f in detail.fields} >= {"name", "parent_id", "child_ids"}
