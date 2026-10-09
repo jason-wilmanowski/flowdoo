@@ -101,6 +101,14 @@ services:
       retries: 30
       start_period: 30s
 
+  # Catches every mail the test Odoo sends (SMTP mailpit:1025, inbox on :8025). Nothing
+  # leaves the machine, and traces show the full sending path down to send_email.
+  mailpit:
+    profiles: ["test"]
+    image: axllent/mailpit:v1.31.4@sha256:b68349e3a014b90c5610bfb26b2ae36f3892d7b8cf25ee140c6c71c98d2fcf48
+    ports:
+      - "127.0.0.1:${MAILPIT_HOST_PORT:-8025}:8025"
+
 volumes:
   db-data:
   odoo-test-db-data:
