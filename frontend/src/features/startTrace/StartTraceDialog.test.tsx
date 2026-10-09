@@ -107,7 +107,10 @@ describe("start trace dialog", () => {
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Record IDs" }), "1");
 
     await userEvent.click(within(dialog).getByRole("button", { name: "Start dry run" }));
-    expect(await screen.findByRole("region", { name: "Calls" })).toBeInTheDocument();
+    // the trace view is a lazy route (React Flow): loading it takes a while on CI runners
+    expect(
+      await screen.findByRole("region", { name: "Calls" }, { timeout: 5000 }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
