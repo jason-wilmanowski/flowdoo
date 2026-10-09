@@ -72,7 +72,10 @@ function Workspace({ trace, index }: { trace: Trace; index: TraceIndex }) {
     if (target) jump(target.id);
   };
 
-  const odooError = trace.payload?.error;
+  const runError = trace.payload?.error;
+  // flow_tracer.* errors are notes of the recorder (commit refused, trace truncated)
+  const recorderNote = runError?.type.startsWith("flow_tracer.") ? runError : null;
+  const odooError = recorderNote ? null : runError;
   return (
     <>
       <div className={styles.split}>
@@ -104,6 +107,11 @@ function Workspace({ trace, index }: { trace: Trace; index: TraceIndex }) {
           }}
         >
           <div className={styles.main}>
+            {recorderNote ? (
+              <div className={styles.recorderNote} role="alert">
+                <strong>Recorder note:</strong> {recorderNote.message}
+              </div>
+            ) : null}
             {odooError ? (
               <div className={styles.odooError} role="alert">
                 <strong>Odoo raised {odooError.type}:</strong> {odooError.message}. The steps up to

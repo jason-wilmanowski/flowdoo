@@ -11,13 +11,10 @@ const ERROR = "3f2b8c1e-6d4a-4c1e-9b7a-1a2b3c4d5e03";
 const FAILED_RECORDING = "00000000-0000-4000-8000-0000000000f1";
 const RECORDED = "22585514-6fae-4c9b-96ee-3f431ba1035a";
 
-function renderTrace(id: string) {
+function renderTrace(id: string, createSource = () => createFixtureDataSource({ delayMs: 0 })) {
   render(
     <MemoryRouter initialEntries={[`/traces/${id}`]}>
-      <AppProviders
-        initialDataSource="fixtures"
-        createSource={() => createFixtureDataSource({ delayMs: 0 })}
-      >
+      <AppProviders initialDataSource="fixtures" createSource={createSource}>
         <AppRoutes />
       </AppProviders>
     </MemoryRouter>,
@@ -154,6 +151,37 @@ describe("trace view", () => {
     await tree();
     expect(screen.getByText(/Odoo raised odoo.exceptions.UserError/)).toBeInTheDocument();
     expect(within(screen.getByRole("tree")).getByText("error")).toBeInTheDocument();
+  });
+
+  it("shows notes of the recorder apart from Odoo errors", async () => {
+    // a run where the code tried to commit, caught the refusal and went on
+    const source = () => {
+      const fixtures = createFixtureDataSource({ delayMs: 0 });
+      return {
+        ...fixtures,
+        getTrace: async (traceId: string, call?: { signal?: AbortSignal }) => {
+          const trace = await fixtures.getTrace(traceId, call);
+          return trace.payload
+            ? {
+                ...trace,
+                payload: {
+                  ...trace.payload,
+                  error: {
+                    type: "flow_tracer.CommitRefused",
+                    message: "The code tried to commit 1 time.",
+                  },
+                },
+              }
+            : trace;
+        },
+      };
+    };
+    renderTrace(MEDIUM, source);
+    await tree();
+    expect(screen.getByText("Recorder note:").closest("[role=alert]")).toHaveTextContent(
+      "The code tried to commit 1 time.",
+    );
+    expect(screen.queryByText(/Odoo raised/)).not.toBeInTheDocument();
   });
 
   it("explains a failed recording and offers to run it again", async () => {
