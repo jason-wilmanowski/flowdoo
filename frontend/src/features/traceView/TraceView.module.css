@@ -93,6 +93,17 @@
   overflow: auto;
 }
 
+.recorderNote {
+  margin: var(--space-3);
+  padding: var(--space-3);
+  border-left: var(--selection-edge) solid var(--warning);
+  border-radius: var(--radius-sm);
+  background: var(--diff-change-bg);
+  color: var(--text);
+  font-size: var(--text-sm);
+  line-height: var(--leading-prose);
+}
+
 .odooError {
   padding: var(--space-3);
   border-left: var(--selection-edge) solid var(--danger);
