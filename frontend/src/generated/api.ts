@@ -40,6 +40,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/odoo/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the models of the connected Odoo
+         * @description Every model of the registry with the modules that define and extend it, the models it inherits from, delegations (`_inherits`) and its relational fields. Read from the running Odoo, not from source files.
+         */
+        get: operations["list_models_odoo_models_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/odoo/models/{model}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Describe one model and its fields
+         * @description Inheritance of the model and every field: type, target model, required, stored, computed or related, and the module that defined it.
+         */
+        get: operations["describe_model_odoo_models__model__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/odoo/status": {
         parameters: {
             query?: never;
@@ -157,6 +197,107 @@ export interface components {
         HealthResponse: {
             /** Status */
             status: string;
+        };
+        /**
+         * ModelDetail
+         * @description One model in detail.
+         */
+        ModelDetail: {
+            /** Abstract */
+            abstract: boolean;
+            /** Delegates */
+            delegates: {
+                [key: string]: string;
+            };
+            /** Description */
+            description: string | null;
+            /** Fields */
+            fields: components["schemas"]["ModelField"][];
+            /** Model */
+            model: string;
+            /** Module */
+            module: string | null;
+            /** Modules */
+            modules: string[];
+            /** Parents */
+            parents: string[];
+            /** Transient */
+            transient: boolean;
+        };
+        /**
+         * ModelField
+         * @description One field of a model.
+         */
+        ModelField: {
+            /** Compute */
+            compute: string | null;
+            /** Inverse */
+            inverse: string | null;
+            /** Module */
+            module: string | null;
+            /** Name */
+            name: string;
+            /** Readonly */
+            readonly: boolean;
+            /** Related */
+            related: string | null;
+            /** Required */
+            required: boolean;
+            /** Selection */
+            selection: string[][] | null;
+            /** Stored */
+            stored: boolean;
+            /** String */
+            string: string | null;
+            /** Target */
+            target: string | null;
+            /** Type */
+            type: string;
+        };
+        /** ModelList */
+        ModelList: {
+            /** Models */
+            models: components["schemas"]["ModelSummary"][];
+        };
+        /**
+         * ModelRelation
+         * @description A relational field and the model it points to.
+         */
+        ModelRelation: {
+            /** Field */
+            field: string;
+            /** Target */
+            target: string;
+            /** Type */
+            type: string;
+        };
+        /**
+         * ModelSummary
+         * @description One model in the overview list.
+         */
+        ModelSummary: {
+            /** Abstract */
+            abstract: boolean;
+            /** Delegates */
+            delegates: {
+                [key: string]: string;
+            };
+            /** Description */
+            description: string | null;
+            /** Field Count */
+            field_count: number;
+            /** Model */
+            model: string;
+            /** Module */
+            module: string | null;
+            /** Modules */
+            modules: string[];
+            /** Parents */
+            parents: string[];
+            /** Relations */
+            relations: components["schemas"]["ModelRelation"][];
+            /** Transient */
+            transient: boolean;
         };
         /**
          * OdooConnectionStatus
@@ -404,6 +545,129 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EntrypointSignature"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_models_odoo_models_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelList"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    describe_model_odoo_models__model__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                model: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelDetail"];
                 };
             };
             /** @description Bad Request */
