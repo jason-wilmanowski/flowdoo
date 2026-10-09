@@ -56,15 +56,20 @@ _UNSET = object()
 @contextmanager
 def _commit_forbidden(cr):
     """Shadow ``cr.commit`` on the instance; restores whatever was there before (the
-    class method, or an instance patch such as Odoo's test framework installs)."""
+    class method, or an instance patch such as Odoo's test framework installs).
+
+    Yields the list of refused attempts: code under trace may catch the refusal and go
+    on, so the caller reports attempts even when no error comes out of the run."""
+    attempts: list[str] = []
 
     def refuse():
+        attempts.append("commit")
         raise DryRunCommitError("cr.commit() is not allowed during a flow_tracer dry run")
 
     previous = vars(cr).get("commit", _UNSET)
     cr.commit = refuse
     try:
-        yield
+        yield attempts
     finally:
         if previous is _UNSET:
             del cr.commit
@@ -100,7 +105,10 @@ def run_trace(
 
     savepoint = cr.savepoint()  # flushes pending work of the request first
     try:
-        with _commit_forbidden(cr) if dry_run else _nothing(), _recording(session, index):
+        with (
+            _commit_forbidden(cr) if dry_run else _nothing() as commit_attempts,
+            _recording(session, index),
+        ):
             try:
                 # Odoo may change the values it gets (defaults added to vals); the trace
                 # reports the call as it was requested.
@@ -118,6 +126,16 @@ def run_trace(
             "type": "flow_tracer.RecorderError",
             "message": values.truncate(
                 f"Recording failed: {session.failure!r}", values.MESSAGE_MAX
+            ),
+        }
+    elif commit_attempts and error is None:
+        count = len(commit_attempts)
+        error = {
+            "type": "flow_tracer.CommitRefused",
+            "message": (
+                f"The code tried to commit {count} time{'s' if count > 1 else ''} during the"
+                " dry run. The commit was refused, but the code caught the error and went on,"
+                " so the rest of this run may differ from a real run."
             ),
         }
     elif session.truncated and error is None:
@@ -147,4 +165,4 @@ def run_trace(
 
 @contextmanager
 def _nothing():
-    yield
+    yield []

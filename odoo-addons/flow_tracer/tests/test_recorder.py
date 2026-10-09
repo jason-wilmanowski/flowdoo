@@ -1,3 +1,4 @@
+import contextlib
 import sys
 from unittest.mock import patch
 
@@ -129,6 +130,20 @@ class TestRecorder(TraceCase):
         self.assertEqual(
             payload["error"]["type"], "odoo.addons.flow_tracer.tracing.runner.DryRunCommitError"
         )
+
+    def test_swallowed_commit_is_reported(self):
+        # Odoo code with a broad except (e.g. mail.mail.send(auto_commit=True)) catches the
+        # refusal and goes on; the trace must still say that a commit was blocked.
+        def committing_quietly(records):
+            with contextlib.suppress(Exception):  # what the code under trace does
+                records.env.cr.commit()
+            return True
+
+        with patch.object(type(self.contact), "create_company", committing_quietly):
+            payload = self.trace("res.partner", "create_company", self.contact.ids)
+
+        self.assertEqual(payload["error"]["type"], "flow_tracer.CommitRefused")
+        self.assertIn("1 time", payload["error"]["message"])
 
     def test_monitoring_is_released_after_each_trace(self):
         self.trace("res.partner", "create_company", self.contact.ids)
