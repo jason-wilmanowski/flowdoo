@@ -161,3 +161,22 @@ class TestRecorder(TraceCase):
             self.trace("res.partner", "no_such_method", self.contact.ids)
         with self.assertRaises(KeyError):
             self.trace("no.such.model", "create_company", self.contact.ids)
+
+    def test_entrypoint_echoes_the_kwargs_as_sent(self):
+        # Odoo methods may change the values they get (res.partner.create adds defaults to
+        # vals_list in some setups). The trace must report the call as it was requested,
+        # otherwise the backend rejects it as an answer for a different run.
+        partner_class = type(self.admin_env["res.partner"])
+        original_write = partner_class.write
+
+        def write_that_changes_vals(self, vals):
+            vals["comment"] = "added by Odoo"
+            return original_write(self, vals)
+
+        sent = {"vals": {"name": "Ada King"}}
+        with patch.object(partner_class, "write", write_that_changes_vals):
+            payload = self.trace("res.partner", "write", self.contact.ids, kwargs=sent)
+
+        self.assertIsNone(payload["error"])
+        self.assertEqual(payload["entrypoint"]["kwargs"], {"vals": {"name": "Ada King"}})
+        self.assertEqual(sent, {"vals": {"name": "Ada King"}})

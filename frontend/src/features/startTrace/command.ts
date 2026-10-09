@@ -54,6 +54,10 @@ export function parseJsonObject(text: string): Record<string, unknown> | string 
 
 export function buildCommand(
   form: StartForm,
+  /** Template values of optional arguments (left out when unchanged). */
+  defaults: Record<string, unknown> = {},
+  /** The method runs on records (known from its signature): ids are required. */
+  recordsRequired = false,
 ): { command: StartTraceCommand; errors?: never } | { command?: never; errors: FormErrors } {
   const errors: FormErrors = {};
   const model = form.model.trim();
@@ -66,8 +70,18 @@ export function buildCommand(
   }
   const recordIds = parseRecordIds(form.recordIds);
   if (typeof recordIds === "string") errors.recordIds = recordIds;
-  const kwargs = parseJsonObject(form.kwargs);
-  if (typeof kwargs === "string") errors.kwargs = kwargs;
+  else if (recordsRequired && recordIds.length === 0) {
+    errors.recordIds = "This method runs on records: enter at least one record ID.";
+  }
+  const parsed = parseJsonObject(form.kwargs);
+  let kwargs: Record<string, unknown> | string = parsed;
+  if (typeof parsed === "string") {
+    errors.kwargs = parsed;
+  } else {
+    const sent = argumentsToSend(parsed, defaults);
+    if ("error" in sent) errors.kwargs = sent.error;
+    else kwargs = sent.kwargs;
+  }
   const context = parseJsonObject(form.context);
   if (typeof context === "string") errors.context = context;
 
@@ -123,19 +137,69 @@ export function jsonFromPythonDefault(python: string | null): unknown {
   return null;
 }
 
+/** Value of a required argument in the template; must be replaced before starting. */
+export const REQUIRED = "<required>";
+
+/** Parameters that can be passed by name (not *args or **kwargs). */
+const NAMED_KINDS = new Set(["positional_or_keyword", "keyword_only"]);
+
+export interface ParameterLike {
+  name: string;
+  kind: string;
+  required: boolean;
+  default?: string | null;
+}
+
+export interface KwargsTemplate {
+  /** JSON text for the arguments field. */
+  text: string;
+  /** Optional arguments and the value they start with; unchanged ones are not sent. */
+  defaults: Record<string, unknown>;
+}
+
 /**
- * Add a parameter to the kwargs JSON text, keeping what is there. Required parameters get
- * null as a placeholder. Returns an error message when the current text is not an object.
+ * Every argument the method takes by name: required ones with the REQUIRED placeholder,
+ * optional ones with their default (None as null).
  */
-export function addParameter(
-  kwargsText: string,
-  name: string,
-  required: boolean,
-  pythonDefault: string | null,
-): { text: string } | { error: string } {
-  const current = parseJsonObject(kwargsText);
-  if (typeof current === "string") return { error: current };
-  if (name in current) return { text: kwargsText };
-  const value = required ? null : jsonFromPythonDefault(pythonDefault);
-  return { text: JSON.stringify({ ...current, [name]: value }, null, 2) };
+export function kwargsTemplate(parameters: readonly ParameterLike[]): KwargsTemplate {
+  const values: Record<string, unknown> = {};
+  const defaults: Record<string, unknown> = {};
+  for (const parameter of parameters) {
+    if (!NAMED_KINDS.has(parameter.kind)) continue;
+    if (parameter.required) {
+      values[parameter.name] = REQUIRED;
+    } else {
+      const value = jsonFromPythonDefault(parameter.default ?? null);
+      values[parameter.name] = value;
+      defaults[parameter.name] = value;
+    }
+  }
+  return {
+    text: Object.keys(values).length > 0 ? JSON.stringify(values, null, 2) : "",
+    defaults,
+  };
+}
+
+const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * The arguments to send: required placeholders must be filled in; optional arguments
+ * still at their template value are left out, so Odoo uses its own default.
+ */
+export function argumentsToSend(
+  kwargs: Record<string, unknown>,
+  defaults: Record<string, unknown>,
+): { kwargs: Record<string, unknown> } | { error: string } {
+  const missing = Object.keys(kwargs).filter((name) => kwargs[name] === REQUIRED);
+  if (missing.length > 0) {
+    return {
+      error: `Fill in the required ${missing.length === 1 ? "argument" : "arguments"}: ${missing.join(", ")}.`,
+    };
+  }
+  const sent: Record<string, unknown> = {};
+  for (const [name, value] of Object.entries(kwargs)) {
+    if (name in defaults && sameJson(value, defaults[name])) continue;
+    sent[name] = value;
+  }
+  return { kwargs: sent };
 }

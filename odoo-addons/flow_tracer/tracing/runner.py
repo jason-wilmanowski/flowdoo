@@ -7,6 +7,7 @@ discarded. While a dry run is active ``cr.commit()`` raises, so code under trace
 persist anything. Side effects are not blocked (ADR 0001): use neutralised databases.
 """
 
+import copy
 import datetime
 import inspect
 from contextlib import contextmanager
@@ -101,7 +102,9 @@ def run_trace(
     try:
         with _commit_forbidden(cr) if dry_run else _nothing(), _recording(session, index):
             try:
-                getattr(records, method)(**kwargs)
+                # Odoo may change the values it gets (defaults added to vals); the trace
+                # reports the call as it was requested.
+                getattr(records, method)(**copy.deepcopy(kwargs))
                 env.flush_all()
             except Exception as exc:
                 error = values.error_of(exc)

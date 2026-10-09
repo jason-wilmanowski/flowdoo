@@ -9,7 +9,9 @@ field values changed. That shows you where you can hook in.
 > [!WARNING]
 > Flowdoo is meant for **development databases only**. Never point it at a production
 > Odoo. Runs are dry runs by default (rolled back at the end), but the tool executes real
-> business logic in the connected database.
+> business logic in the connected database. Document numbers drawn during a dry run (e.g.
+> `WH/OUT/00008`) stay used: PostgreSQL sequences are not rolled back, so the next real
+> document skips them. No data is written.
 
 ## Status
 

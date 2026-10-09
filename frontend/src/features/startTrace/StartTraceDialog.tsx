@@ -5,7 +5,15 @@ import { useStore } from "zustand";
 import { useStores } from "@/app/appContext";
 import { Button, Checkbox, Dialog, Input, Spinner, TextArea } from "@/ui";
 
-import { addParameter, buildCommand, EMPTY_FORM, type FormErrors, type StartForm } from "./command";
+import {
+  buildCommand,
+  EMPTY_FORM,
+  kwargsTemplate,
+  REQUIRED,
+  type FormErrors,
+  type KwargsTemplate,
+  type StartForm,
+} from "./command";
 import { SignatureHint } from "./SignatureHint";
 import styles from "./StartTrace.module.css";
 import { useEntrypointSignature } from "./useEntrypointSignature";
@@ -27,7 +35,17 @@ export function StartTraceDialog({ open, onOpenChange, initial }: StartTraceDial
   const navigate = useNavigate();
   const [form, setForm] = useState<StartForm>(initial ?? EMPTY_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
-  const signature = useEntrypointSignature(source, form.model, form.method);
+  // the arguments the method takes, as last filled in; replaced only while untouched
+  const [template, setTemplate] = useState<KwargsTemplate | null>(null);
+  const signature = useEntrypointSignature(source, form.model, form.method, (loaded) => {
+    const next = kwargsTemplate(loaded.parameters);
+    setForm((current) =>
+      current.kwargs.trim() === "" || current.kwargs === template?.text
+        ? { ...current, kwargs: next.text }
+        : current,
+    );
+    setTemplate(next);
+  });
   const running = run.phase === "running";
   const modelLevel = signature.phase === "ready" && signature.signature.model_level;
 
@@ -43,7 +61,11 @@ export function StartTraceDialog({ open, onOpenChange, initial }: StartTraceDial
 
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const result = buildCommand(modelLevel ? { ...form, recordIds: "" } : form);
+    const result = buildCommand(
+      modelLevel ? { ...form, recordIds: "" } : form,
+      template?.defaults ?? {},
+      signature.phase === "ready" && !signature.signature.model_level,
+    );
     if (result.errors) {
       setErrors(result.errors);
       return;
@@ -105,22 +127,7 @@ export function StartTraceDialog({ open, onOpenChange, initial }: StartTraceDial
           </div>
         </div>
 
-        <SignatureHint
-          state={signature}
-          onAddParameter={(parameter) => {
-            const result = addParameter(
-              form.kwargs,
-              parameter.name,
-              parameter.required,
-              parameter.default ?? null,
-            );
-            if ("error" in result) {
-              setErrors((current) => ({ ...current, kwargs: result.error }));
-            } else {
-              set("kwargs", result.text);
-            }
-          }}
-        />
+        <SignatureHint state={signature} />
 
         <div className={styles.field}>
           <Input
@@ -152,6 +159,12 @@ export function StartTraceDialog({ open, onOpenChange, initial }: StartTraceDial
             }}
           />
           {fieldError("kwargs")}
+          {template && template.text ? (
+            <span className={styles.hint}>
+              Every argument the method takes. Replace <code>"{REQUIRED}"</code>; optional ones left
+              at their default (<code>null</code> = None) are not sent.
+            </span>
+          ) : null}
         </div>
 
         <div className={styles.field}>
