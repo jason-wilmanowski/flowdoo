@@ -25,3 +25,22 @@ docker compose --profile test up -d odoo-test
 ```
 
 Run only these tests: `uv run pytest -m odoo` (in `backend/`).
+
+## Mails to Mailpit (optional)
+
+A neutralised database cannot send mails, so traces of `send_mail` stop at the failed
+connection. To see the whole sending path, let the test Odoo send to Mailpit (compose
+profile `test`, inbox on <http://localhost:8025>), replace `<db>` with your database:
+
+```sh
+docker compose --profile test up -d mailpit
+docker compose --profile test run --rm -T odoo-test odoo shell -d <db> --no-http <<'PY'
+values = {"smtp_host": "mailpit", "smtp_port": 1025, "smtp_encryption": "none",
+          "smtp_user": False, "smtp_pass": False}
+server = env["ir.mail_server"].search([], limit=1)
+server.write(values) if server else env["ir.mail_server"].create({"name": "Mailpit", **values})
+env.cr.commit()
+PY
+```
+
+Mails sent by traced runs, dry runs included, then arrive in Mailpit.

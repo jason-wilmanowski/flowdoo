@@ -241,6 +241,13 @@ Test markers:
 The test Odoo is started with the compose profile `test`:
 `docker compose --profile test up -d odoo-test`.
 
+The same profile has a mail catcher, Mailpit (`docker compose --profile test up -d
+mailpit`, inbox on <http://localhost:8025>). Pointed at it, the test Odoo really sends
+mails, so traces show the whole sending path (`mail.mail._send`,
+`ir.mail_server.send_email`) while nothing leaves the machine. Mails sent during a dry
+run arrive there too: SMTP is a side effect that a rollback cannot undo. Setup in
+[`backend/tests/integration/odoo/README.md`](backend/tests/integration/odoo/README.md).
+
 ### Frontend
 
 ```sh
