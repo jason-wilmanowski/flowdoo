@@ -16,3 +16,13 @@ durations are made up. They show the shape of a trace, not real Odoo behaviour.
 
 `recorded-*` files are real recordings. Values come from Odoo's demo data (fictional
 companies and people); re-record them when the schema or the recorder changes.
+
+## Registry fixture
+
+`registry-sale-stock-account.json` is the answer of `GET /odoo/models` (all 428 models)
+plus `GET /odoo/models/{model}` for 34 central models (sales, inventory, accounting, mail),
+**recorded** from the test Odoo (Odoo 19.0-20260926, 64 modules incl. `sale_stock` and
+`account`, demo data). Keys: `odoo_version`, `modules` (installed), `models`, `details`
+(model name -> detail). The frontend's overview works on it without backend and Odoo.
+Re-record it when the registry routes change.
+
