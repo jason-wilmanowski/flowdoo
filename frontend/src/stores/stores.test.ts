@@ -219,3 +219,29 @@ describe("replay store", () => {
     expect(store.getState().speed).toBe(4);
   });
 });
+
+describe("registry store", () => {
+  it("loads the model list once and describes models, newest request wins", async () => {
+    const source = createFixtureDataSource({ delayMs: 0 });
+    const listModels = vi.spyOn(source, "listModels");
+    const { registry } = createAppStores(source);
+
+    await registry.getState().load();
+    await registry.getState().load();
+    expect(listModels).toHaveBeenCalledTimes(1);
+    expect(registry.getState().models).toHaveLength(428);
+
+    const first = registry.getState().describe("sale.order");
+    const second = registry.getState().describe("res.partner");
+    await Promise.all([first, second]);
+    expect(registry.getState()).toMatchObject({ model: "res.partner", detailPhase: "ready" });
+    expect(registry.getState().detail?.model).toBe("res.partner");
+  });
+
+  it("keeps the error of a model without details", async () => {
+    const { registry } = createAppStores(createFixtureDataSource({ delayMs: 0 }));
+    await registry.getState().describe("ir.cron");
+    expect(registry.getState().detailPhase).toBe("error");
+    expect(registry.getState().detailError?.status).toBe(404);
+  });
+});

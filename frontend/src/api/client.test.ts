@@ -44,6 +44,12 @@ describe("api client: requests", () => {
       (c: ReturnType<typeof createApiClient>) => c.describeEntrypoint("res.partner", "write"),
       "/odoo/entrypoints/res.partner/write",
     ],
+    ["listModels", (c: ReturnType<typeof createApiClient>) => c.listModels(), "/odoo/models"],
+    [
+      "describeModel",
+      (c: ReturnType<typeof createApiClient>) => c.describeModel("sale.order"),
+      "/odoo/models/sale.order",
+    ],
     [
       "getTrace",
       (c: ReturnType<typeof createApiClient>) => c.getTrace("3f2b8c1e-6d4a-4c1e-9b7a-1a2b3c4d5e01"),

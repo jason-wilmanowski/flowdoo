@@ -8,6 +8,8 @@ function fakeClient(): ApiClient {
     health: vi.fn(),
     odooStatus: vi.fn().mockResolvedValue({ ok: true }),
     describeEntrypoint: vi.fn().mockResolvedValue({ method: "write" }),
+    listModels: vi.fn().mockResolvedValue({ models: [] }),
+    describeModel: vi.fn().mockResolvedValue({ model: "res.partner", fields: [] }),
     listTraces: vi.fn().mockResolvedValue({ items: [], total: 0, limit: 50, offset: 0 }),
     getTrace: vi.fn().mockResolvedValue({ id: "t1", payload: { steps: [] } }),
     startTrace: vi.fn().mockResolvedValue({ id: "t2", payload: null }),
@@ -24,6 +26,8 @@ describe("api data source", () => {
     expect(source.kind).toBe("api");
     await source.odooStatus({ signal });
     await source.describeEntrypoint("res.partner", "write");
+    await source.listModels({ signal });
+    await source.describeModel("res.partner");
     await source.listTraces({ limit: 5 });
     expect((await source.getTrace("t1")).payload).toEqual({ steps: [] });
     await source.startTrace({
@@ -37,6 +41,8 @@ describe("api data source", () => {
     expect(client.odooStatus).toHaveBeenCalledWith({ signal });
     expect(client.describeEntrypoint).toHaveBeenCalledWith("res.partner", "write", undefined);
     expect(client.listTraces).toHaveBeenCalledWith({ limit: 5 }, undefined);
+    expect(client.listModels).toHaveBeenCalledWith({ signal });
+    expect(client.describeModel).toHaveBeenCalledWith("res.partner", undefined);
     expect(client.deleteTrace).toHaveBeenCalledWith("t1", undefined);
   });
 });

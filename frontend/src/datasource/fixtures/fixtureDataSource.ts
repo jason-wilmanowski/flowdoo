@@ -1,6 +1,11 @@
 import { AppError } from "@/api/errors";
 import type { OdooConnectionStatus, StartTraceCommand, TraceSummary } from "@/api/types";
-import { FIXTURE_NAMES, loadFixture } from "@/datasource/fixtures/catalog";
+import {
+  FIXTURE_NAMES,
+  loadFixture,
+  loadRegistryFixture,
+  type RegistryFixture,
+} from "@/datasource/fixtures/catalog";
 import type { CallOptions, DataSource, Trace } from "@/datasource/types";
 import type { TracePayload } from "@/generated/trace";
 
@@ -94,6 +99,9 @@ export function createFixtureDataSource(options: FixtureDataSourceOptions = {}):
     return traces;
   }
 
+  let registry: Promise<RegistryFixture> | null = null;
+  const loadRegistry = () => (registry ??= loadRegistryFixture());
+
   async function find(traceId: string, call?: CallOptions): Promise<Trace> {
     await wait(delayMs, call?.signal);
     const trace = (await store()).get(traceId);
@@ -149,6 +157,26 @@ export function createFixtureDataSource(options: FixtureDataSourceOptions = {}):
         summary: null,
         parameters: [],
       };
+    },
+
+    async listModels(call) {
+      await wait(delayMs, call?.signal);
+      return { models: (await loadRegistry()).models };
+    },
+
+    async describeModel(model, call) {
+      await wait(delayMs, call?.signal);
+      const fixture = await loadRegistry();
+      const detail = fixture.details[model];
+      if (detail) return detail;
+      const known = fixture.models.some((m) => m.model === model);
+      throw new AppError(
+        "http",
+        known
+          ? `Details of ${model} are not in the fixtures: in fixture mode only ${String(Object.keys(fixture.details).length)} central models have them.`
+          : `The model '${model}' does not exist`,
+        { status: 404 },
+      );
     },
 
     async listTraces(query = {}, call) {

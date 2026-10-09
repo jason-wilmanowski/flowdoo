@@ -13,6 +13,11 @@ export type OdooConnectionStatus = Schemas["OdooConnectionStatus"];
 export type EntrypointSignature = Schemas["EntrypointSignature"];
 export type EntrypointParameter = Schemas["EntrypointParameter"];
 export type HealthResponse = Schemas["HealthResponse"];
+export type ModelList = Schemas["ModelList"];
+export type ModelSummary = Schemas["ModelSummary"];
+export type ModelRelation = Schemas["ModelRelation"];
+export type ModelDetail = Schemas["ModelDetail"];
+export type ModelField = Schemas["ModelField"];
 
 /** Query parameters of GET /traces (all optional). */
 export type TraceListQuery = NonNullable<
