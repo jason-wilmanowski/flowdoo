@@ -80,10 +80,17 @@ describe("neighborhood", () => {
     const at = (id: string) => nodes.find((n) => n.id === id)!;
 
     expect(at("center:sale.order")).toMatchObject({ x: 0, y: 0, detail: "Sales Order" });
-    expect(at("target:res.partner")).toMatchObject({ detail: "partner_id, partner_invoice_id" });
+    expect(at("target:res.partner")).toMatchObject({ detail: "via partner_id +1" });
+    expect(edges.find((e) => e.target === "target:res.partner")?.label).toBe(
+      "partner_id, partner_invoice_id",
+    );
     expect(at("target:res.partner").x).toBeGreaterThan(0);
     expect(at("source:sale.order.line").x).toBeLessThan(0);
-    expect(at("parent:mail.thread").y).toBeLessThan(0);
+    // inherited models get a row of their own above every relation column
+    const lowestColumnTop = Math.min(...nodes.filter((n) => n.role !== "parent").map((n) => n.y));
+    expect(at("parent:mail.thread").y).toBeLessThan(lowestColumnTop);
+    expect(edges.find((e) => e.source === "parent:mail.thread")?.kind).toBe("inherits");
+    expect(edges.find((e) => e.target === "target:res.partner")?.kind).toBe("relation");
     // the self reference (origin_order_id) is not drawn
     expect(nodes.some((n) => n.model === "sale.order" && n.role !== "center")).toBe(false);
     expect(edges).toContainEqual({
@@ -91,6 +98,7 @@ describe("neighborhood", () => {
       source: "source:sale.order.line",
       target: "center:sale.order",
       label: "order_id",
+      kind: "relation",
     });
   });
 

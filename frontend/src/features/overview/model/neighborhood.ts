@@ -10,7 +10,7 @@ export interface NeighborNode {
   /** Model name, or the "+ N more" text of a summary node. */
   model: string;
   module: string | null;
-  /** Field names that link it, e.g. "partner_id, partner_invoice_id". */
+  /** How it is linked, short, e.g. "via partner_id +1" (all fields are in the details). */
   detail: string;
   x: number;
   y: number;
@@ -20,7 +20,9 @@ export interface NeighborEdge {
   id: string;
   source: string;
   target: string;
+  /** Field names of a relation; "inherits" for inheritance. */
   label: string;
+  kind: "relation" | "inherits";
 }
 
 export interface NeighborOptions {
@@ -38,7 +40,7 @@ export const DEFAULT_NEIGHBOR_OPTIONS: NeighborOptions = {
   limit: 12,
 };
 
-export const SPACING = { column: 380, row: 76 };
+export const SPACING = { column: 380, row: 76, inheritColumn: 300, inheritGap: 190 };
 
 interface Link {
   model: string;
@@ -70,7 +72,10 @@ function column(
     role,
     model: link.model,
     module: moduleOf(link.model),
-    detail: link.fields.join(", "),
+    detail:
+      link.fields.length === 1
+        ? `via ${link.fields[0] ?? ""}`
+        : `via ${link.fields[0] ?? ""} +${String(link.fields.length - 1)}`,
     x,
     y: 0,
   }));
@@ -120,13 +125,14 @@ export function neighborhood(
   const edges: NeighborEdge[] = [];
   if (!selected) return { nodes, edges };
 
-  const link = (node: NeighborNode, label: string, toCenter: boolean) => {
+  const link = (node: NeighborNode, fields: string, toCenter: boolean) => {
     if (node.role === "more") return;
     edges.push({
       id: `${node.id}->${center}`,
       source: toCenter ? node.id : `center:${center}`,
       target: toCenter ? `center:${center}` : node.id,
-      label,
+      label: fields,
+      kind: node.role === "parent" ? "inherits" : "relation",
     });
   };
 
@@ -138,7 +144,7 @@ export function neighborhood(
     );
     for (const node of column(targets, "target", SPACING.column, options.limit, moduleOf)) {
       nodes.push(node);
-      link(node, node.detail, false);
+      link(node, targets.find((t) => t.model === node.model)?.fields.join(", ") ?? "", false);
     }
   }
   if (options.incoming) {
@@ -147,16 +153,17 @@ export function neighborhood(
     );
     for (const node of column(sources, "source", -SPACING.column, options.limit, moduleOf)) {
       nodes.push(node);
-      link(node, node.detail, true);
+      link(node, sources.find((t) => t.model === node.model)?.fields.join(", ") ?? "", true);
     }
   }
   if (options.parents && selected.parents.length > 0) {
     const parents = selected.parents.map((model) => ({ model, fields: ["inherits"] }));
     const row = column(parents, "parent", 0, options.limit, moduleOf);
-    // one row above the selected model instead of a column
+    // a row of its own above everything else, so relation columns never cover it
+    const top = Math.min(0, ...nodes.map((node) => node.y));
     row.forEach((node, i) => {
-      node.x = (i - (row.length - 1) / 2) * (SPACING.column * 0.75);
-      node.y = -SPACING.row * 2.5;
+      node.x = (i - (row.length - 1) / 2) * SPACING.inheritColumn;
+      node.y = top - SPACING.inheritGap;
       node.detail = "inherited";
       link(node, "inherits", true);
     });
