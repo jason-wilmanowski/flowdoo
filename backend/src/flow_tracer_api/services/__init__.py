@@ -2,6 +2,7 @@
 
 from flow_tracer_api.services.errors import (
     EntrypointLookupError,
+    ModelLookupError,
     NonDryRunNotAllowedError,
     OdooGatewayUnavailableError,
     OdooRequestError,
@@ -12,6 +13,7 @@ from flow_tracer_api.services.trace_service import TraceService
 
 __all__ = [
     "EntrypointLookupError",
+    "ModelLookupError",
     "NonDryRunNotAllowedError",
     "OdooGatewayUnavailableError",
     "OdooRequestError",

@@ -9,6 +9,13 @@ from flow_tracer_api.schemas.odoo import (
     TraceRequest,
     ValidatedPayload,
 )
+from flow_tracer_api.schemas.registry import (
+    ModelDetail,
+    ModelField,
+    ModelList,
+    ModelRelation,
+    ModelSummary,
+)
 from flow_tracer_api.schemas.trace import (
     StartTraceCommand,
     TraceDetail,
@@ -22,6 +29,11 @@ __all__ = [
     "EntrypointParameter",
     "EntrypointSignature",
     "GatewayResult",
+    "ModelDetail",
+    "ModelField",
+    "ModelList",
+    "ModelRelation",
+    "ModelSummary",
     "OdooConnectionStatus",
     "OdooVersionInfo",
     "StartTraceCommand",

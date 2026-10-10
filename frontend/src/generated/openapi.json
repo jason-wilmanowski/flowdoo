@@ -145,6 +145,335 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "ModelDetail": {
+        "description": "One model in detail.",
+        "properties": {
+          "abstract": {
+            "title": "Abstract",
+            "type": "boolean"
+          },
+          "delegates": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Delegates",
+            "type": "object"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/ModelField"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "module": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module"
+          },
+          "modules": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Modules",
+            "type": "array"
+          },
+          "parents": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Parents",
+            "type": "array"
+          },
+          "transient": {
+            "title": "Transient",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "model",
+          "description",
+          "module",
+          "modules",
+          "abstract",
+          "transient",
+          "parents",
+          "delegates",
+          "fields"
+        ],
+        "title": "ModelDetail",
+        "type": "object"
+      },
+      "ModelField": {
+        "description": "One field of a model.",
+        "properties": {
+          "compute": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compute"
+          },
+          "inverse": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inverse"
+          },
+          "module": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "readonly": {
+            "title": "Readonly",
+            "type": "boolean"
+          },
+          "related": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Related"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "selection": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selection"
+          },
+          "stored": {
+            "title": "Stored",
+            "type": "boolean"
+          },
+          "string": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "String"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "string",
+          "module",
+          "target",
+          "inverse",
+          "required",
+          "readonly",
+          "stored",
+          "compute",
+          "related",
+          "selection"
+        ],
+        "title": "ModelField",
+        "type": "object"
+      },
+      "ModelList": {
+        "properties": {
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/ModelSummary"
+            },
+            "title": "Models",
+            "type": "array"
+          }
+        },
+        "required": [
+          "models"
+        ],
+        "title": "ModelList",
+        "type": "object"
+      },
+      "ModelRelation": {
+        "description": "A relational field and the model it points to.",
+        "properties": {
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "type",
+          "target"
+        ],
+        "title": "ModelRelation",
+        "type": "object"
+      },
+      "ModelSummary": {
+        "description": "One model in the overview list.",
+        "properties": {
+          "abstract": {
+            "title": "Abstract",
+            "type": "boolean"
+          },
+          "delegates": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Delegates",
+            "type": "object"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "field_count": {
+            "title": "Field Count",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "module": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module"
+          },
+          "modules": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Modules",
+            "type": "array"
+          },
+          "parents": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Parents",
+            "type": "array"
+          },
+          "relations": {
+            "items": {
+              "$ref": "#/components/schemas/ModelRelation"
+            },
+            "title": "Relations",
+            "type": "array"
+          },
+          "transient": {
+            "title": "Transient",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "model",
+          "description",
+          "module",
+          "modules",
+          "abstract",
+          "transient",
+          "parents",
+          "delegates",
+          "field_count",
+          "relations"
+        ],
+        "title": "ModelSummary",
+        "type": "object"
+      },
       "OdooConnectionStatus": {
         "description": "Result of checking the configured connection to the user's Odoo.\n\n``ok`` is true only if every check passed. ``problems`` explain what blocks tracing,\n``warnings`` what could not be verified.",
         "properties": {
@@ -736,6 +1065,151 @@
           }
         },
         "summary": "Describe a method before tracing it",
+        "tags": [
+          "odoo"
+        ]
+      }
+    },
+    "/odoo/models": {
+      "get": {
+        "description": "Every model of the registry with the modules that define and extend it, the models it inherits from, delegations (`_inherits`) and its relational fields. Read from the running Odoo, not from source files.",
+        "operationId": "list_models_odoo_models_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "List the models of the connected Odoo",
+        "tags": [
+          "odoo"
+        ]
+      }
+    },
+    "/odoo/models/{model}": {
+      "get": {
+        "description": "Inheritance of the model and every field: type, target model, required, stored, computed or related, and the module that defined it.",
+        "operationId": "describe_model_odoo_models__model__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model",
+            "required": true,
+            "schema": {
+              "title": "Model",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Describe one model and its fields",
         "tags": [
           "odoo"
         ]

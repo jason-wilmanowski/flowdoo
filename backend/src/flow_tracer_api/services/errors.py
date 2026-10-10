@@ -27,6 +27,10 @@ class EntrypointLookupError(ServiceError):
     """Odoo refused to describe the method: unknown model/method (404), private (403), ..."""
 
 
+class ModelLookupError(ServiceError):
+    """Odoo refused to describe a model: unknown model (404), not allowed (403), ..."""
+
+
 class OdooRequestError(ServiceError):
     """Odoo could not be asked or gave an unusable answer (502)."""
 

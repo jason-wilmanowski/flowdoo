@@ -20,6 +20,7 @@ from werkzeug.exceptions import (
     UnprocessableEntity,
 )
 
+from ..overview import describe_model, list_models
 from ..tools import is_enabled
 from ..tracing import (
     RECORDER_AVAILABLE,
@@ -97,6 +98,37 @@ class FlowTracerController(http.Controller):
             raise BadRequest("model and method must be non-empty strings")
         with _entrypoint_errors(model):
             return describe_entrypoint(request.env, model, method)
+
+    @http.route(
+        "/flow_tracer/v1/models",
+        type="json2",
+        auth="bearer",
+        methods=["POST"],
+        readonly=True,
+        save_session=False,
+    )
+    def models(self):
+        """Every model of the registry with modules, inheritance and relations."""
+        _check_access()
+        return {"models": list_models(request.env)}
+
+    @http.route(
+        "/flow_tracer/v1/model",
+        type="json2",
+        auth="bearer",
+        methods=["POST"],
+        readonly=True,
+        save_session=False,
+    )
+    def model(self, model):
+        """One model in detail: inheritance and every field."""
+        _check_access()
+        if not isinstance(model, str) or not model:
+            raise BadRequest("model must be a non-empty string")
+        try:
+            return describe_model(request.env, model)
+        except KeyError as exc:
+            raise NotFound(f"The model {model!r} does not exist") from exc
 
 
 def _check_access():

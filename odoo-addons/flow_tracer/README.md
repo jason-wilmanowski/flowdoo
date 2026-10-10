@@ -64,6 +64,8 @@ curl -X POST "$ODOO_URL/flow_tracer/v1/trace" \
 | `POST /flow_tracer/v1/status` | `{}` | `{"addon_version", "odoo_version", "enabled", "is_admin", "recorder_available"}` |
 | `POST /flow_tracer/v1/trace` | `trace_id` (UUID), `model`, `method`, `record_ids` (default `[]`), `context` (default `{}`), `kwargs` (default `{}`), `dry_run` (default `true`) | the trace ([format](../../docs/trace-format.md)) |
 | `POST /flow_tracer/v1/signature` | `model`, `method` | `{"model", "method", "model_level", "module", "summary", "parameters": [{"name", "kind", "required", "default", "annotation"}]}` |
+| `POST /flow_tracer/v1/models` | — | `{"models": [{"model", "description", "module", "modules", "abstract", "transient", "parents", "delegates", "field_count", "relations": [{"field", "type", "target"}]}]}` |
+| `POST /flow_tracer/v1/model` | `model` | `{"model", …, "fields": [{"name", "type", "string", "module", "target", "inverse", "required", "readonly", "stored", "compute", "related", "selection"}]}` |
 
 `/trace` answers:
 

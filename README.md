@@ -207,6 +207,8 @@ The most important ones besides the Odoo connection:
 | `GET` | `/health` | Liveness |
 | `GET` | `/odoo/status` | Check the connection to your Odoo |
 | `GET` | `/odoo/entrypoints/{model}/{method}` | Parameters of a method before tracing it |
+| `GET` | `/odoo/models` | Every model with modules, inheritance and relations (overview) |
+| `GET` | `/odoo/models/{model}` | One model with all its fields |
 | `POST` | `/traces` | Record a run in your Odoo (`201`; `503` if no Odoo is configured) |
 | `GET` | `/traces` | List traces (filters, paging, without payload) |
 | `GET` | `/traces/{trace_id}` | One trace with payload |

@@ -2,9 +2,18 @@
 
 from fastapi import APIRouter, HTTPException, status
 
-from flow_tracer_api.api.dependencies import EntrypointServiceDep, OdooConnectionServiceDep
+from flow_tracer_api.api.dependencies import (
+    EntrypointServiceDep,
+    OdooConnectionServiceDep,
+    RegistryServiceDep,
+)
 from flow_tracer_api.api.schemas import error_responses
-from flow_tracer_api.schemas import EntrypointSignature, OdooConnectionStatus
+from flow_tracer_api.schemas import (
+    EntrypointSignature,
+    ModelDetail,
+    ModelList,
+    OdooConnectionStatus,
+)
 from flow_tracer_api.services import ServiceError
 
 router = APIRouter(prefix="/odoo", tags=["odoo"])
@@ -48,5 +57,48 @@ async def describe_entrypoint(
 ) -> EntrypointSignature:
     try:
         return await service.describe(model, method)
+    except ServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+
+@router.get(
+    "/models",
+    summary="List the models of the connected Odoo",
+    description=(
+        "Every model of the registry with the modules that define and extend it, the models "
+        "it inherits from, delegations (`_inherits`) and its relational fields. Read from "
+        "the running Odoo, not from source files."
+    ),
+    responses=error_responses(
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_502_BAD_GATEWAY,
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+    ),
+)
+async def list_models(service: RegistryServiceDep) -> ModelList:
+    try:
+        return await service.list_models()
+    except ServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+
+@router.get(
+    "/models/{model}",
+    summary="Describe one model and its fields",
+    description=(
+        "Inheritance of the model and every field: type, target model, required, stored, "
+        "computed or related, and the module that defined it."
+    ),
+    responses=error_responses(
+        status.HTTP_400_BAD_REQUEST,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_404_NOT_FOUND,
+        status.HTTP_502_BAD_GATEWAY,
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+    ),
+)
+async def describe_model(model: str, service: RegistryServiceDep) -> ModelDetail:
+    try:
+        return await service.describe_model(model)
     except ServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
