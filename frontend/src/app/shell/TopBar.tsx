@@ -1,8 +1,10 @@
-import { Settings, Workflow } from "lucide-react";
+import { Settings } from "lucide-react";
 import { useState } from "react";
 import { NavLink } from "react-router";
 
-import { Icon, IconButton } from "@/ui";
+import logoOnLight from "@/assets/flowdoo-logo-dark.svg";
+import logoOnDark from "@/assets/flowdoo-logo-light.svg";
+import { IconButton } from "@/ui";
 
 import { useDataSourceSwitch } from "../appContext";
 import { useShortcut } from "../shortcuts/shortcutContext";
@@ -31,10 +33,17 @@ export function TopBar() {
   return (
     <header className={styles.topBar}>
       <span className={styles.product}>
-        <span className={styles.mark} aria-hidden="true">
-          <Icon icon={Workflow} compact />
-        </span>
-        Flowdoo
+        {/* only the one for the current theme is displayed (and read out) */}
+        <img
+          src={logoOnLight}
+          alt="Flowdoo"
+          className={[styles.logo, styles.logoOnLight].join(" ")}
+        />
+        <img
+          src={logoOnDark}
+          alt="Flowdoo"
+          className={[styles.logo, styles.logoOnDark].join(" ")}
+        />
       </span>
       <nav aria-label="Main" className={styles.nav}>
         <NavLink to="/traces" className={navClass}>

@@ -51,6 +51,8 @@ export default {
     ...designRules,
     // CSS Modules use camelCase class names (styles.stepRow)
     "selector-class-pattern": "^[a-z][a-zA-Z0-9]*$",
+    // and :global(...) to reach outside the module, e.g. the theme on <html>
+    "selector-pseudo-class-no-unknown": [true, { ignorePseudoClasses: ["global"] }],
   },
   overrides: [
     {
