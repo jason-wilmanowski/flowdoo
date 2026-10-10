@@ -5,10 +5,12 @@ import { TraceListPage } from "@/features/traceList/TraceListPage";
 import { Skeleton } from "@/ui";
 
 import { NotFoundPage } from "./pages/NotFoundPage";
-import { OverviewPage } from "./pages/OverviewPage";
 import { AppShell } from "./shell/AppShell";
 
-// The trace view brings React Flow; load it when a trace is opened.
+// The trace view and the overview bring React Flow; load them when they are opened.
+const OverviewPage = lazy(() =>
+  import("@/features/overview/OverviewPage").then((m) => ({ default: m.OverviewPage })),
+);
 const TraceViewPage = lazy(() =>
   import("@/features/traceView/TraceViewPage").then((m) => ({ default: m.TraceViewPage })),
 );
@@ -27,7 +29,14 @@ export function AppRoutes() {
             </Suspense>
           }
         />
-        <Route path="overview" element={<OverviewPage />} />
+        <Route
+          path="overview/:model?"
+          element={
+            <Suspense fallback={<Skeleton rows={10} label="Loading overview" />}>
+              <OverviewPage />
+            </Suspense>
+          }
+        />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

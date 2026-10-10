@@ -89,9 +89,9 @@ describe("app shell", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/The recording failed/);
   });
 
-  it("has honest placeholders for the overview and unknown pages", async () => {
+  it("opens the overview with the model list", async () => {
     renderApp("/overview");
-    expect(await screen.findByText(/milestone M6/)).toBeInTheDocument();
+    expect(await screen.findByRole("tree", { name: "Models" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
   });
 
@@ -117,7 +117,7 @@ describe("app shell", () => {
 
 describe("keyboard shortcuts", () => {
   it("opens the help with ? and closes it with Escape, returning focus", async () => {
-    renderApp("/overview");
+    renderApp("/nope");
     const trigger = screen.getByRole("link", { name: "Go to traces" });
     trigger.focus();
     await userEvent.keyboard("?");
