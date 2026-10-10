@@ -1,4 +1,9 @@
 import "@testing-library/jest-dom/vitest";
+import { configure } from "@testing-library/react";
+
+// findBy*/waitFor wait up to 3 s: lazy routes (the trace view with React Flow) load more
+// slowly on CI runners than locally.
+configure({ asyncUtilTimeout: 3000 });
 
 // jsdom has no layout: give components the browser APIs they rely on.
 class ResizeObserverStub {
