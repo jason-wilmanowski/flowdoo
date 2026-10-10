@@ -81,3 +81,25 @@ describe("Table", () => {
     expect(onActivate).not.toHaveBeenCalled();
   });
 });
+
+describe("Table row extras", () => {
+  it("adds row classes and reports the hovered row", async () => {
+    const onRowHover = vi.fn();
+    render(
+      <Table
+        label="Things"
+        columns={COLUMNS}
+        rows={ROWS}
+        rowId={(row) => row.id}
+        rowClassName={(row) => (row.id === "b" ? "special" : undefined)}
+        onRowHover={onRowHover}
+      />,
+    );
+    expect(row("beta")).toHaveClass("special");
+    expect(row("alpha")).not.toHaveClass("special");
+    await userEvent.hover(screen.getByText("gamma"));
+    expect(onRowHover).toHaveBeenLastCalledWith("c");
+    await userEvent.unhover(screen.getByText("gamma"));
+    expect(onRowHover).toHaveBeenLastCalledWith(null);
+  });
+});

@@ -17,6 +17,26 @@
   outline: var(--border-width) solid var(--accent);
 }
 
+.highlighted,
+.highlighted:hover {
+  border-color: var(--accent);
+  outline: var(--border-width) solid var(--accent);
+}
+
+.inherited {
+  border-style: dashed;
+  border-color: var(--border-strong);
+}
+
+.kindTag {
+  margin-left: auto;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
 .header {
   display: flex;
   align-items: center;
@@ -43,13 +63,15 @@
   font-size: var(--text-xs);
 }
 
+/* Anchor points for the edges only: the graph is read-only (no dragging, no connecting),
+   so they are not shown. They keep their place, so edges still attach correctly. */
 .handle {
+  visibility: hidden;
   width: var(--space-2);
   height: var(--space-2);
   min-width: 0;
   min-height: 0;
   border: 0;
-  background: var(--border-strong);
 }
 
 .visuallyHidden {
