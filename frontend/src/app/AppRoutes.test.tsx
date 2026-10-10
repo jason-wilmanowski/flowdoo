@@ -47,6 +47,14 @@ describe("app shell", () => {
     expect(notices).toHaveTextContent(/Warning.*Fixture mode/);
   });
 
+  it("names the product with its logo, one image per theme", () => {
+    renderApp("/");
+    const logos = screen.getAllByRole("img", { name: "Flowdoo" });
+    expect(logos).toHaveLength(2);
+    expect(logos[0]?.getAttribute("src")).toMatch(/flowdoo-logo-dark/);
+    expect(logos[1]?.getAttribute("src")).toMatch(/flowdoo-logo-light/);
+  });
+
   it("shows problems as text when the API is unreachable and switches to fixtures", async () => {
     const { onDataSourceChange } = renderApp("/traces", "api");
     expect(await screen.findByText("API unreachable")).toBeInTheDocument();

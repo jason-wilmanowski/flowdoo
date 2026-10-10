@@ -10,21 +10,25 @@
 .product {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-3);
-  font-weight: var(--weight-semibold);
-  letter-spacing: -0.01em;
 }
 
-/* the app's mark: one accent tile, like an editor's app icon */
-.mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: calc(var(--control-h-compact) - var(--space-2));
-  height: calc(var(--control-h-compact) - var(--space-2));
-  border-radius: var(--radius);
-  background: var(--accent);
-  color: var(--surface);
+/* the product's logo: dark lettering on the light theme, light lettering on the dark one */
+.logo {
+  display: block;
+  width: auto;
+  height: calc(var(--space-5) + var(--space-2));
+}
+
+.logoOnDark {
+  display: none;
+}
+
+:global([data-theme="dark"]) .logoOnLight {
+  display: none;
+}
+
+:global([data-theme="dark"]) .logoOnDark {
+  display: block;
 }
 
 .divider {
