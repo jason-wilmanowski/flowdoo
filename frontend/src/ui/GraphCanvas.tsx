@@ -6,7 +6,19 @@ import styles from "./GraphCanvas.module.css";
 import { GraphNode, type GraphNodeType } from "./GraphNode";
 
 const NODE_TYPES = { flowdoo: GraphNode };
-const EDGE_OPTIONS = { type: "step" } as const;
+// Label boxes on edges: we load only React Flow's base styles (our own theme), which do not
+// colour them, and an SVG rect without a fill is drawn black.
+const EDGE_OPTIONS = {
+  type: "step",
+  labelStyle: {
+    fill: "var(--text-muted)",
+    fontFamily: "var(--font-mono)",
+    fontSize: "var(--text-xs)",
+  },
+  labelBgStyle: { fill: "var(--surface)", stroke: "var(--border)" },
+  labelBgPadding: [6, 3] as [number, number],
+  labelBgBorderRadius: 4,
+} as const;
 // The library's corner badge is hidden; React Flow is credited in the README.
 const PRO_OPTIONS = { hideAttribution: true };
 

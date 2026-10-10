@@ -21,6 +21,10 @@ export interface TableProps<Row> {
   onSelect?: (id: string) => void;
   /** Enter or double-click on a row, e.g. open it. */
   onActivate?: (id: string) => void;
+  /** Extra class for a row, e.g. to set some rows apart. */
+  rowClassName?: (row: Row) => string | undefined;
+  /** The row under the mouse pointer, or null when the pointer leaves the rows. */
+  onRowHover?: (id: string | null) => void;
 }
 
 /**
@@ -35,6 +39,8 @@ export function Table<Row>({
   selectedId = null,
   onSelect,
   onActivate,
+  rowClassName,
+  onRowHover,
 }: TableProps<Row>) {
   const prefix = useId();
   const domId = (id: string) => `${prefix}-row-${id}`;
@@ -108,9 +114,26 @@ export function Table<Row>({
               key={id}
               id={domId(id)}
               aria-selected={selected}
-              className={selected ? styles.selected : undefined}
+              className={
+                [selected ? styles.selected : "", rowClassName?.(row) ?? ""].join(" ").trim() ||
+                undefined
+              }
               onClick={() => onSelect?.(id)}
               onDoubleClick={() => onActivate?.(id)}
+              onMouseEnter={
+                onRowHover
+                  ? () => {
+                      onRowHover(id);
+                    }
+                  : undefined
+              }
+              onMouseLeave={
+                onRowHover
+                  ? () => {
+                      onRowHover(null);
+                    }
+                  : undefined
+              }
             >
               {columns.map((column) => (
                 <td

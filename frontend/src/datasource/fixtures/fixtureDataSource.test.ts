@@ -154,3 +154,29 @@ describe("fixture data source", () => {
     }
   });
 });
+
+describe("fixture registry", () => {
+  const source = createFixtureDataSource({ delayMs: 0 });
+
+  it("lists every recorded model", async () => {
+    const { models } = await source.listModels();
+    expect(models).toHaveLength(428);
+    const order = models.find((m) => m.model === "sale.order");
+    expect(order?.modules).toEqual(["sale_stock", "sale_edi_ubl", "sale"]);
+    expect(order?.relations.some((r) => r.target === "res.partner")).toBe(true);
+  });
+
+  it("describes the central models", async () => {
+    const order = await source.describeModel("sale.order");
+    expect(order.fields.find((f) => f.name === "partner_id")?.target).toBe("res.partner");
+  });
+
+  it("says when a model has no details in the fixtures or does not exist", async () => {
+    const missing = await failure(source.describeModel("ir.cron"));
+    expect(missing.status).toBe(404);
+    expect(missing.message).toMatch(/not in the fixtures/);
+    expect((await failure(source.describeModel("no.such"))).message).toBe(
+      "The model 'no.such' does not exist",
+    );
+  });
+});

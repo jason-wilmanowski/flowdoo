@@ -1,3 +1,4 @@
+import type { ModelDetail, ModelSummary } from "@/api/types";
 import type { TracePayload } from "@/generated/trace";
 
 /**
@@ -15,6 +16,19 @@ export const FIXTURE_FILES = {
 export type FixtureName = keyof typeof FIXTURE_FILES;
 
 export const FIXTURE_NAMES = Object.keys(FIXTURE_FILES) as FixtureName[];
+
+/** The recorded registry (shared/fixtures/registry-*.json): all models, some in detail. */
+export interface RegistryFixture {
+  odoo_version: string;
+  modules: string[];
+  models: ModelSummary[];
+  details: Record<string, ModelDetail>;
+}
+
+export async function loadRegistryFixture(): Promise<RegistryFixture> {
+  const module = await import("@shared/fixtures/registry-sale-stock-account.json?raw");
+  return JSON.parse(module.default) as RegistryFixture;
+}
 
 export async function loadFixture(name: FixtureName): Promise<TracePayload> {
   const module = await FIXTURE_FILES[name]();

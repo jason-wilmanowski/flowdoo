@@ -1,6 +1,7 @@
 import type { DataSource } from "@/datasource/types";
 import { createConnectionStore } from "@/stores/connectionStore";
 import { createCurrentTraceStore } from "@/stores/currentTraceStore";
+import { createRegistryStore } from "@/stores/registryStore";
 import { createReplayStore } from "@/stores/replayStore";
 import { createTraceListStore } from "@/stores/traceListStore";
 
@@ -15,6 +16,7 @@ export function createAppStores(source: DataSource) {
   const traceList = createTraceListStore(source);
   const currentTrace = createCurrentTraceStore(source);
   const replay = createReplayStore();
+  const registry = createRegistryStore(source);
 
   // A newly shown trace starts its replay at the first step.
   currentTrace.subscribe((state, previous) => {
@@ -27,5 +29,5 @@ export function createAppStores(source: DataSource) {
     }
   });
 
-  return { source, connection, traceList, currentTrace, replay };
+  return { source, connection, traceList, currentTrace, replay, registry };
 }

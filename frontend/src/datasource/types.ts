@@ -1,5 +1,7 @@
 import type {
   EntrypointSignature,
+  ModelDetail,
+  ModelList,
   OdooConnectionStatus,
   StartTraceCommand,
   TraceDetail,
@@ -32,6 +34,10 @@ export interface DataSource {
     method: string,
     call?: CallOptions,
   ): Promise<EntrypointSignature>;
+  /** Every model of the connected Odoo (overview). */
+  listModels(call?: CallOptions): Promise<ModelList>;
+  /** One model with its fields; 404 as AppError for unknown models. */
+  describeModel(model: string, call?: CallOptions): Promise<ModelDetail>;
   listTraces(query?: TraceListQuery, call?: CallOptions): Promise<TracePage>;
   getTrace(traceId: string, call?: CallOptions): Promise<Trace>;
   /** Resolves once the run is recorded (status succeeded or failed). */

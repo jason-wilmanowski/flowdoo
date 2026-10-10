@@ -2,6 +2,8 @@ import { request, type FetchLike } from "@/api/http";
 import type {
   EntrypointSignature,
   HealthResponse,
+  ModelDetail,
+  ModelList,
   OdooConnectionStatus,
   StartTraceCommand,
   TraceDetail,
@@ -50,6 +52,11 @@ export function createApiClient(options: ApiClientOptions = {}) {
         `odoo/entrypoints/${encodeURIComponent(model)}/${encodeURIComponent(method)}`,
         call,
       ),
+
+    listModels: (call?: CallOptions) => get<ModelList>("odoo/models", call),
+
+    describeModel: (model: string, call?: CallOptions) =>
+      get<ModelDetail>(`odoo/models/${encodeURIComponent(model)}`, call),
 
     listTraces: (query: TraceListQuery = {}, call?: CallOptions) =>
       get<TracePage>("traces", { ...call, query }),
