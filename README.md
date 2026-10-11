@@ -38,7 +38,7 @@ flowchart LR
         API["api<br/>FastAPI"]
         DB[("db<br/>PostgreSQL<br/>database flow_tracer")]
     end
-    subgraph yours["Your existing Odoo 19 (dev database)"]
+    subgraph yours["Your existing Odoo 19"]
         ODOO["Odoo + flow_tracer addon"]
     end
     Browser((Browser)) --> FE
@@ -93,6 +93,7 @@ stuck in `running`.
 │   ├── src/flow_tracer_api/
 │   │   ├── main.py          # entrypoint: app factory, CORS, routers
 │   │   ├── api/             # routes and dependency injection
+│   │   ├── assets/          # logo, favicon, external images
 │   │   ├── services/        # business logic, transactions, ports
 │   │   ├── repositories/    # database access (only place with queries)
 │   │   ├── integrations/    # clients for external systems (Odoo JSON-2)
@@ -307,7 +308,3 @@ Every pull request runs:
 | backend generated types | regenerated from `shared/schemas`, no diff |
 | frontend | lint (ESLint, stylelint, Prettier), typecheck, Vitest, build |
 | frontend generated types | regenerated from `shared/schemas` and the backend's OpenAPI, no diff |
-
-## License
-
-No license has been chosen yet.
