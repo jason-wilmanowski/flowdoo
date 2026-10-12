@@ -20,8 +20,11 @@ from flow_tracer_api.services import (
     TraceNotFoundError,
     TraceService,
 )
-from flow_tracer_api.services.payload_validation import SCHEMA_VERSION, SchemaPayloadValidator
-from flow_tracer_api.services.ports import OdooGateway, OdooGatewayError
+from flow_tracer_api.services.common.payload_validation import (
+    SCHEMA_VERSION,
+    SchemaPayloadValidator,
+)
+from flow_tracer_api.services.common.ports import OdooGateway, OdooGatewayError
 from tests.fixtures import load_fixture
 from tests.unit.fakes import (
     FIXED_NOW,

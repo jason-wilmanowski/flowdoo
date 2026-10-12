@@ -9,7 +9,7 @@ from flow_tracer_api.integrations.odoo import (
     OdooDatabaseNotFoundError,
 )
 from flow_tracer_api.schemas import OdooConnectionStatus
-from flow_tracer_api.services.ports import OdooClient
+from flow_tracer_api.services.common.ports import OdooClient
 
 SUPPORTED_ODOO_SERIE = "19.0"
 ADDON_NAME = "flow_tracer"

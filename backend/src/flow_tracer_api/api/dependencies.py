@@ -15,10 +15,10 @@ from flow_tracer_api.core.config import Settings, get_settings
 from flow_tracer_api.core.dependencies import SessionDep
 from flow_tracer_api.integrations.odoo import FlowTracerGateway, OdooJson2Client
 from flow_tracer_api.services import TraceService
+from flow_tracer_api.services.common.payload_validation import SchemaPayloadValidator
+from flow_tracer_api.services.common.ports import OdooGateway, TracePayloadValidator
 from flow_tracer_api.services.entrypoint_service import EntrypointService
 from flow_tracer_api.services.odoo_connection_service import OdooConnectionService
-from flow_tracer_api.services.payload_validation import SchemaPayloadValidator
-from flow_tracer_api.services.ports import OdooGateway, TracePayloadValidator
 from flow_tracer_api.services.registry_service import RegistryService
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]

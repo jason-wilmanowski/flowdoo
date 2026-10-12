@@ -9,7 +9,7 @@ from flow_tracer_api.core.config import get_settings
 from flow_tracer_api.integrations.odoo import OdooCallError, OdooClientError, OdooUnreachableError
 from flow_tracer_api.main import create_app
 from flow_tracer_api.services import ModelLookupError, OdooGatewayUnavailableError, OdooRequestError
-from flow_tracer_api.services.ports import OdooClient
+from flow_tracer_api.services.common.ports import OdooClient
 from flow_tracer_api.services.registry_service import RegistryService
 from tests.unit.test_odoo_connection_service import FakeOdooClient
 from tests.unit.test_odoo_status_api import CONFIGURED, _settings

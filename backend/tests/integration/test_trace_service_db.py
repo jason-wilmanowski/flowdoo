@@ -8,8 +8,11 @@ from flow_tracer_api.domain import TraceStatus
 from flow_tracer_api.models import Trace
 from flow_tracer_api.schemas import GatewayResult, StartTraceCommand, TraceListQuery
 from flow_tracer_api.services import TraceService
-from flow_tracer_api.services.payload_validation import SCHEMA_VERSION, SchemaPayloadValidator
-from flow_tracer_api.services.ports import OdooGatewayError
+from flow_tracer_api.services.common.payload_validation import (
+    SCHEMA_VERSION,
+    SchemaPayloadValidator,
+)
+from flow_tracer_api.services.common.ports import OdooGatewayError
 from tests.fixtures import load_fixture
 from tests.unit.fakes import FakeOdooGateway, answer_for
 

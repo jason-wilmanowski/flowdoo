@@ -10,8 +10,8 @@ from flow_tracer_api.integrations.odoo import (
     OdooUnreachableError,
 )
 from flow_tracer_api.schemas import OdooConnectionStatus, OdooVersionInfo
+from flow_tracer_api.services.common.ports import OdooClient
 from flow_tracer_api.services.odoo_connection_service import OdooConnectionService, _Findings
-from flow_tracer_api.services.ports import OdooClient
 
 
 class FakeOdooClient:

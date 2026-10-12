@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 from flow_tracer_api.generated.trace_schema import Step, TracePayload
 from flow_tracer_api.schemas import ValidatedPayload
-from flow_tracer_api.services.ports import PayloadValidationError
+from flow_tracer_api.services.common.ports import PayloadValidationError
 
 _MAX_REPORTED_ERRORS = 5
 

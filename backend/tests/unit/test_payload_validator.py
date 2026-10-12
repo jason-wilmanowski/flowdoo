@@ -5,8 +5,11 @@ from typing import Any
 import jsonschema
 import pytest
 
-from flow_tracer_api.services.payload_validation import SCHEMA_VERSION, SchemaPayloadValidator
-from flow_tracer_api.services.ports import PayloadValidationError
+from flow_tracer_api.services.common.payload_validation import (
+    SCHEMA_VERSION,
+    SchemaPayloadValidator,
+)
+from flow_tracer_api.services.common.ports import PayloadValidationError
 from tests.fixtures import FIXTURE_NAMES, load_fixture, load_schema
 
 
