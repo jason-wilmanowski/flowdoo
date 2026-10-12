@@ -9,8 +9,8 @@ from flow_tracer_api.integrations.odoo import (
     OdooDatabaseNotFoundError,
     OdooUnreachableError,
 )
-from flow_tracer_api.schemas import OdooVersionInfo
-from flow_tracer_api.services.odoo_connection_service import OdooConnectionService
+from flow_tracer_api.schemas import OdooConnectionStatus, OdooVersionInfo
+from flow_tracer_api.services.odoo_connection_service import OdooConnectionService, _Findings
 from flow_tracer_api.services.ports import OdooClient
 
 
@@ -259,3 +259,254 @@ async def test_neutralisation_check_failure_is_a_warning() -> None:
     assert status.warnings == [
         f"Could not check whether the database is neutralised: {error.message}"
     ]
+
+
+# The single checks, each on its own: what it records, what it reports, whether the later
+# checks can still run, and that it asks Odoo only what it needs.
+
+
+def _service(client: FakeOdooClient, **kwargs: Any) -> OdooConnectionService:
+    return OdooConnectionService(client, url="http://odoo:8069", database="dev", **kwargs)
+
+
+def _findings(**facts: Any) -> _Findings:
+    return _Findings(OdooConnectionStatus(configured=True, **facts))
+
+
+def test_findings_record_facts_on_the_frozen_status() -> None:
+    findings = _findings()
+    before = findings.status
+
+    findings.record(reachable=True, server_version="19.0")
+
+    assert findings.status.reachable is True
+    assert findings.status.server_version == "19.0"
+    assert before.reachable is False  # replaced, not changed
+
+
+@pytest.mark.parametrize(
+    ("problems", "ok"),
+    [([], True), (["something is wrong"], False)],
+)
+def test_findings_result_is_ok_only_without_problems(problems: list[str], ok: bool) -> None:
+    findings = _findings(reachable=True)
+    findings.problems.extend(problems)
+    findings.warnings.append("just so you know")
+
+    status = findings.result()
+
+    assert status.ok is ok
+    assert status.reachable is True
+    assert status.problems == problems
+    assert status.warnings == ["just so you know"]
+
+
+def test_not_configured_status_names_the_settings() -> None:
+    status = OdooConnectionService._not_configured()
+
+    assert status.configured is False
+    assert status.ok is False
+    assert status.problems == [
+        "Odoo connection is not configured: set ODOO_URL, ODOO_DB and ODOO_API_KEY"
+    ]
+
+
+async def test_check_server_records_a_supported_version() -> None:
+    client = FakeOdooClient()
+    findings = _findings()
+
+    assert await _service(client)._check_server(client, findings) is True
+    assert findings.status.reachable is True
+    assert findings.status.server_version == "19.0-20260926"
+    assert findings.status.version_supported is True
+    assert findings.problems == []
+    assert client.calls == []  # the version needs no database call
+
+
+async def test_check_server_goes_on_after_an_unsupported_version() -> None:
+    client = FakeOdooClient(serie="18.0")
+    findings = _findings()
+
+    assert await _service(client)._check_server(client, findings) is True
+    assert findings.status.version_supported is False
+    assert findings.problems == [
+        "Odoo 18.0 is not supported; Odoo Flow Tracer only works with Odoo 19.0"
+    ]
+
+
+async def test_check_server_stops_when_unreachable() -> None:
+    client = FakeOdooClient(version_error=OdooUnreachableError("Cannot reach Odoo: ConnectError"))
+    findings = _findings()
+
+    assert await _service(client)._check_server(client, findings) is False
+    assert findings.status.reachable is False
+    assert findings.problems == ["Cannot reach Odoo: ConnectError"]
+
+
+async def test_fetch_login_reads_the_key_user() -> None:
+    client = FakeOdooClient(login="demo")
+
+    assert await OdooConnectionService._fetch_login(client) == "demo"
+    assert client.calls == [("res.users", "context_get"), ("res.users", "read")]
+
+
+@pytest.mark.parametrize("expected_login", [None, "admin"])
+async def test_check_user_records_the_login(expected_login: str | None) -> None:
+    client = FakeOdooClient(login="admin")
+    findings = _findings()
+
+    service = _service(client, expected_login=expected_login)
+    assert await service._check_user(client, findings) is True
+    assert findings.status.authenticated is True
+    assert findings.status.user_login == "admin"
+    assert findings.problems == []
+
+
+async def test_check_user_goes_on_after_a_login_mismatch() -> None:
+    client = FakeOdooClient(login="demo")
+    findings = _findings()
+
+    assert await _service(client, expected_login="admin")._check_user(client, findings) is True
+    assert findings.problems == ["The API key belongs to 'demo', but ODOO_LOGIN is 'admin'"]
+
+
+@pytest.mark.parametrize(
+    ("error", "problem"),
+    [
+        (
+            OdooAuthenticationError("Odoo rejected the API key: Invalid apikey"),
+            "Odoo rejected the API key: Invalid apikey",
+        ),
+        (
+            OdooDatabaseNotFoundError("Odoo does not serve database 'dev'"),
+            "Odoo does not serve database 'dev'",
+        ),
+        (
+            OdooCallError("res.users.context_get failed with HTTP 500: boom"),
+            "Could not identify the API key's user: "
+            "res.users.context_get failed with HTTP 500: boom",
+        ),
+    ],
+)
+async def test_check_user_stops_when_the_user_is_unknown(
+    error: OdooClientError, problem: str
+) -> None:
+    client = FakeOdooClient(call_errors={"res.users.context_get": error})
+    findings = _findings()
+
+    assert await _service(client)._check_user(client, findings) is False
+    assert findings.status.authenticated is False
+    assert findings.problems == [problem]
+
+
+async def test_check_addon_records_an_installed_addon() -> None:
+    client = FakeOdooClient()
+    findings = _findings()
+
+    assert await _service(client)._check_addon(client, findings) is True
+    assert findings.status.addon_state == "installed"
+    assert findings.status.addon_installed is True
+    assert findings.problems == []
+
+
+@pytest.mark.parametrize(
+    ("addon_state", "problem"),
+    [
+        (
+            None,
+            "The flow_tracer addon is not available in this Odoo: add "
+            "odoo-addons/flow_tracer to the addons path and install it",
+        ),
+        ("uninstalled", "The flow_tracer addon is not installed (state: uninstalled)"),
+    ],
+)
+async def test_check_addon_goes_on_when_not_installed(
+    addon_state: str | None, problem: str
+) -> None:
+    client = FakeOdooClient(addon_state=addon_state)
+    findings = _findings()
+
+    assert await _service(client)._check_addon(client, findings) is True
+    assert findings.status.addon_state == addon_state
+    assert findings.status.addon_installed is False
+    assert findings.problems == [problem]
+
+
+async def test_check_addon_stops_when_the_query_fails() -> None:
+    error = OdooCallError("ir.module.module.search_read failed with HTTP 403: Access Denied")
+    client = FakeOdooClient(call_errors={"ir.module.module.search_read": error})
+    findings = _findings()
+
+    assert await _service(client)._check_addon(client, findings) is False
+    assert findings.problems == [f"Could not check the flow_tracer addon: {error.message}"]
+
+
+async def test_check_addon_status_is_skipped_without_the_addon() -> None:
+    client = FakeOdooClient()
+    findings = _findings(addon_installed=False)
+
+    assert await _service(client)._check_addon_status(client, findings) is True
+    assert client.calls == []
+    assert findings.problems == []
+
+
+async def test_check_addon_status_records_switch_recorder_and_rights() -> None:
+    client = FakeOdooClient()
+    findings = _findings(addon_installed=True)
+
+    assert await _service(client)._check_addon_status(client, findings) is True
+    assert client.calls == [("POST", "/flow_tracer/v1/status")]
+    assert findings.status.tracing_enabled is True
+    assert findings.status.recorder_available is True
+    assert findings.status.user_is_admin is True
+    assert findings.problems == []
+
+
+async def test_check_addon_status_reports_every_missing_part() -> None:
+    client = FakeOdooClient(addon_status={"enabled": False})  # nothing else answered either
+    findings = _findings(addon_installed=True)
+
+    assert await _service(client)._check_addon_status(client, findings) is True
+    assert findings.status.tracing_enabled is False
+    assert findings.status.recorder_available is False
+    assert findings.status.user_is_admin is False
+    assert len(findings.problems) == 3
+
+
+async def test_check_addon_status_stops_when_unreadable() -> None:
+    error = OdooCallError("flow_tracer status failed with HTTP 404: no details")
+    client = FakeOdooClient(call_errors={"/flow_tracer/v1/status": error})
+    findings = _findings(addon_installed=True)
+
+    assert await _service(client)._check_addon_status(client, findings) is False
+    assert findings.problems == [f"Could not read the flow_tracer status: {error.message}"]
+
+
+@pytest.mark.parametrize(
+    ("neutralized", "warnings"),
+    [
+        (True, 0),
+        (False, 1),
+    ],
+)
+async def test_check_neutralization_only_warns(neutralized: bool, warnings: int) -> None:
+    client = FakeOdooClient(neutralized=neutralized)
+    findings = _findings()
+
+    assert await _service(client)._check_neutralization(client, findings) is True
+    assert findings.status.database_neutralized is neutralized
+    assert len(findings.warnings) == warnings
+    assert findings.problems == []
+
+
+async def test_check_neutralization_warns_when_it_cannot_tell() -> None:
+    error = OdooCallError("ir.ui.view.search_count failed with HTTP 403: Access Denied")
+    client = FakeOdooClient(call_errors={"ir.ui.view.search_count": error})
+    findings = _findings()
+
+    assert await _service(client)._check_neutralization(client, findings) is True
+    assert findings.status.database_neutralized is None
+    assert findings.warnings == [
+        f"Could not check whether the database is neutralised: {error.message}"
+    ]
+    assert findings.problems == []
