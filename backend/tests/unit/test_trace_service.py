@@ -24,7 +24,11 @@ from flow_tracer_api.services.common.payload_validation import (
     SCHEMA_VERSION,
     SchemaPayloadValidator,
 )
-from flow_tracer_api.services.common.ports import OdooGateway, OdooGatewayError
+from flow_tracer_api.services.common.ports import (
+    OdooGateway,
+    OdooGatewayError,
+    PayloadValidationError,
+)
 from tests.fixtures import load_fixture
 from tests.unit.fakes import (
     FIXED_NOW,
@@ -306,3 +310,177 @@ async def test_kwargs_and_model_level_calls_reach_the_gateway() -> None:
     assert request.call_kwargs == {"name": "Grace Hopper"}
     assert result.payload is not None
     assert result.payload["entrypoint"]["kwargs"] == {"name": "Grace Hopper"}
+
+
+# The steps of start_trace, each on its own.
+
+REQUEST = TraceRequest(
+    trace_id=uuid.UUID("11111111-1111-1111-1111-111111111111"),
+    model="sale.order",
+    method="action_confirm",
+    record_ids=(7,),
+    context={"lang": "en_US"},
+)
+
+
+def _service_without_gateway(session: FakeSession) -> TraceService:
+    return TraceService(
+        cast(AsyncSession, session),
+        None,
+        SchemaPayloadValidator(),
+        trace_repository=FakeTraceRepository(session),
+    )
+
+
+async def _running(session: FakeSession) -> uuid.UUID:
+    """A trace stored as running, as _record finds it."""
+    return await _service(session, FakeOdooGateway())._create_running_trace(CONFIRM)
+
+
+@pytest.mark.parametrize(
+    ("dry_run", "allow_non_dry_run"),
+    [(True, False), (True, True), (False, True)],
+)
+def test_ensure_dry_run_allowed_lets_allowed_runs_pass(
+    dry_run: bool, allow_non_dry_run: bool
+) -> None:
+    service = _service(FakeSession(), FakeOdooGateway(), allow_non_dry_run=allow_non_dry_run)
+
+    service._ensure_dry_run_allowed(CONFIRM.model_copy(update={"dry_run": dry_run}))
+
+
+def test_ensure_dry_run_allowed_refuses_a_non_dry_run_by_default() -> None:
+    service = _service(FakeSession(), FakeOdooGateway())
+
+    with pytest.raises(NonDryRunNotAllowedError) as exc_info:
+        service._ensure_dry_run_allowed(CONFIRM.model_copy(update={"dry_run": False}))
+
+    assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
+
+
+def test_require_gateway_returns_the_configured_one() -> None:
+    gateway = FakeOdooGateway()
+
+    assert _service(FakeSession(), gateway)._require_gateway() is gateway
+
+
+def test_require_gateway_is_unavailable_without_a_connection() -> None:
+    with pytest.raises(OdooGatewayUnavailableError) as exc_info:
+        _service_without_gateway(FakeSession())._require_gateway()
+
+    assert exc_info.value.status_code == HTTPStatus.SERVICE_UNAVAILABLE
+
+
+async def test_create_running_trace_commits_it() -> None:
+    session = FakeSession()
+
+    trace_id = await _running(session)
+
+    assert session.commits == 1
+    row = session.committed[trace_id]
+    assert row.status is TraceStatus.RUNNING
+    assert (row.entrypoint_model, row.entrypoint_method) == ("sale.order", "action_confirm")
+    assert row.dry_run is True
+    assert row.started_at == FIXED_NOW
+
+
+def test_trace_request_carries_the_command() -> None:
+    trace_id = uuid.uuid4()
+    command = CONFIRM.model_copy(update={"call_kwargs": {"force": True}, "dry_run": False})
+
+    request = TraceService._trace_request(trace_id, command)
+
+    assert request == TraceRequest(
+        trace_id=trace_id,
+        model="sale.order",
+        method="action_confirm",
+        record_ids=(7,),
+        context={"lang": "en_US"},
+        call_kwargs={"force": True},
+        dry_run=False,
+    )
+
+
+async def test_run_in_odoo_returns_the_validated_answer() -> None:
+    gateway = FakeOdooGateway()
+
+    result, validated = await _service(FakeSession(), gateway)._run_in_odoo(gateway, REQUEST)
+
+    assert gateway.requests == [REQUEST]
+    assert result.odoo_version == "19.0"
+    assert validated.schema_version == SCHEMA_VERSION
+    assert validated.payload["trace_id"] == str(REQUEST.trace_id)
+
+
+async def test_run_in_odoo_lets_gateway_errors_through() -> None:
+    gateway = FakeOdooGateway(error=OdooGatewayError("Odoo is down"))
+
+    with pytest.raises(OdooGatewayError):
+        await _service(FakeSession(), gateway)._run_in_odoo(gateway, REQUEST)
+
+
+async def test_run_in_odoo_refuses_an_answer_for_another_run() -> None:
+    gateway = FakeOdooGateway(echo_request=False)  # the fixture's own trace_id
+
+    with pytest.raises(PayloadValidationError, match="Recorder answered for a different run"):
+        await _service(FakeSession(), gateway)._run_in_odoo(gateway, REQUEST)
+
+
+async def test_record_stores_a_success() -> None:
+    session = FakeSession()
+    trace_id = await _running(session)
+    gateway = FakeOdooGateway()
+    request = REQUEST.model_copy(update={"trace_id": trace_id})
+
+    detail = await _service(session, gateway)._record(gateway, request)
+
+    assert detail.status is TraceStatus.SUCCEEDED
+    assert detail.payload is not None
+    assert detail.odoo_version == "19.0"
+    assert session.committed[trace_id].status is TraceStatus.SUCCEEDED
+
+
+async def test_record_stores_a_gateway_failure() -> None:
+    session = FakeSession()
+    trace_id = await _running(session)
+    gateway = FakeOdooGateway(error=OdooGatewayError("Odoo is down"))
+    request = REQUEST.model_copy(update={"trace_id": trace_id})
+
+    detail = await _service(session, gateway)._record(gateway, request)
+
+    assert detail.status is TraceStatus.FAILED
+    assert detail.error == "Odoo is down"
+    assert session.committed[trace_id].status is TraceStatus.FAILED
+
+
+async def test_record_stores_an_unexpected_failure_and_raises() -> None:
+    session = FakeSession()
+    trace_id = await _running(session)
+    gateway = FakeOdooGateway(error=KeyError("bug"))
+    request = REQUEST.model_copy(update={"trace_id": trace_id})
+
+    with pytest.raises(KeyError):
+        await _service(session, gateway)._record(gateway, request)
+
+    assert session.committed[trace_id].status is TraceStatus.FAILED
+    assert session.committed[trace_id].error == "Internal error while recording"
+
+
+def test_check_answers_request_accepts_the_matching_answer() -> None:
+    payload = answer_for(REQUEST, load_fixture("trace-small"))
+
+    TraceService._check_answers_request(REQUEST, payload)
+
+
+def test_check_answers_request_names_every_mismatch() -> None:
+    payload = answer_for(REQUEST, load_fixture("trace-small"))
+    payload["dry_run"] = False
+    payload["entrypoint"]["method"] = "action_cancel"
+
+    with pytest.raises(PayloadValidationError) as exc_info:
+        TraceService._check_answers_request(REQUEST, payload)
+
+    message = str(exc_info.value)
+    assert "dry_run=False (expected True)" in message
+    assert "entrypoint.method='action_cancel' (expected 'action_confirm')" in message
+    assert "trace_id" not in message
