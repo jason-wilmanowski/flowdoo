@@ -101,3 +101,24 @@ name = "domain is self-contained"
 type = "forbidden"
 source_modules = ["flow_tracer_api.domain"]
 forbidden_modules = ["flow_tracer_api.core"]
+
+[[tool.importlinter.contracts]]
+name = "services do not call each other"
+type = "independence"
+modules = [
+    "flow_tracer_api.services.entrypoint_service",
+    "flow_tracer_api.services.odoo_connection_service",
+    "flow_tracer_api.services.registry_service",
+    "flow_tracer_api.services.trace_service",
+]
+
+[[tool.importlinter.contracts]]
+name = "services.common is shared by the services and never uses one"
+type = "forbidden"
+source_modules = ["flow_tracer_api.services.common"]
+forbidden_modules = [
+    "flow_tracer_api.services.entrypoint_service",
+    "flow_tracer_api.services.odoo_connection_service",
+    "flow_tracer_api.services.registry_service",
+    "flow_tracer_api.services.trace_service",
+]
