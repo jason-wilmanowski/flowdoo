@@ -9,8 +9,8 @@ from flow_tracer_api.services import (
     OdooGatewayUnavailableError,
     OdooRequestError,
 )
+from flow_tracer_api.services.common.ports import OdooClient
 from flow_tracer_api.services.entrypoint_service import EntrypointService
-from flow_tracer_api.services.ports import OdooClient
 from tests.unit.test_odoo_connection_service import FakeOdooClient
 
 SIGNATURE = {

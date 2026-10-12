@@ -13,7 +13,7 @@ from flow_tracer_api.integrations.odoo import (
     OdooUnreachableError,
 )
 from flow_tracer_api.schemas import TraceRequest
-from flow_tracer_api.services.ports import OdooGateway, OdooGatewayError
+from flow_tracer_api.services.common.ports import OdooGateway, OdooGatewayError
 from tests.fixtures import load_fixture
 
 REQUEST = TraceRequest(

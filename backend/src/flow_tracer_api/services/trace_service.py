@@ -21,12 +21,12 @@ from flow_tracer_api.schemas import (
     TraceSummary,
     TraceUpdate,
 )
-from flow_tracer_api.services.errors import (
+from flow_tracer_api.services.common.errors import (
     NonDryRunNotAllowedError,
     OdooGatewayUnavailableError,
     TraceNotFoundError,
 )
-from flow_tracer_api.services.ports import (
+from flow_tracer_api.services.common.ports import (
     OdooGateway,
     OdooGatewayError,
     PayloadValidationError,

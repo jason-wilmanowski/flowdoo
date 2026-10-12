@@ -1,9 +1,9 @@
 """The model registry of the connected Odoo, for the overview (flow_tracer addon)."""
 
 from flow_tracer_api.schemas import ModelDetail, ModelList
-from flow_tracer_api.services.addon_calls import ask_addon
-from flow_tracer_api.services.errors import ModelLookupError
-from flow_tracer_api.services.ports import OdooClient
+from flow_tracer_api.services.common.addon_calls import ask_addon
+from flow_tracer_api.services.common.errors import ModelLookupError
+from flow_tracer_api.services.common.ports import OdooClient
 
 MODELS_ROUTE = "/flow_tracer/v1/models"
 MODEL_ROUTE = "/flow_tracer/v1/model"

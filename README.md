@@ -94,7 +94,8 @@ stuck in `running`.
 │   │   ├── main.py          # entrypoint: app factory, CORS, routers
 │   │   ├── api/             # routes and dependency injection
 │   │   ├── assets/          # logo, favicon, external images
-│   │   ├── services/        # business logic, transactions, ports
+│   │   ├── services/        # one service class per workflow; they never import each other
+│   │   │   └── common/      # what the services share: ports, errors, addon calls, validation
 │   │   ├── repositories/    # database access (only place with queries)
 │   │   ├── integrations/    # clients for external systems (Odoo JSON-2)
 │   │   ├── models/          # SQLAlchemy ORM models

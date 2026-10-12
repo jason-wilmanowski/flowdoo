@@ -1,9 +1,9 @@
 """Describe an entrypoint before tracing it (flow_tracer addon, /flow_tracer/v1/signature)."""
 
 from flow_tracer_api.schemas import EntrypointSignature
-from flow_tracer_api.services.addon_calls import ask_addon
-from flow_tracer_api.services.errors import EntrypointLookupError
-from flow_tracer_api.services.ports import OdooClient
+from flow_tracer_api.services.common.addon_calls import ask_addon
+from flow_tracer_api.services.common.errors import EntrypointLookupError
+from flow_tracer_api.services.common.ports import OdooClient
 
 SIGNATURE_ROUTE = "/flow_tracer/v1/signature"
 

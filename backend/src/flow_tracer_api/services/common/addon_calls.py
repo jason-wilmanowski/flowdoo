@@ -6,12 +6,12 @@ from typing import Any
 from pydantic import BaseModel, ValidationError
 
 from flow_tracer_api.integrations.odoo import OdooCallError, OdooClientError
-from flow_tracer_api.services.errors import (
+from flow_tracer_api.services.common.errors import (
     OdooGatewayUnavailableError,
     OdooRequestError,
     ServiceError,
 )
-from flow_tracer_api.services.ports import OdooClient
+from flow_tracer_api.services.common.ports import OdooClient
 
 # Odoo answers that are about the request itself and are passed on as they are.
 PASSED_ON = {HTTPStatus.BAD_REQUEST, HTTPStatus.FORBIDDEN, HTTPStatus.NOT_FOUND}

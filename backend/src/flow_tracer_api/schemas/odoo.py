@@ -1,4 +1,4 @@
-"""Data exchanged with the Odoo gateway port (see ``services.ports.OdooGateway``)."""
+"""Data exchanged with the Odoo gateway port (see ``services.common.ports.OdooGateway``)."""
 
 import uuid
 from typing import Any

@@ -9,7 +9,10 @@ from flow_tracer_api.domain import TraceStatus
 from flow_tracer_api.integrations.odoo import FlowTracerGateway, OdooJson2Client
 from flow_tracer_api.schemas import StartTraceCommand
 from flow_tracer_api.services import TraceService
-from flow_tracer_api.services.payload_validation import SCHEMA_VERSION, SchemaPayloadValidator
+from flow_tracer_api.services.common.payload_validation import (
+    SCHEMA_VERSION,
+    SchemaPayloadValidator,
+)
 
 pytestmark = [pytest.mark.integration, pytest.mark.odoo]
 

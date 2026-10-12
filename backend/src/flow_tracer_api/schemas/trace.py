@@ -59,7 +59,7 @@ class TraceSummary(BaseModel):
 
 
 class TraceDetail(TraceSummary):
-    # Opaque until the trace schema exists (see services.ports.TracePayloadValidator).
+    # Opaque until the trace schema exists (see services.common.ports.TracePayloadValidator).
     payload: dict[str, Any] | None
 
 

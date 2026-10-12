@@ -1,6 +1,6 @@
 """Service layer: business rules and transaction boundaries. Returns DTOs only."""
 
-from flow_tracer_api.services.errors import (
+from flow_tracer_api.services.common.errors import (
     EntrypointLookupError,
     ModelLookupError,
     NonDryRunNotAllowedError,

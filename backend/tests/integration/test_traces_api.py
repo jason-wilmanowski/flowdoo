@@ -18,8 +18,8 @@ from flow_tracer_api.core.config import Settings, get_settings
 from flow_tracer_api.core.dependencies import get_session_factory
 from flow_tracer_api.main import create_app
 from flow_tracer_api.schemas import GatewayResult
-from flow_tracer_api.services.payload_validation import SCHEMA_VERSION
-from flow_tracer_api.services.ports import OdooGateway, OdooGatewayError
+from flow_tracer_api.services.common.payload_validation import SCHEMA_VERSION
+from flow_tracer_api.services.common.ports import OdooGateway, OdooGatewayError
 from tests.fixtures import load_fixture
 from tests.settings import make_settings
 from tests.unit.fakes import FakeOdooGateway, answer_for
