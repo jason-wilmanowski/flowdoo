@@ -72,6 +72,12 @@ async function openDialog() {
 }
 
 describe("start trace dialog", () => {
+  // The trace view is a lazy route (React Flow). Load its module once up front, so a test
+  // that opens a trace waits for rendering only, not for the import on a slow CI runner.
+  beforeAll(async () => {
+    await import("@/features/traceView/TraceViewPage");
+  }, 30000);
+
   afterEach(() => {
     localStorage.clear();
   });
@@ -99,22 +105,27 @@ describe("start trace dialog", () => {
     );
   });
 
-  // Skipped for now: waiting for the lazy trace view (React Flow) is too slow on CI
-  // runners. To be reworked later.
-  it.skip("looks up the method and records a dry run, then opens the trace", async () => {
-    const dialog = await openDialog();
-    await userEvent.type(within(dialog).getByRole("textbox", { name: "Model" }), "sale.order");
-    await userEvent.type(within(dialog).getByRole("textbox", { name: "Method" }), "action_confirm");
-    expect(await within(dialog).findByText(/called on records/)).toBeInTheDocument();
-    await userEvent.type(within(dialog).getByRole("textbox", { name: "Record IDs" }), "1");
+  // longer than the wait below, so that wait can actually run out on a slow runner
+  it(
+    "looks up the method and records a dry run, then opens the trace",
+    { timeout: 15000 },
+    async () => {
+      const dialog = await openDialog();
+      await userEvent.type(within(dialog).getByRole("textbox", { name: "Model" }), "sale.order");
+      await userEvent.type(
+        within(dialog).getByRole("textbox", { name: "Method" }),
+        "action_confirm",
+      );
+      expect(await within(dialog).findByText(/called on records/)).toBeInTheDocument();
+      await userEvent.type(within(dialog).getByRole("textbox", { name: "Record IDs" }), "1");
 
-    await userEvent.click(within(dialog).getByRole("button", { name: "Start dry run" }));
-    // the trace view is a lazy route (React Flow): loading it takes a while on CI runners
-    expect(
-      await screen.findByRole("region", { name: "Calls" }, { timeout: 5000 }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  });
+      await userEvent.click(within(dialog).getByRole("button", { name: "Start dry run" }));
+      expect(
+        await screen.findByRole("region", { name: "Calls" }, { timeout: 5000 }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    },
+  );
 
   it("explains an unknown method", async () => {
     const dialog = await openDialog();
