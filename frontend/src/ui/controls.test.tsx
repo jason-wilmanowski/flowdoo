@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Copy } from "lucide-react";
+import { Copy, Network } from "lucide-react";
 
 import { Badge } from "./Badge";
 import { Button } from "./Button";
@@ -115,5 +115,15 @@ describe("Badge, Kbd, Spinner, Skeleton, EmptyState", () => {
     );
     expect(screen.getByRole("alert")).toHaveTextContent("API unreachable.");
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+
+  it("shows an icon only when given one, kept out of the accessibility tree", () => {
+    const { container, rerender } = render(<EmptyState message="Nothing here." />);
+    expect(container.querySelector("svg")).toBeNull();
+
+    rerender(<EmptyState fill icon={Network} message="Select a model." />);
+    expect(screen.getByText("Select a model.")).toBeInTheDocument();
+    expect(container.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
 });

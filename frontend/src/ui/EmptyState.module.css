@@ -15,3 +15,22 @@
   color: var(--danger);
   line-height: var(--leading-prose);
 }
+
+/* a pane with nothing to show yet: the message in the middle, a size larger */
+.fill {
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: var(--space-6);
+  text-align: center;
+}
+
+.fill .message {
+  max-width: 36ch;
+  font-size: var(--text-lg);
+}
+
+.icon {
+  color: var(--text-subtle);
+}
