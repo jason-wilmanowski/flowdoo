@@ -59,6 +59,13 @@
   overflow-wrap: anywhere;
 }
 
+/* the facts and what to do with the trace, closer together than the rest */
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
 .facts {
   display: flex;
   flex-direction: column;
