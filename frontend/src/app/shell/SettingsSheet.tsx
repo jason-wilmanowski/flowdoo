@@ -44,7 +44,7 @@ const yesNo = (value: boolean) => (value ? "yes" : "no");
 type CheckOutcome = "ok" | "failed";
 
 /** How long a check result stays, and how long it takes to fade (the motion duration). */
-const RESULT_SHOWN_MS = 3000;
+const RESULT_SHOWN_MS = 2000;
 const RESULT_LEAVING_MS = 120;
 
 interface ShownResult {

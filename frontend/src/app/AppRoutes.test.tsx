@@ -122,9 +122,9 @@ describe("app shell", () => {
       await user.click(within(sheet).getByRole("button", { name: "Check again" }));
       expect(await within(result).findByText("Connection works")).toBeInTheDocument();
 
-      // it stays for three seconds, then fades and goes
+      // it stays for two seconds, then fades and goes
       act(() => {
-        vi.advanceTimersByTime(2900);
+        vi.advanceTimersByTime(1900);
       });
       expect(within(result).getByText("Connection works")).toBeInTheDocument();
       act(() => {
