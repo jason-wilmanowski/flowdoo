@@ -17,20 +17,19 @@ def _registry_classes(env) -> dict[type, str]:
 
 def _layers(env, model: str, registry_classes: dict[type, str]) -> tuple[list[str], list[str]]:
     """Modules that define or extend ``model`` (most derived first, the defining one last)
-    and the other models it inherits from (mixins, parents), in MRO order."""
-    mro = type(env[model]).__mro__
+    and the other models it inherits from (mixins, parents), in MRO order.
+
+    A mixin that an extension adds sits between the model's own layers in the MRO, so a
+    layer is recognised by its own ``_name``, not by coming before the first mixin."""
     modules: list[str] = []
     parents: list[str] = []
-    in_own_layers = True
-    for cls in mro[1:]:
+    for cls in type(env[model]).__mro__[1:]:
         name = registry_classes.get(cls)
         if name is not None:
-            in_own_layers = False
             # every model inherits from "base"; listing it would only add noise
             if name not in (model, "base"):
                 parents.append(name)
-            continue
-        if in_own_layers:
+        elif vars(cls).get("_name") == model:
             module = getattr(cls, "_module", None)
             if module and module not in modules:
                 modules.append(module)
@@ -88,7 +87,7 @@ def _field(field) -> dict:
         "name": field.name,
         "type": field.type,
         "string": field.string or None,
-        "module": getattr(field, "_module", None),
+        "module": _defining_module(field),
         "target": field.comodel_name if field.type in RELATIONAL else None,
         "inverse": getattr(field, "inverse_name", None) if field.type == "one2many" else None,
         "required": bool(field.required),
@@ -107,6 +106,13 @@ def _field(field) -> dict:
             else None
         ),
     }
+
+
+def _defining_module(field) -> str | None:
+    """The module that defined the field. ``_module`` is the last one that redefined it;
+    ``_modules`` lists them all, the defining one first (empty for the ORM's own fields)."""
+    modules = getattr(field, "_modules", ())
+    return modules[0] if modules else None
 
 
 def _name_of(compute) -> str | None:
