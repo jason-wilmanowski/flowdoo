@@ -109,6 +109,28 @@ describe("app shell", () => {
     expect(screen.getByRole("navigation", { name: "Main" })).toBeInTheDocument();
   });
 
+  it("answers Check again with the outcome, but only once it was clicked", async () => {
+    renderApp("/overview");
+    await userEvent.click(screen.getByRole("button", { name: "Settings (,)" }));
+    const sheet = await screen.findByRole("dialog", { name: "Settings" });
+    const result = within(sheet).getByRole("status");
+    expect(result).toBeEmptyDOMElement();
+
+    await userEvent.click(within(sheet).getByRole("button", { name: "Check again" }));
+    expect(await within(result).findByText("Connection works")).toBeInTheDocument();
+  });
+
+  it("says when Check again finds no working connection", async () => {
+    renderApp("/traces", "api");
+    await userEvent.click(screen.getByRole("button", { name: "Settings (,)" }));
+    const sheet = await screen.findByRole("dialog", { name: "Settings" });
+
+    await userEvent.click(within(sheet).getByRole("button", { name: "Check again" }));
+    expect(
+      await within(within(sheet).getByRole("status")).findByText("Connection has problems"),
+    ).toBeInTheDocument();
+  });
+
   it("switches and remembers the theme", async () => {
     document.documentElement.dataset.theme = "light";
     renderApp("/overview");

@@ -1,9 +1,9 @@
-import { RefreshCw } from "lucide-react";
-import type { ReactNode } from "react";
+import { CircleCheck, CircleX, RefreshCw } from "lucide-react";
+import { useState, type ReactNode } from "react";
 import { useStore } from "zustand";
 
 import { groupShortcuts } from "@/lib/shortcuts/registry";
-import { Button, Dialog, Kbd, SegmentedControl } from "@/ui";
+import { Button, Dialog, Icon, Kbd, SegmentedControl } from "@/ui";
 
 import { useDataSourceSwitch, useStores } from "../appContext";
 import { useRegisteredShortcuts } from "../shortcuts/shortcutContext";
@@ -41,12 +41,34 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 
 const yesNo = (value: boolean) => (value ? "yes" : "no");
 
+type CheckOutcome = "ok" | "failed";
+
+/** The answer to an explicit "Check again": slides out of the button, then settles. */
+function CheckResult({ outcome }: { outcome: CheckOutcome }) {
+  const ok = outcome === "ok";
+  return (
+    <span className={[styles.checkResult, ok ? styles.checkOk : styles.checkFailed].join(" ")}>
+      <Icon icon={ok ? CircleCheck : CircleX} />
+      {ok ? "Connection works" : "Connection has problems"}
+    </span>
+  );
+}
+
 function Connection() {
   const { connection } = useStores();
   const status = useStore(connection, (state) => state.status);
   const phase = useStore(connection, (state) => state.phase);
   const error = useStore(connection, (state) => state.error);
   const refresh = useStore(connection, (state) => state.refresh);
+  // only the result of a check the user asked for; a new check clears it until it is done
+  const [outcome, setOutcome] = useState<CheckOutcome | null>(null);
+
+  const checkAgain = async () => {
+    setOutcome(null);
+    await refresh();
+    const { phase: done, status: checked } = connection.getState();
+    setOutcome(done === "ready" && checked?.ok ? "ok" : "failed");
+  };
 
   return (
     <Section title="Connection">
@@ -79,16 +101,19 @@ function Connection() {
       ) : (
         <p className={styles.hint}>Checking…</p>
       )}
-      <Button
-        compact
-        icon={RefreshCw}
-        loading={phase === "loading"}
-        onClick={() => {
-          void refresh();
-        }}
-      >
-        Check again
-      </Button>
+      <div className={styles.check}>
+        <Button
+          compact
+          icon={RefreshCw}
+          loading={phase === "loading"}
+          onClick={() => {
+            void checkAgain();
+          }}
+        >
+          Check again
+        </Button>
+        <span role="status">{outcome ? <CheckResult outcome={outcome} /> : null}</span>
+      </div>
     </Section>
   );
 }
