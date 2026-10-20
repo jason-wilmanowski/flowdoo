@@ -48,7 +48,7 @@ function CheckResult({ outcome }: { outcome: CheckOutcome }) {
   const ok = outcome === "ok";
   return (
     <span className={[styles.checkResult, ok ? styles.checkOk : styles.checkFailed].join(" ")}>
-      <Icon icon={ok ? CircleCheck : CircleX} />
+      <Icon icon={ok ? CircleCheck : CircleX} compact />
       {ok ? "Connection works" : "Connection has problems"}
     </span>
   );
@@ -112,7 +112,9 @@ function Connection() {
         >
           Check again
         </Button>
-        <span role="status">{outcome ? <CheckResult outcome={outcome} /> : null}</span>
+        <span role="status" className={styles.checkStatus}>
+          {outcome ? <CheckResult outcome={outcome} /> : null}
+        </span>
       </div>
     </Section>
   );
