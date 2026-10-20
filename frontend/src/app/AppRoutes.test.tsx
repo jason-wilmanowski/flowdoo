@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 
@@ -110,14 +110,33 @@ describe("app shell", () => {
   });
 
   it("answers Check again with the outcome, but only once it was clicked", async () => {
-    renderApp("/overview");
-    await userEvent.click(screen.getByRole("button", { name: "Settings (,)" }));
-    const sheet = await screen.findByRole("dialog", { name: "Settings" });
-    const result = within(sheet).getByRole("status");
-    expect(result).toBeEmptyDOMElement();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) });
+      renderApp("/overview");
+      await user.click(screen.getByRole("button", { name: "Settings (,)" }));
+      const sheet = await screen.findByRole("dialog", { name: "Settings" });
+      const result = within(sheet).getByRole("status");
+      expect(result).toBeEmptyDOMElement();
 
-    await userEvent.click(within(sheet).getByRole("button", { name: "Check again" }));
-    expect(await within(result).findByText("Connection works")).toBeInTheDocument();
+      await user.click(within(sheet).getByRole("button", { name: "Check again" }));
+      expect(await within(result).findByText("Connection works")).toBeInTheDocument();
+
+      // it stays for three seconds, then fades and goes
+      act(() => {
+        vi.advanceTimersByTime(2900);
+      });
+      expect(within(result).getByText("Connection works")).toBeInTheDocument();
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(result).toBeEmptyDOMElement();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("says when Check again finds no working connection", async () => {

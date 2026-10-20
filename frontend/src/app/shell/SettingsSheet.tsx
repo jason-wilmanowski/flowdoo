@@ -1,5 +1,5 @@
 import { CircleCheck, CircleX, RefreshCw } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useStore } from "zustand";
 
 import { groupShortcuts } from "@/lib/shortcuts/registry";
@@ -43,15 +43,58 @@ const yesNo = (value: boolean) => (value ? "yes" : "no");
 
 type CheckOutcome = "ok" | "failed";
 
-/** The answer to an explicit "Check again": slides out of the button, then settles. */
-function CheckResult({ outcome }: { outcome: CheckOutcome }) {
+/** How long a check result stays, and how long it takes to fade (the motion duration). */
+const RESULT_SHOWN_MS = 3000;
+const RESULT_LEAVING_MS = 120;
+
+interface ShownResult {
+  outcome: CheckOutcome;
+  leaving: boolean;
+}
+
+/** The answer to an explicit "Check again": slides out of the button, settles, fades. */
+function CheckResult({ outcome, leaving }: ShownResult) {
   const ok = outcome === "ok";
   return (
-    <span className={[styles.checkResult, ok ? styles.checkOk : styles.checkFailed].join(" ")}>
+    <span
+      className={[
+        styles.checkResult,
+        ok ? styles.checkOk : styles.checkFailed,
+        leaving ? styles.checkLeaving : "",
+      ]
+        .join(" ")
+        .trim()}
+    >
       <Icon icon={ok ? CircleCheck : CircleX} compact />
       {ok ? "Connection works" : "Connection has problems"}
     </span>
   );
+}
+
+/**
+ * The result of the last check the user asked for. It shows for a few seconds, then fades
+ * and goes. Timers rather than animation events, so it also goes with reduced motion.
+ */
+function useCheckResult(): [ShownResult | null, (outcome: CheckOutcome | null) => void] {
+  const [shown, setShown] = useState<ShownResult | null>(null);
+
+  useEffect(() => {
+    if (shown === null) return;
+    const timer = window.setTimeout(
+      () => {
+        setShown(shown.leaving ? null : { ...shown, leaving: true });
+      },
+      shown.leaving ? RESULT_LEAVING_MS : RESULT_SHOWN_MS,
+    );
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [shown]);
+
+  const show = (outcome: CheckOutcome | null) => {
+    setShown(outcome === null ? null : { outcome, leaving: false });
+  };
+  return [shown, show];
 }
 
 function Connection() {
@@ -61,13 +104,13 @@ function Connection() {
   const error = useStore(connection, (state) => state.error);
   const refresh = useStore(connection, (state) => state.refresh);
   // only the result of a check the user asked for; a new check clears it until it is done
-  const [outcome, setOutcome] = useState<CheckOutcome | null>(null);
+  const [result, showResult] = useCheckResult();
 
   const checkAgain = async () => {
-    setOutcome(null);
+    showResult(null);
     await refresh();
     const { phase: done, status: checked } = connection.getState();
-    setOutcome(done === "ready" && checked?.ok ? "ok" : "failed");
+    showResult(done === "ready" && checked?.ok ? "ok" : "failed");
   };
 
   return (
@@ -113,7 +156,7 @@ function Connection() {
           Check again
         </Button>
         <span role="status" className={styles.checkStatus}>
-          {outcome ? <CheckResult outcome={outcome} /> : null}
+          {result ? <CheckResult {...result} /> : null}
         </span>
       </div>
     </Section>

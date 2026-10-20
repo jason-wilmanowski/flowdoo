@@ -107,6 +107,11 @@
   animation: check-result calc(var(--duration) * 2.5) var(--ease) both;
 }
 
+/* after a few seconds the result fades where it stands (replaces the entrance) */
+.checkLeaving {
+  animation: check-result-out var(--duration) var(--ease) both;
+}
+
 .checkOk {
   color: var(--success);
 }
@@ -130,5 +135,15 @@
   100% {
     opacity: 1;
     transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes check-result-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
   }
 }
