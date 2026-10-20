@@ -131,15 +131,6 @@
   font-size: var(--text-sm);
 }
 
-.toolbarSpacer {
-  flex: 1;
-}
-
-.legend {
-  color: var(--text-subtle);
-  font-size: var(--text-xs);
-}
-
 .canvas {
   display: flex;
   flex: 1;

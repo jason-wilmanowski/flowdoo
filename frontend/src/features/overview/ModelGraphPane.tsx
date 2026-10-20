@@ -1,4 +1,5 @@
 import type { Edge, NodeMouseHandler } from "@xyflow/react";
+import { Network } from "lucide-react";
 import { useMemo } from "react";
 
 import type { ModelSummary } from "@/api/types";
@@ -104,11 +105,13 @@ export function ModelGraphPane({
             onOptions({ ...options, parents: event.target.checked });
           }}
         />
-        <span className={styles.toolbarSpacer} />
-        <span className={styles.legend}>Click a model to open it</span>
       </div>
       {selected === null ? (
-        <EmptyState message="Select a model on the left to see what it links to and what links to it." />
+        <EmptyState
+          fill
+          icon={Network}
+          message="Select a model on the left to see what it links to and what links to it."
+        />
       ) : (
         <div className={styles.canvas}>
           {/* a new model starts a new canvas, so it is fitted into view */}
