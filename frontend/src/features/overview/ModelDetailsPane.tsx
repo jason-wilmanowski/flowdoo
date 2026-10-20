@@ -1,4 +1,4 @@
-import { Link2 } from "lucide-react";
+import { Link2, ListTree } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 
 import type { AppError } from "@/api/errors";
@@ -139,9 +139,11 @@ export function ModelDetailsPane({
   if (error) return <EmptyState tone="danger" message={error.message} />;
   if (!detail) {
     return (
-      <p className={styles.hint}>
-        Fields, inheritance and relations of the selected model show here.
-      </p>
+      <EmptyState
+        fill
+        icon={ListTree}
+        message="Fields, inheritance and relations of the selected model show here."
+      />
     );
   }
 

@@ -43,31 +43,33 @@ export function TraceDetails({ trace, deleteError, onDelete }: TraceDetailsProps
       <h2 className={styles.detailsTitle}>
         {trace.entrypoint_model}.{trace.entrypoint_method}
       </h2>
-      <dl className={styles.facts}>
-        {rows.map(([term, value]) => (
-          <div key={term} className={styles.fact}>
-            <dt>{term}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
-      </dl>
-      {trace.error ? (
-        <p className={styles.error} role="alert">
-          <strong>Recording failed:</strong> {trace.error}
-        </p>
-      ) : null}
-      <div className={styles.actions}>
-        <Link to={`/traces/${trace.id}`} className={buttonClassName("primary", true)}>
-          Open trace
-        </Link>
-        <Button
-          compact
-          onClick={() => {
-            setConfirming(true);
-          }}
-        >
-          Delete…
-        </Button>
+      <div className={styles.summary}>
+        <dl className={styles.facts}>
+          {rows.map(([term, value]) => (
+            <div key={term} className={styles.fact}>
+              <dt>{term}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+        {trace.error ? (
+          <p className={styles.error} role="alert">
+            <strong>Recording failed:</strong> {trace.error}
+          </p>
+        ) : null}
+        <div className={styles.actions}>
+          <Link to={`/traces/${trace.id}`} className={buttonClassName("primary", true)}>
+            Open
+          </Link>
+          <Button
+            compact
+            onClick={() => {
+              setConfirming(true);
+            }}
+          >
+            Delete
+          </Button>
+        </div>
       </div>
       {deleteError ? (
         <p className={styles.error} role="alert">

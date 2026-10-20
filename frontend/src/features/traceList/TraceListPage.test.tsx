@@ -63,7 +63,7 @@ describe("trace list", () => {
       /Recording failed: Cannot reach Odoo/,
     );
     expect(within(details()).getByText(FAILED_RECORDING_ID)).toBeInTheDocument();
-    expect(within(details()).getByRole("link", { name: "Open trace" })).toHaveAttribute(
+    expect(within(details()).getByRole("link", { name: "Open" })).toHaveAttribute(
       "href",
       `/traces/${FAILED_RECORDING_ID}`,
     );
@@ -90,7 +90,7 @@ describe("trace list", () => {
     const table = await grid();
     table.focus();
     await userEvent.keyboard("{ArrowDown}");
-    await userEvent.click(within(details()).getByRole("button", { name: "Delete…" }));
+    await userEvent.click(within(details()).getByRole("button", { name: "Delete" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Delete trace?" });
     expect(dialog).toHaveTextContent("Your Odoo database is not affected.");
@@ -105,7 +105,7 @@ describe("trace list", () => {
     renderList();
     (await grid()).focus();
     await userEvent.keyboard("{ArrowDown}");
-    await userEvent.click(within(details()).getByRole("button", { name: "Delete…" }));
+    await userEvent.click(within(details()).getByRole("button", { name: "Delete" }));
     await userEvent.click(await screen.findByRole("button", { name: "Cancel" }));
     expect(screen.getByText("1–5 of 5")).toBeInTheDocument();
   });

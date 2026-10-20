@@ -131,15 +131,6 @@
   font-size: var(--text-sm);
 }
 
-.toolbarSpacer {
-  flex: 1;
-}
-
-.legend {
-  color: var(--text-subtle);
-  font-size: var(--text-xs);
-}
-
 .canvas {
   display: flex;
   flex: 1;
@@ -239,14 +230,24 @@
   display: flex;
   flex-direction: column;
   border-bottom: var(--border-width) solid var(--border);
+
+  /* column headings of a table stay right below the section's heading */
+  --table-sticky-top: var(--topbar-h);
 }
 
+/* The heading of the section being read stays at the top while scrolling through it;
+   the next section's heading pushes it out, as each sticks only within its section. */
 .sectionHeader {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: var(--topbar-h);
+  height: var(--topbar-h);
   padding: 0 var(--space-3) 0 var(--space-4);
+  border-bottom: var(--border-width) solid var(--border);
+  background: var(--surface);
 }
 
 .sectionTitle {

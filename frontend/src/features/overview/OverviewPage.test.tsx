@@ -35,7 +35,12 @@ describe("overview", () => {
     renderOverview();
     const tree = await list();
     expect(within(tree).getByText("sale")).toBeInTheDocument();
+    // nothing selected yet: both panes say what to do, the toolbar has no extra hint
     expect(screen.getByText(/Select a model on the left/)).toBeInTheDocument();
+    expect(
+      screen.getByText("Fields, inheritance and relations of the selected model show here."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Click a model to open it")).not.toBeInTheDocument();
 
     await userEvent.type(screen.getByRole("searchbox", { name: "Search models" }), "sales order");
     expect(within(tree).getByText("sale.order")).toBeInTheDocument();

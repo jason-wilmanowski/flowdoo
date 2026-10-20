@@ -1,9 +1,9 @@
-import { RefreshCw } from "lucide-react";
-import type { ReactNode } from "react";
+import { CircleCheck, CircleX, RefreshCw } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useStore } from "zustand";
 
 import { groupShortcuts } from "@/lib/shortcuts/registry";
-import { Button, Dialog, Kbd, SegmentedControl } from "@/ui";
+import { Button, Dialog, Icon, Kbd, SegmentedControl } from "@/ui";
 
 import { useDataSourceSwitch, useStores } from "../appContext";
 import { useRegisteredShortcuts } from "../shortcuts/shortcutContext";
@@ -41,12 +41,77 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 
 const yesNo = (value: boolean) => (value ? "yes" : "no");
 
+type CheckOutcome = "ok" | "failed";
+
+/** How long a check result stays, and how long it takes to fade (the motion duration). */
+const RESULT_SHOWN_MS = 2000;
+const RESULT_LEAVING_MS = 120;
+
+interface ShownResult {
+  outcome: CheckOutcome;
+  leaving: boolean;
+}
+
+/** The answer to an explicit "Check again": slides out of the button, settles, fades. */
+function CheckResult({ outcome, leaving }: ShownResult) {
+  const ok = outcome === "ok";
+  return (
+    <span
+      className={[
+        styles.checkResult,
+        ok ? styles.checkOk : styles.checkFailed,
+        leaving ? styles.checkLeaving : "",
+      ]
+        .join(" ")
+        .trim()}
+    >
+      <Icon icon={ok ? CircleCheck : CircleX} compact />
+      {ok ? "Connection works" : "Connection has problems"}
+    </span>
+  );
+}
+
+/**
+ * The result of the last check the user asked for. It shows for a few seconds, then fades
+ * and goes. Timers rather than animation events, so it also goes with reduced motion.
+ */
+function useCheckResult(): [ShownResult | null, (outcome: CheckOutcome | null) => void] {
+  const [shown, setShown] = useState<ShownResult | null>(null);
+
+  useEffect(() => {
+    if (shown === null) return;
+    const timer = window.setTimeout(
+      () => {
+        setShown(shown.leaving ? null : { ...shown, leaving: true });
+      },
+      shown.leaving ? RESULT_LEAVING_MS : RESULT_SHOWN_MS,
+    );
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [shown]);
+
+  const show = (outcome: CheckOutcome | null) => {
+    setShown(outcome === null ? null : { outcome, leaving: false });
+  };
+  return [shown, show];
+}
+
 function Connection() {
   const { connection } = useStores();
   const status = useStore(connection, (state) => state.status);
   const phase = useStore(connection, (state) => state.phase);
   const error = useStore(connection, (state) => state.error);
   const refresh = useStore(connection, (state) => state.refresh);
+  // only the result of a check the user asked for; a new check clears it until it is done
+  const [result, showResult] = useCheckResult();
+
+  const checkAgain = async () => {
+    showResult(null);
+    await refresh();
+    const { phase: done, status: checked } = connection.getState();
+    showResult(done === "ready" && checked?.ok ? "ok" : "failed");
+  };
 
   return (
     <Section title="Connection">
@@ -79,16 +144,21 @@ function Connection() {
       ) : (
         <p className={styles.hint}>Checking…</p>
       )}
-      <Button
-        compact
-        icon={RefreshCw}
-        loading={phase === "loading"}
-        onClick={() => {
-          void refresh();
-        }}
-      >
-        Check again
-      </Button>
+      <div className={styles.check}>
+        <Button
+          compact
+          icon={RefreshCw}
+          loading={phase === "loading"}
+          onClick={() => {
+            void checkAgain();
+          }}
+        >
+          Check again
+        </Button>
+        <span role="status" className={styles.checkStatus}>
+          {result ? <CheckResult {...result} /> : null}
+        </span>
+      </div>
     </Section>
   );
 }
