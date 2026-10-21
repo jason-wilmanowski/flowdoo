@@ -15,16 +15,25 @@ field values changed. That shows you where you can hook in.
 
 ## Status
 
-The project is in an early stage. Recording works end to end through the API (backend →
-addon → Odoo 19). The frontend has its foundation (app shell, data layer, fixture mode);
-the trace views themselves are not built yet.
+Both modes work end to end against a real Odoo 19: tracing a workflow and replaying it
+step by step, and the overview of models, fields, relations and inheritance. Frontend,
+backend and addon are complete for these two modes; next is access from Claude Code
+(see [Planned](#planned)).
 
 | Part | State |
 |---|---|
-| Backend API (`backend/`) | ✅ `/traces` records through the addon, validates and stores traces; `/odoo/status` checks the connection |
-| Odoo recorder addon (`odoo-addons/flow_tracer`) | ✅ Recorder (`sys.monitoring`, [ADR 0001](docs/adr/0001-recorder-mechanism.md)), dry run, trace endpoint |
+| Odoo recorder addon (`odoo-addons/flow_tracer`) | ✅ Recorder (`sys.monitoring`, [ADR 0001](docs/adr/0001-recorder-mechanism.md)), dry run, trace, signature and status endpoints, model registry for the overview |
+| Backend API (`backend/`) | ✅ Records traces through the addon, validates and stores them; connection check; model registry and method signatures |
 | Trace schema (`shared/schemas`) | ✅ v0.2.0 with generated types, hand-written and recorded fixtures ([format](docs/trace-format.md)) |
-| Frontend (`frontend/`) | 🚧 Foundation: app shell, routing, API client, stores, fixture mode, UI primitives ([architecture](docs/frontend-architecture.md)); trace list and replay views are next |
+| Frontend (`frontend/`) | ✅ Trace list, trace view with replay, start dialog, model overview, settings; fully usable on fixtures without backend and Odoo ([architecture](docs/frontend-architecture.md)) |
+
+## Planned
+
+| What | Why |
+|---|---|
+| **MCP server for Claude Code** (next) | Use Flowdoo from the terminal: Claude Code checks the connection, looks up models and entrypoints, starts dry runs in your Odoo and reads the trace (errors, field changes, `super()` chains) to find out why a workflow fails. A separate client of the API, like the frontend. |
+| Masking of sensitive values | A configurable list of fields whose values never leave Odoo in a trace. Needed before traces are handed to an AI model. |
+| Addon and integration tests in CI | Today CI runs only the tests that need neither Postgres nor Odoo; the addon tests and the reference trace run locally. |
 
 ## How it works
 
@@ -51,7 +60,7 @@ flowchart LR
   executes the run in a transaction that is rolled back (dry run) and returns the trace.
 - **`backend`** starts runs in your Odoo, stores traces in its **own** database (never in
   the Odoo database) and serves them to the frontend.
-- **`frontend`** shows the trace as a timeline with replay. It talks only to the API.
+- **`frontend`** shows traces with replay and the model overview. It talks only to the API.
 - **`shared/`** holds the trace schema, the contract between the three parts.
 
 Recording a trace:
@@ -73,6 +82,17 @@ sequenceDiagram
 The API never keeps a database transaction open while Odoo works, and a trace never stays
 stuck in `running`.
 
+## Using the UI
+
+Open <http://localhost:5173>. Press `?` anywhere for the keyboard shortcuts.
+
+| View | What you do there |
+|---|---|
+| **Traces** | List, filter and delete recorded runs. `N` starts a new trace: model, method, record IDs and arguments, checked against the method's signature before the run. |
+| **Trace view** | Replay a run: call tree on the left (with `super()` chains, "relevant only" and search with `/`), step details on the right (field changes, module, MRO position, implementation chain, call path), the model graph or all changes over time in the middle. `Space` plays, `←`/`→` step, `Home`/`End` jump. |
+| **Overview** | Every model of your Odoo by module: its neighbourhood as a graph (links to, linked from, inherits), its fields and the modules that define and extend it. |
+| **Settings** (`,`) | Connection details and check, data source (API or fixtures), theme. |
+
 ## Tech stack
 
 | Area | Technology |
@@ -81,7 +101,7 @@ stuck in `running`.
 | Tooling | uv, ruff, mypy (strict), import-linter, pytest + pytest-asyncio |
 | Storage | PostgreSQL (own database `flow_tracer`, traces as JSONB) |
 | Odoo | Odoo 19.0 Community, external JSON-2 API (`/json/2/<model>/<method>`) |
-| Frontend | React 19, TypeScript (strict), Vite, React Router, Zustand, Radix (unstyled), React Flow (`@xyflow/react`), CSS Modules |
+| Frontend | React 19, TypeScript (strict), Vite, React Router, Zustand, Radix (unstyled), React Flow (`@xyflow/react`), Lucide icons, CSS Modules |
 | Frontend tooling | pnpm, Vitest + Testing Library, ESLint, stylelint, Prettier, json-schema-to-typescript, openapi-typescript |
 | Runtime | Docker Compose |
 
@@ -93,7 +113,6 @@ stuck in `running`.
 │   ├── src/flow_tracer_api/
 │   │   ├── main.py          # entrypoint: app factory, CORS, routers
 │   │   ├── api/             # routes and dependency injection
-│   │   ├── assets/          # logo, favicon, external images
 │   │   ├── services/        # one service class per workflow; they never import each other
 │   │   │   └── common/      # what the services share: ports, errors, addon calls, validation
 │   │   ├── repositories/    # database access (only place with queries)
@@ -105,6 +124,9 @@ stuck in `running`.
 │   │   └── migrations/      # Alembic
 │   └── tests/               # unit/ and integration/ (Postgres, Odoo)
 ├── frontend/                # UI (React + Vite), see docs/frontend-architecture.md
+│   ├── src/features/        # traceList, traceView, startTrace, overview
+│   ├── src/ui/              # UI primitives (no feature logic)
+│   └── src/assets/          # logo
 ├── odoo-addons/flow_tracer/ # recorder addon for Odoo 19
 ├── shared/                  # trace schema and fixtures (the contract)
 ├── docs/                    # trace format, frontend architecture, ADRs
@@ -268,9 +290,10 @@ pnpm build
 pnpm gen:types                  # after a schema or API change (needs uv for the OpenAPI dump)
 ```
 
-The data source can also be switched at runtime in the top bar. `/_kit` (development only)
-shows all UI primitives in light and dark. Layers, data flow, conventions and a checklist
-for new features: [docs/frontend-architecture.md](docs/frontend-architecture.md).
+The data source can also be switched at runtime in the settings (`,`); the top bar marks
+fixture mode. `/_kit` (development only) shows all UI primitives in light and dark.
+Layers, data flow, conventions and a checklist for new features:
+[docs/frontend-architecture.md](docs/frontend-architecture.md).
 
 | Variable (`frontend/.env.local`) | Meaning |
 |---|---|
