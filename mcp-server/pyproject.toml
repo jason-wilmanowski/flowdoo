@@ -1,0 +1,43 @@
+[project]
+name = "flowdoo-mcp"
+version = "0.1.0"
+description = "MCP server of Flowdoo: lets Claude Code trace workflows in your Odoo."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "flow-tracer-api",
+    "httpx>=0.28.1",
+    "mcp[cli]>=2.3.0",
+]
+
+[project.scripts]
+flowdoo-mcp = "flowdoo_mcp.main:main"
+
+[tool.uv.sources]
+flow-tracer-api = { path = "../backend", editable = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/flowdoo_mcp"]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.0",
+    "ruff>=0.16.10",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "RUF", "ASYNC", "N"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+packages = ["flowdoo_mcp"]
