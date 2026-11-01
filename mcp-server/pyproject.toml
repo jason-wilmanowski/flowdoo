@@ -47,3 +47,6 @@ plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.uv]
+exclude-dependencies = ["alembic", "asyncpg", "fastapi", "sqlalchemy", "uvicorn"]
