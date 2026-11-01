@@ -26,12 +26,12 @@ backend and addon are complete for these two modes; next is access from Claude C
 | Backend API (`backend/`) | ✅ Records traces through the addon, validates and stores them; connection check; model registry and method signatures |
 | Trace schema (`shared/schemas`) | ✅ v0.2.0 with generated types, hand-written and recorded fixtures ([format](docs/trace-format.md)) |
 | Frontend (`frontend/`) | ✅ Trace list, trace view with replay, start dialog, model overview, settings; fully usable on fixtures without backend and Odoo ([architecture](docs/frontend-architecture.md)) |
+| MCP server (`mcp-server/`) | 🚧 First version: connection check, model and entrypoint lookups, dry runs, reading a trace in memory ([setup](mcp-server/README.md)) |
 
 ## Planned
 
 | What | Why |
 |---|---|
-| **MCP server for Claude Code** (next) | Use Flowdoo from the terminal: Claude Code checks the connection, looks up models and entrypoints, starts dry runs in your Odoo and reads the trace (errors, field changes, `super()` chains) to find out why a workflow fails. A separate client of the API, like the frontend. |
 | Masking of sensitive values | A configurable list of fields whose values never leave Odoo in a trace. Needed before traces are handed to an AI model. |
 | Addon and integration tests in CI | Today CI runs only the tests that need neither Postgres nor Odoo; the addon tests and the reference trace run locally. |
 
@@ -333,17 +333,13 @@ Every pull request runs:
 | frontend | lint (ESLint, stylelint, Prettier), typecheck, Vitest, build |
 | frontend generated types | regenerated from `shared/schemas` and the backend's OpenAPI, no diff |
 
-## MCP server (planned)
+## MCP server
 
-The next feature is access from the terminal. An MCP server lets Claude Code, and other
-MCP clients, trace workflows while you develop, **without the frontend, the backend or the
-Flowdoo database**. It logs into the Odoo you already run and calls the `flow_tracer` addon
-directly. The addon only has to be installed once.
-
-> [!NOTE]
-> Not built yet. This section describes the plan. Tool and variable names are provisional
-> and are fixed in the first pull request. The server will live in a new top-level folder,
-> `mcp-server/`.
+Access from the terminal. An MCP server lets Claude Code, and other MCP clients, trace
+workflows while you develop, **without the frontend, the backend container or the Flowdoo
+database**. It logs into the Odoo you already run and calls the `flow_tracer` addon directly.
+The addon only has to be installed once. Setup and tools are in
+[`mcp-server/README.md`](mcp-server/README.md).
 
 ```mermaid
 flowchart LR
@@ -364,58 +360,31 @@ server is a second way in, for the moment you want an answer while you work:
 | | App (frontend + backend) | MCP server |
 |---|---|---|
 | Needs | `db`, `api` and `frontend` containers | Your Odoo with the addon, nothing else |
-| Traces are kept | In PostgreSQL | In memory and as JSON files in `.flowdoo/traces/` (git-ignored) |
-| Output | Replay in the browser | Compact text for language models |
+| Traces are kept | In PostgreSQL | In memory, until the server stops |
+| Output | Replay in the browser | Compact answers for language models |
 | Typical use | Explore and replay a run | "Why does this workflow fail, where can I hook in?" |
 
-### Planned tools
-
-| Tool | Answers |
-|---|---|
-| `check_connection` | The checks of `/odoo/status`: reachable, Odoo 19.0, valid key, addon switched on, neutralised database |
-| `describe_entrypoint` | Parameters of a method before tracing it |
-| `describe_model` | Fields, inheritance and relations of a model |
-| `run_trace` | Records a dry run, keeps the trace and returns an overview |
-| `list_traces` | The traces kept locally |
-| `trace_overview` | Number of steps, models and modules involved, error |
-| `trace_tree` | Call tree from a step, limited depth, optional "relevant only" |
-| `find_steps` | Steps by model, method, module, field or kind |
-| `get_step` | All details of one step |
-| `step_path` | Call path from the root to a step |
-| `override_chain` | All implementations of a method with MRO position and `super()` |
-| `field_history` | Every change to a field, in order |
-
-### How it works
-
-- **No logic duplicated.** Connection check, version check, JSON-2 calls and error messages
-  move into a small shared library that the backend and the MCP server both use. The
-  backend behaves as before.
+- **No logic duplicated.** The server reuses the backend's Odoo client and services
+  ([ADR 0006](docs/adr/0006-mcp-server-uses-backend-package.md)).
 - **Made for language models.** A recorded trace is far too large to read whole (the
-  reference trace has 879 steps, about 470 KB). The server loads a trace once and indexes it
-  in memory. Answers are compact text with a size limit, long values are shortened, and a
-  cut-off answer says how to narrow the question. Every answer carries step IDs, so a claim
-  can be checked in the UI.
-- **Same contract.** Traces follow the schema in `shared/schemas`, so a trace file kept by
-  the MCP server is a valid trace.
+  reference trace has 879 steps, about 470 KB). `run_trace` returns an overview, the other
+  tools answer narrow questions with step IDs.
+- **Same contract.** Every trace is validated against the schema in `shared/schemas`.
 
 ### Safety
 
 | Topic | Rule |
 |---|---|
 | Dry run | `run_trace` always runs as a dry run and refuses a database that is not neutralised |
-| Data, not instructions | Values in a trace come from the database. They are returned inside a marked data block and shortened, never as instructions |
+| Data, not instructions | Values in a trace come from the database. The server tells the client to treat them as data, never as instructions |
 | Sensitive values | Until masking (see [Planned](#planned)) exists, trace values go to the model behind your client. Use a development database |
-| Credentials | Set as environment variables in the MCP client's configuration, never stored in the repository. Use a dedicated development user and API key |
-| Timeout | Per call and configurable (default 30 s), with a clear message when exceeded. An abandoned HTTP call does not necessarily stop the run in Odoo |
+| Credentials | Set in the git-ignored `mcp-server/.env`, or as environment variables in the MCP client's configuration. Use a dedicated development user and API key |
+| Timeout | Per run and configurable (default 30 s), with a clear message when exceeded. An abandoned HTTP call does not necessarily stop the run in Odoo |
 
-### Configuration
+### Planned tools
 
-| Variable | Meaning |
+| Tool | Answers |
 |---|---|
-| `ODOO_URL` | URL of your Odoo as seen from the machine that runs the MCP server, e.g. `http://localhost:8069` |
-| `ODOO_DB` | Your development database |
-| `ODOO_API_KEY` | The API key (never logged, never stored) |
-| `ODOO_LOGIN` | Optional: the login the key must belong to |
-| `FLOWDOO_TIMEOUT` | Optional: seconds to wait for a run (default 30) |
-
-How to register the server in Claude Code is described in its own README once it exists.
+| `trace_tree` | Call tree from a step, limited depth, optional "relevant only" |
+| `override_chain` | All implementations of a method with MRO position and `super()` |
+| `field_history` | Every change to a field, in order |
