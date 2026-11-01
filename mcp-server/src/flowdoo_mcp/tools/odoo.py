@@ -2,7 +2,8 @@ from typing import Any
 
 from flow_tracer_api.schemas import EntrypointSignature, ModelDetail, ModelList
 
-from flowdoo_mcp.server import mcp, odoo_client
+from flowdoo_mcp.errors import odoo_errors_as_tool_errors
+from flowdoo_mcp.server import ToolContext, mcp
 from flowdoo_mcp.status import OdooStatus, check_status
 
 SIGNATURE_ROUTE = "/flow_tracer/v1/signature"
@@ -12,7 +13,7 @@ MODEL_LIST_LIMIT = 100
 
 
 @mcp.tool()
-async def odoo_status() -> OdooStatus:
+async def odoo_status(ctx: ToolContext) -> OdooStatus:
     """Check whether Flowdoo can reach the user's Odoo and is ready to trace.
 
     Call this first, before any other Flowdoo tool. `ok` is true only if everything works:
@@ -21,19 +22,19 @@ async def odoo_status() -> OdooStatus:
     says what blocks tracing, `warnings` what could not be verified or should be known
     (e.g. a database that is not neutralised, which run_trace refuses).
     """
-    async with odoo_client() as client:
-        return await check_status(client)
+    app = ctx.request_context.lifespan_context
+    return await check_status(app.client, app.expected_login)
 
 
 @mcp.tool()
-async def describe_entrypoint(model: str, method: str) -> EntrypointSignature:
+async def describe_entrypoint(ctx: ToolContext, model: str, method: str) -> EntrypointSignature:
     """Show what a method expects, before tracing it.
 
     Returns its parameters (only keyword arguments can be passed), the module of the most
     derived implementation and whether it is a model-level method, called without record ids.
     """
-    async with odoo_client() as client:
-        answer = await client.post(
+    with odoo_errors_as_tool_errors():
+        answer = await ctx.request_context.lifespan_context.client.post(
             SIGNATURE_ROUTE,
             {"model": model, "method": method},
             target=f"{model}.{method} signature",
@@ -42,14 +43,16 @@ async def describe_entrypoint(model: str, method: str) -> EntrypointSignature:
 
 
 @mcp.tool()
-async def list_models(search: str = "") -> dict[str, Any]:
+async def list_models(ctx: ToolContext, search: str = "") -> dict[str, Any]:
     """Find models of the connected Odoo by a part of their technical name or description.
 
     Returns at most 100 models; `total` tells how many matched, so narrow `search` if it
     is higher.
     """
-    async with odoo_client() as client:
-        answer = await client.post(MODELS_ROUTE, {}, target="model registry")
+    with odoo_errors_as_tool_errors():
+        answer = await ctx.request_context.lifespan_context.client.post(
+            MODELS_ROUTE, {}, target="model registry"
+        )
     needle = search.casefold()
     matches = [
         {"model": item.model, "description": item.description, "module": item.module}
@@ -60,8 +63,10 @@ async def list_models(search: str = "") -> dict[str, Any]:
 
 
 @mcp.tool()
-async def describe_model(model: str) -> ModelDetail:
+async def describe_model(ctx: ToolContext, model: str) -> ModelDetail:
     """Show the fields, relations and inheritance of one model."""
-    async with odoo_client() as client:
-        answer = await client.post(MODEL_ROUTE, {"model": model}, target=f"{model} model")
+    with odoo_errors_as_tool_errors():
+        answer = await ctx.request_context.lifespan_context.client.post(
+            MODEL_ROUTE, {"model": model}, target=f"{model} model"
+        )
     return ModelDetail.model_validate(answer)

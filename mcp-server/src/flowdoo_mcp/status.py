@@ -12,6 +12,7 @@ NEUTRALIZE_BANNER = "web.neutralize_banner"
 class OdooStatus(BaseModel):
     ok: bool = False
     server_version: str | None = None
+    user_login: str | None = None
     tracing_enabled: bool = False
     recorder_available: bool = False
     user_is_admin: bool = False
@@ -21,10 +22,14 @@ class OdooStatus(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
-async def check_status(client: OdooJson2Client) -> OdooStatus:
+async def check_status(client: OdooJson2Client, expected_login: str | None = None) -> OdooStatus:
     """Run the checks in order; stop where later checks cannot work any more."""
     status = OdooStatus()
-    if await _check_server(client, status) and await _check_addon(client, status):
+    if (
+        await _check_server(client, status)
+        and await _check_user(client, status, expected_login)
+        and await _check_addon(client, status)
+    ):
         await _check_neutralization(client, status)
     status.ok = not status.problems
     return status
@@ -44,8 +49,25 @@ async def _check_server(client: OdooJson2Client, status: OdooStatus) -> bool:
     return True
 
 
+async def _check_user(
+    client: OdooJson2Client, status: OdooStatus, expected_login: str | None
+) -> bool:
+    """Database served and API key accepted, for the expected user."""
+    try:
+        context = await client.call("res.users", "context_get")
+        [user] = await client.call("res.users", "read", ids=[context["uid"]], fields=["login"])
+    except OdooClientError as exc:
+        status.problems.append(exc.message)
+        return False
+    status.user_login = user["login"]
+    if expected_login and status.user_login != expected_login:
+        status.problems.append(
+            f"The API key belongs to {status.user_login!r}, but ODOO_LOGIN is {expected_login!r}"
+        )
+    return True
+
+
 async def _check_addon(client: OdooJson2Client, status: OdooStatus) -> bool:
-    """The addon's status route also proves that database and API key work."""
     try:
         addon = await client.post(ADDON_STATUS_ROUTE, {}, target="flow_tracer status")
     except OdooClientError as exc:
