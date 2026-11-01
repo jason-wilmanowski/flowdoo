@@ -1,0 +1,71 @@
+[
+  {
+    "id": "hook_after_delivery",
+    "category": "flow",
+    "prompt": "A custom module must run code when a sale order is confirmed, at a point where the delivery pickings of that order already exist. Which method should it override, which module must it depend on, and where should the code go relative to super()? Explain what creates the pickings.",
+    "rubric": [
+      "Overrides sale.order._action_confirm (action_confirm also counts if the code runs after super)",
+      "Puts the code after the call to super()",
+      "Depends on sale_stock",
+      "Names sale.order.line._action_launch_stock_rule, called by sale_stock, as what creates the pickings"
+    ]
+  },
+  {
+    "id": "write_chain",
+    "category": "flow",
+    "prompt": "When sale.order.action_confirm runs on order 1, sale.order.write is called to set the state. List the implementations of write that actually run on this server, in execution order, say for each whether it calls super(), and say which layer actually changes the state.",
+    "rubric": [
+      "Gives the order sale_stock, then sale, then mail, then the base ORM",
+      "Says the sale_stock, sale and mail implementations call super()",
+      "Says the state changes in the base ORM write at the end of the chain"
+    ]
+  },
+  {
+    "id": "created_records",
+    "category": "flow",
+    "prompt": "When sale.order.action_confirm runs on order 1 as the admin user, which models get new records and how many of each? Give exact counts for this server and database, and do not leave the database changed.",
+    "rubric": [
+      "stock.move: 3",
+      "stock.picking: 1",
+      "stock.reference: 1",
+      "mail.message: 3",
+      "mail.followers: 1",
+      "mail.tracking.value: 1",
+      "Does not claim stock.move.line records are created"
+    ]
+  },
+  {
+    "id": "failure_diagnosis",
+    "category": "neutral",
+    "prompt": "An integration calls res.partner.create with vals_list [{\"email\": \"x@example.com\"}] and it fails. What exactly is the error, which rule causes it, where is that rule defined, and what is the smallest fix on the caller's side?",
+    "rubric": [
+      "Names a psycopg2 CheckViolation or the constraint res_partner_check_name",
+      "Places the rule in _check_name in base/models/res_partner.py",
+      "Explains that a partner of type contact requires a name",
+      "Suggests passing a name (a type other than contact also counts)"
+    ]
+  },
+  {
+    "id": "no_delivery_conditions",
+    "category": "branches",
+    "prompt": "Under which conditions does confirming a sale order NOT start a delivery for one of its lines? List every condition in the code path that launches the stock procurement.",
+    "rubric": [
+      "The context key skip_procurement is set",
+      "The line's state is not sale",
+      "The order is locked",
+      "The product's type is not consu",
+      "The quantity is already procured (procurement quantity equals the ordered quantity)"
+    ]
+  },
+  {
+    "id": "delivery_button",
+    "category": "control",
+    "prompt": "Where is the Delivery smart button on the sale order form defined? Give the file, the XML id of the view, the method the button calls, and the field that shows its count.",
+    "rubric": [
+      "File sale_stock/views/sale_order_views.xml",
+      "View view_order_form_inherit_sale_stock",
+      "Method action_view_delivery",
+      "Field delivery_count"
+    ]
+  }
+]
