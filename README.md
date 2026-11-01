@@ -26,7 +26,7 @@ backend and addon are complete for these two modes; next is access from Claude C
 | Backend API (`backend/`) | ✅ Records traces through the addon, validates and stores them; connection check; model registry and method signatures |
 | Trace schema (`shared/schemas`) | ✅ v0.2.0 with generated types, hand-written and recorded fixtures ([format](docs/trace-format.md)) |
 | Frontend (`frontend/`) | ✅ Trace list, trace view with replay, start dialog, model overview, settings; fully usable on fixtures without backend and Odoo ([architecture](docs/frontend-architecture.md)) |
-| MCP server (`mcp-server/`) | 🚧 First version: connection check, model and entrypoint lookups, dry runs, reading a trace in memory ([setup](mcp-server/README.md)) |
+| MCP server (`mcp-server/`) | 🚧 First version: connection check, model and entrypoint lookups, dry runs with an overview and filtered steps ([setup](mcp-server/README.md)) |
 
 ## Planned
 
@@ -360,16 +360,18 @@ server is a second way in, for the moment you want an answer while you work:
 | | App (frontend + backend) | MCP server |
 |---|---|---|
 | Needs | `db`, `api` and `frontend` containers | Your Odoo with the addon, nothing else |
-| Traces are kept | In PostgreSQL | In memory, until the server stops |
+| Traces are kept | In PostgreSQL | Not at all: plain request and response |
 | Output | Replay in the browser | Compact answers for language models |
 | Typical use | Explore and replay a run | "Why does this workflow fail, where can I hook in?" |
 
-- **No logic duplicated.** The server reuses the backend's Odoo client and services
+- **Lightweight.** The server only imports the backend's Odoo client, gateway and schemas,
+  without its services, database or web stack
   ([ADR 0006](docs/adr/0006-mcp-server-uses-backend-package.md)).
 - **Made for language models.** A recorded trace is far too large to read whole (the
-  reference trace has 879 steps, about 470 KB). `run_trace` returns an overview, the other
-  tools answer narrow questions with step IDs.
-- **Same contract.** Every trace is validated against the schema in `shared/schemas`.
+  reference trace has 879 steps, about 470 KB). `run_trace` returns an overview and only the
+  steps its filters ask for.
+- **Same contract.** Every trace is validated against the model generated from
+  `shared/schemas`.
 
 ### Safety
 
@@ -380,11 +382,3 @@ server is a second way in, for the moment you want an answer while you work:
 | Sensitive values | Until masking (see [Planned](#planned)) exists, trace values go to the model behind your client. Use a development database |
 | Credentials | Set in the git-ignored `mcp-server/.env`, or as environment variables in the MCP client's configuration. Use a dedicated development user and API key |
 | Timeout | Per run and configurable (default 30 s), with a clear message when exceeded. An abandoned HTTP call does not necessarily stop the run in Odoo |
-
-### Planned tools
-
-| Tool | Answers |
-|---|---|
-| `trace_tree` | Call tree from a step, limited depth, optional "relevant only" |
-| `override_chain` | All implementations of a method with MRO position and `super()` |
-| `field_history` | Every change to a field, in order |
