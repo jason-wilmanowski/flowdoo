@@ -1,12 +1,14 @@
-from pydantic import ValidationError
 import sys
+
+from pydantic import ValidationError
+
 from flowdoo_mcp.config import get_settings
 
 
 def main() -> None:
 
     try:
-        get_settings() # check settings before start
+        get_settings()  # check settings before start
     except ValidationError as exc:
         print(exc, file=sys.stderr)
         sys.exit(1)
