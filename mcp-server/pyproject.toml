@@ -26,6 +26,7 @@ packages = ["src/flowdoo_mcp"]
 [dependency-groups]
 dev = [
     "mypy>=2.4.0",
+    "pytest>=9.2.0",
     "ruff>=0.16.10",
 ]
 
@@ -43,3 +44,6 @@ strict = true
 mypy_path = "src"
 packages = ["flowdoo_mcp"]
 plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
