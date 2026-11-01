@@ -42,3 +42,4 @@ python_version = "3.12"
 strict = true
 mypy_path = "src"
 packages = ["flowdoo_mcp"]
+plugins = ["pydantic.mypy"]
