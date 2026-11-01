@@ -15,6 +15,7 @@ Step = dict[str, Any]
 MAX_ANSWER_CHARS = 20_000
 MAX_LISTED_CALLS = 30
 MAX_LISTED_FIELDS = 100
+MAX_LISTED_TRANSITIONS = 3
 MAX_LISTED_FAILURES = 5
 MAX_LISTED_CHILDREN = 50
 MAX_LISTED_RECORD_IDS = 20
@@ -51,9 +52,10 @@ def overview(trace: Trace) -> dict[str, Any]:
         "models": _counts(step["model"] for step in steps),
         "modules": _counts(step["module"] for step in steps if step["module"]),
         **_field_changes(steps),
-        "top_level_calls": _top_level_calls(steps),
+        **_top_level_calls(steps),
         "failed_total": len(failed),
-        "failures": _failure_origins(steps, failed),
+        **_failure_origins(steps, failed),
+        "warnings": trace.get("warnings", []),
     }
 
 
@@ -115,34 +117,58 @@ def _counts(values: Any) -> dict[str, int]:
 
 
 def _field_changes(steps: list[Step]) -> dict[str, Any]:
-    """One line per changed field: the value before the first and after the last change."""
+    """One line per changed field, cut to fit into one answer."""
     grouped: dict[str, list[tuple[Step, dict[str, Any]]]] = {}
     for step in steps:
         for change in step["changes"]:
             grouped.setdefault(f"{change['model']}.{change['field']}", []).append((step, change))
-    lines = [
-        f"{name}: {_inline(changes[0][1]['old'])} -> {_inline(changes[-1][1]['new'])} "
-        f"({len(changes)}x, first in {changes[0][0]['id']})"
-        for name, changes in grouped.items()
-    ]
-    return {"changed_fields_total": len(lines), "changed_fields": lines[:MAX_LISTED_FIELDS]}
+    lines = [_field_change_line(name, changes) for name, changes in grouped.items()]
+    return {
+        "changed_fields_total": len(lines),
+        "changed_fields": _fitting(lines[:MAX_LISTED_FIELDS]),
+    }
 
 
-def _top_level_calls(steps: list[Step]) -> list[str]:
+def _field_change_line(name: str, changes: list[tuple[Step, dict[str, Any]]]) -> str:
+    """Per record the value before its first and after its last change; equal ones merged."""
+    first_old: dict[int, Any] = {}
+    last_new: dict[int, Any] = {}
+    for _, change in changes:
+        first_old.setdefault(change["record_id"], change["old"])
+        last_new[change["record_id"]] = change["new"]
+    transitions = list(
+        dict.fromkeys(
+            f"{_inline(first_old[record])} -> {_inline(last_new[record])}" for record in first_old
+        )
+    )
+    shown = transitions[:MAX_LISTED_TRANSITIONS]
+    if len(transitions) > len(shown):
+        shown.append(f"+{len(transitions) - len(shown)} more")
+    records = f"{len(first_old)} records, " if len(first_old) > 1 else ""
+    return f"{name}: {', '.join(shown)} ({records}{len(changes)}x, first in {changes[0][0]['id']})"
+
+
+def _top_level_calls(steps: list[Step]) -> dict[str, Any]:
     """The roots and what they call directly: the outline of the run."""
     root_ids = {step["id"] for step in steps if not step["parent_id"]}
     calls = [step for step in steps if not step["parent_id"] or step["parent_id"] in root_ids]
-    return [_label(step) for step in calls[:MAX_LISTED_CALLS]]
+    return {
+        "top_level_calls_total": len(calls),
+        "top_level_calls": [_label(step) for step in calls[:MAX_LISTED_CALLS]],
+    }
 
 
-def _failure_origins(steps: list[Step], failed: list[Step]) -> list[dict[str, Any]]:
+def _failure_origins(steps: list[Step], failed: list[Step]) -> dict[str, Any]:
     """Errors travel up the call tree, so report where they start: no failed child below."""
     parents_of_failed = {step["parent_id"] for step in failed}
     origins = [step for step in failed if step["id"] not in parents_of_failed]
-    return [
-        {"step": step["id"], "error": step["error"], "path": _path(steps, step)}
-        for step in origins[:MAX_LISTED_FAILURES]
-    ]
+    return {
+        "failures_total": len(origins),
+        "failures": [
+            {"step": step["id"], "error": step["error"], "path": _path(steps, step)}
+            for step in origins[:MAX_LISTED_FAILURES]
+        ],
+    }
 
 
 def _fitting(items: list[Any]) -> list[Any]:

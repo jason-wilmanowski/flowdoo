@@ -27,6 +27,85 @@ def test_overview_of_a_recorded_trace_says_what_happened_and_is_small() -> None:
     assert answer_size(overview) < trace_view.MAX_ANSWER_CHARS
 
 
+def change(record_id: int, old: Any, new: Any) -> dict[str, Any]:
+    return {"model": "stock.move", "record_id": record_id, "field": "qty", "old": old, "new": new}
+
+
+def overview_with_changes(*changes: dict[str, Any]) -> dict[str, Any]:
+    trace = load_fixture("trace-small")
+    trace["steps"] = trace["steps"][:1]
+    trace["steps"][0]["changes"] = list(changes)
+    return trace_view.overview(trace)
+
+
+def test_changed_field_of_one_record_shows_its_first_and_last_value() -> None:
+    overview = overview_with_changes(change(1, None, 1), change(1, 1, 2))
+
+    assert overview["changed_fields"][0].startswith("stock.move.qty: None -> 2 (2x, first in s")
+
+
+def test_changed_field_of_several_records_shows_each_different_transition() -> None:
+    overview = overview_with_changes(change(1, None, 38), change(2, None, 6), change(3, None, 5))
+
+    line = overview["changed_fields"][0]
+
+    assert line.startswith("stock.move.qty: None -> 38, None -> 6, None -> 5 (3 records, 3x, ")
+
+
+def test_changed_field_of_several_records_merges_equal_transitions() -> None:
+    overview = overview_with_changes(change(1, "a", "b"), change(2, "a", "b"))
+
+    assert overview["changed_fields"][0].startswith("stock.move.qty: 'a' -> 'b' (2 records, 2x, ")
+
+
+def test_changed_field_lists_a_few_transitions_and_says_how_many_more() -> None:
+    overview = overview_with_changes(*(change(number, None, number) for number in range(1, 6)))
+
+    line = overview["changed_fields"][0]
+
+    assert "None -> 3, +2 more (5 records, 5x, " in line
+    assert "None -> 4" not in line
+
+
+def test_changed_fields_stay_within_the_size_limit_and_report_the_total() -> None:
+    wide = [
+        {"model": "m", "record_id": record, "field": f"f{field}", "old": "x" * 80, "new": record}
+        for field in range(90)
+        for record in range(1, 4)
+    ]
+
+    overview = overview_with_changes(*wide)
+
+    assert overview["changed_fields_total"] == 90
+    assert 0 < len(overview["changed_fields"]) < 90
+    assert answer_size(overview) < trace_view.MAX_ANSWER_CHARS + 2000
+
+
+def test_overview_reports_the_total_of_cut_lists() -> None:
+    trace = load_fixture("trace-small")
+    root = trace["steps"][0]
+    error = {"type": "ValueError", "message": "x"}
+    children = [
+        {**root, "id": f"c{number}", "parent_id": root["id"], "seq": 100 + number, "error": error}
+        for number in range(trace_view.MAX_LISTED_CALLS + 5)
+    ]
+    trace["steps"] = [root, *children]
+
+    overview = trace_view.overview(trace)
+
+    assert overview["top_level_calls_total"] == trace_view.MAX_LISTED_CALLS + 6
+    assert len(overview["top_level_calls"]) == trace_view.MAX_LISTED_CALLS
+    assert overview["failures_total"] == trace_view.MAX_LISTED_CALLS + 5
+    assert len(overview["failures"]) == trace_view.MAX_LISTED_FAILURES
+
+
+def test_overview_shows_warnings_kept_with_the_trace() -> None:
+    trace = load_fixture("trace-small")
+    assert trace_view.overview(trace)["warnings"] == []
+
+    assert trace_view.overview({**trace, "warnings": ["careful"]})["warnings"] == ["careful"]
+
+
 def test_overview_points_to_where_a_failure_starts() -> None:
     overview = trace_view.overview(load_fixture("trace-error"))
 
