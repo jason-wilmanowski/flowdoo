@@ -1,4 +1,4 @@
-# ADR 0006: A lightweight, stateless MCP server on parts of the backend package
+# ADR 0006: A lightweight MCP server on parts of the backend package
 
 - **Status:** accepted
 - **Date:** 2026-11-01
@@ -7,8 +7,8 @@
 
 The MCP server needs the backend's Odoo client, trace gateway and data types. So far the
 parts of the repository never import each other. The server must work without the Flowdoo
-containers and their database, and it should stay small: no database, no repositories, no
-state between calls.
+containers and their database, and it should stay small: no database and no repositories. A
+session usually covers one feature, so traces only have to last as long as the process.
 
 ## Decision
 
@@ -20,8 +20,9 @@ state between calls.
   that importing the tools loads neither the services nor SQLAlchemy or FastAPI.
 - `tool.uv.exclude-dependencies` keeps the backend's database and web dependencies from being
   installed.
-- Every tool call is a plain request and response with its own Odoo client. No lifespan
-  state, no stored traces. `run_trace` returns an overview and the steps matching its filters.
+- A lifespan holds one Odoo client, the gateway and the recorded traces in memory, at most the
+  latest 20. `run_trace` returns an overview; `trace_overview`, `find_steps` and `get_step`
+  read the kept trace without running the workflow again.
 - `run_trace` always runs as a dry run and refuses a database that is not known to be
   neutralised.
 
@@ -31,5 +32,4 @@ state between calls.
 - The route names and the connection checks exist twice, in a shorter form here. Excluded
   dependencies also mean that a new backend import can fail only at runtime; the test above
   and the tool tests catch that, so they belong in CI.
-- Every further question about a run is a new dry run. Step ids and counts can differ between
-  runs, and document numbers can be drawn again. Answers cannot refer to an earlier run.
+- Traces are gone when the server stops. Storing them as files can follow when needed.

@@ -13,7 +13,8 @@ with `odoo neutralize`; `run_trace` refuses any other.
 ODOO_URL=http://localhost:8069
 ODOO_DB=my_dev_database
 ODOO_API_KEY=my-api-key
-# Optional: seconds to wait for a run (default 30)
+# Optional: the login the key must belong to, seconds to wait for a run (default 30)
+ODOO_LOGIN=admin
 FLOWDOO_TIMEOUT=120
 ```
 
@@ -31,12 +32,21 @@ claude mcp add --transport stdio flowdoo -- uv run --directory /absolute/path/to
 | `describe_entrypoint` | Parameters of a method before tracing it |
 | `list_models` | Models by a part of their name or description |
 | `describe_model` | Fields, inheritance and relations of a model |
-| `run_trace` | Records a dry run and returns an overview plus the steps matching its filters |
+| `run_trace` | Records a dry run, keeps the trace and returns its overview |
+| `list_traces` | The traces kept in this session |
+| `trace_overview` | Counts per kind, model and module, every changed field with its values, top-level calls, where failures start |
+| `find_steps` | Steps by model, method, module, kind, changed field or failure, page by page |
+| `get_step` | One step in full, its call path and children, the implementations of its method that ran |
 
-Every call is a plain request and response: the server keeps nothing. To look at other steps
-of a workflow, call `run_trace` again with other filters. That is a new dry run, so step ids
-and step counts can differ between runs (Odoo's caches, for example, are warm the second
-time).
+## Sessions and sizes
+
+The server is meant for one session, typically one feature. Traces live in its memory until
+the process stops, at most the latest 20 of them. Asking about a kept trace does not run the
+workflow again, so step ids stay valid.
+
+Trace answers are made for language models: lists of steps and changes are cut at about
+20,000 characters and say how to get the rest (`next_offset`, `changes_total`). `find_steps`
+shortens long arguments and results; `get_step` shows them as recorded.
 
 ## Development
 

@@ -26,7 +26,7 @@ backend and addon are complete for these two modes; next is access from Claude C
 | Backend API (`backend/`) | ✅ Records traces through the addon, validates and stores them; connection check; model registry and method signatures |
 | Trace schema (`shared/schemas`) | ✅ v0.2.0 with generated types, hand-written and recorded fixtures ([format](docs/trace-format.md)) |
 | Frontend (`frontend/`) | ✅ Trace list, trace view with replay, start dialog, model overview, settings; fully usable on fixtures without backend and Odoo ([architecture](docs/frontend-architecture.md)) |
-| MCP server (`mcp-server/`) | 🚧 First version: connection check, model and entrypoint lookups, dry runs with an overview and filtered steps ([setup](mcp-server/README.md)) |
+| MCP server (`mcp-server/`) | 🚧 First version: connection check, model and entrypoint lookups, dry runs, reading a trace kept in memory ([setup](mcp-server/README.md)) |
 
 ## Planned
 
@@ -360,7 +360,7 @@ server is a second way in, for the moment you want an answer while you work:
 | | App (frontend + backend) | MCP server |
 |---|---|---|
 | Needs | `db`, `api` and `frontend` containers | Your Odoo with the addon, nothing else |
-| Traces are kept | In PostgreSQL | Not at all: plain request and response |
+| Traces are kept | In PostgreSQL | In memory, until the server stops |
 | Output | Replay in the browser | Compact answers for language models |
 | Typical use | Explore and replay a run | "Why does this workflow fail, where can I hook in?" |
 
@@ -368,8 +368,9 @@ server is a second way in, for the moment you want an answer while you work:
   without its services, database or web stack
   ([ADR 0006](docs/adr/0006-mcp-server-uses-backend-package.md)).
 - **Made for language models.** A recorded trace is far too large to read whole (the
-  reference trace has 879 steps, about 470 KB). `run_trace` returns an overview and only the
-  steps its filters ask for.
+  reference trace has 879 steps, about 360 KB). `run_trace` returns an overview, `find_steps`
+  and `get_step` answer narrow questions with step IDs, and long answers are cut with a note
+  on how to get the rest.
 - **Same contract.** Every trace is validated against the model generated from
   `shared/schemas`.
 
