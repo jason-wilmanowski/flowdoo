@@ -1,6 +1,8 @@
-from typing import Any
+from typing import Annotated, Any
 
+from flow_tracer_api.integrations.odoo.client import OdooJson2Client
 from flow_tracer_api.schemas import EntrypointSignature, ModelDetail, ModelList
+from pydantic import Field
 
 from flowdoo_mcp.errors import odoo_errors_as_tool_errors
 from flowdoo_mcp.server import ToolContext, mcp
@@ -34,20 +36,30 @@ async def describe_entrypoint(ctx: ToolContext, model: str, method: str) -> Entr
     derived implementation and whether it is a model-level method, called without record ids.
     """
     with odoo_errors_as_tool_errors():
-        answer = await ctx.request_context.lifespan_context.client.post(
-            SIGNATURE_ROUTE,
-            {"model": model, "method": method},
-            target=f"{model}.{method} signature",
+        return await entrypoint_signature(
+            ctx.request_context.lifespan_context.client, model, method
         )
+
+
+async def entrypoint_signature(
+    client: OdooJson2Client, model: str, method: str
+) -> EntrypointSignature:
+    answer = await client.post(
+        SIGNATURE_ROUTE,
+        {"model": model, "method": method},
+        target=f"{model}.{method} signature",
+    )
     return EntrypointSignature.model_validate(answer)
 
 
 @mcp.tool()
-async def list_models(ctx: ToolContext, search: str = "") -> dict[str, Any]:
+async def list_models(
+    ctx: ToolContext, search: str = "", offset: Annotated[int, Field(ge=0)] = 0
+) -> dict[str, Any]:
     """Find models of the connected Odoo by a part of their technical name or description.
 
-    Returns at most 100 models; `total` tells how many matched, so narrow `search` if it
-    is higher.
+    Returns at most 100 models per call; `total` tells how many matched. If `next_offset`
+    is set, call again with it as `offset` or narrow `search`.
     """
     with odoo_errors_as_tool_errors():
         answer = await ctx.request_context.lifespan_context.client.post(
@@ -59,7 +71,13 @@ async def list_models(ctx: ToolContext, search: str = "") -> dict[str, Any]:
         for item in ModelList.model_validate(answer).models
         if needle in item.model.casefold() or needle in (item.description or "").casefold()
     ]
-    return {"total": len(matches), "models": matches[:MODEL_LIST_LIMIT]}
+    next_offset = offset + MODEL_LIST_LIMIT
+    return {
+        "total": len(matches),
+        "offset": offset,
+        "next_offset": next_offset if next_offset < len(matches) else None,
+        "models": matches[offset:next_offset],
+    }
 
 
 @mcp.tool()

@@ -239,6 +239,124 @@ async def test_unknown_trace_and_step_explain_themselves(use_odoo: UseOdoo) -> N
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize("paging", [{"limit": 0}, {"limit": -1}, {"offset": -1}])
+async def test_find_steps_refuses_paging_that_cannot_advance(
+    use_odoo: UseOdoo, paging: dict[str, int]
+) -> None:
+    trace = load_fixture("trace-small")
+    use_odoo(ready_odoo(trace))
+
+    async with Client(mcp) as client:
+        await call(client, "run_trace", model="sale.order", method="action_confirm")
+        message = await error_of(client, "find_steps", trace_id=trace["trace_id"], **paging)
+
+    assert next(iter(paging)) in message
+
+
+def signature(*, model_level: bool) -> dict[str, Any]:
+    return {
+        "model": "sale.order",
+        "method": "action_confirm",
+        "model_level": model_level,
+        "module": "sale",
+        "summary": None,
+        "parameters": [],
+    }
+
+
+@pytest.mark.anyio
+async def test_run_trace_warns_about_a_record_method_without_records(use_odoo: UseOdoo) -> None:
+    answers = ready_odoo(load_fixture("trace-small"))
+    answers["/flow_tracer/v1/signature"] = signature(model_level=False)
+    use_odoo(answers)
+
+    async with Client(mcp) as client:
+        overview = await call(client, "run_trace", model="sale.order", method="action_confirm")
+        again = await call(client, "trace_overview", trace_id=overview["trace_id"])
+
+    assert "empty recordset" in overview["warnings"][0]
+    assert again == overview
+
+
+@pytest.mark.anyio
+async def test_run_trace_does_not_warn_about_a_model_level_method(use_odoo: UseOdoo) -> None:
+    answers = ready_odoo(load_fixture("trace-small"))
+    answers["/flow_tracer/v1/signature"] = signature(model_level=True)
+    use_odoo(answers)
+
+    async with Client(mcp) as client:
+        overview = await call(client, "run_trace", model="res.partner", method="create")
+
+    assert overview["warnings"] == []
+
+
+@pytest.mark.anyio
+async def test_run_trace_with_records_does_not_ask_for_the_signature(use_odoo: UseOdoo) -> None:
+    seen = use_odoo(ready_odoo(load_fixture("trace-small")))
+
+    async with Client(mcp) as client:
+        await call(client, "run_trace", model="sale.order", method="action_confirm", record_ids=[1])
+
+    assert "/flow_tracer/v1/signature" not in seen
+
+
+@pytest.mark.anyio
+async def test_a_failing_signature_check_does_not_lose_the_trace(use_odoo: UseOdoo) -> None:
+    use_odoo(ready_odoo(load_fixture("trace-small")))
+
+    async with Client(mcp) as client:
+        overview = await call(client, "run_trace", model="sale.order", method="action_confirm")
+
+    assert overview["warnings"] == []
+    assert overview["step_count"] > 0
+
+
+def model_list(count: int) -> dict[str, Any]:
+    models = [
+        {
+            "model": f"m.{number:03}",
+            "description": None,
+            "module": "base",
+            "modules": ["base"],
+            "abstract": False,
+            "transient": False,
+            "parents": [],
+            "delegates": {},
+            "field_count": 0,
+            "relations": [],
+        }
+        for number in range(count)
+    ]
+    return {"schema_version": "0.1.0", "models": models}
+
+
+@pytest.mark.anyio
+async def test_list_models_reaches_every_model_page_by_page(use_odoo: UseOdoo) -> None:
+    use_odoo({"/flow_tracer/v1/models": model_list(230)})
+    seen: list[str] = []
+    offset: int | None = 0
+
+    async with Client(mcp) as client:
+        while offset is not None:
+            page = await call(client, "list_models", offset=offset)
+            assert page["total"] == 230
+            seen += [item["model"] for item in page["models"]]
+            offset = page["next_offset"]
+
+    assert len(seen) == len(set(seen)) == 230
+
+
+@pytest.mark.anyio
+async def test_list_models_refuses_a_negative_offset(use_odoo: UseOdoo) -> None:
+    use_odoo({"/flow_tracer/v1/models": model_list(1)})
+
+    async with Client(mcp) as client:
+        message = await error_of(client, "list_models", offset=-1)
+
+    assert "offset" in message
+
+
+@pytest.mark.anyio
 async def test_odoo_errors_reach_the_model(use_odoo: UseOdoo) -> None:
     use_odoo({})
 

@@ -1,15 +1,17 @@
 import uuid
-from typing import Any
+from typing import Annotated, Any
 
 from flow_tracer_api.generated.trace_schema import TracePayload
+from flow_tracer_api.integrations.odoo.errors import OdooClientError
 from flow_tracer_api.schemas import TraceRequest
 from mcp.server.mcpserver.exceptions import ToolError
-from pydantic import ValidationError
+from pydantic import Field, ValidationError
 
 from flowdoo_mcp import trace_view
 from flowdoo_mcp.errors import odoo_errors_as_tool_errors
 from flowdoo_mcp.server import MAX_STORED_TRACES, AppContext, ToolContext, mcp
 from flowdoo_mcp.status import OdooStatus, check_status
+from flowdoo_mcp.tools.odoo import entrypoint_signature
 
 
 @mcp.tool()
@@ -24,13 +26,15 @@ async def run_trace(
     """Run a method in the real Odoo as a dry run, keep the trace and return its overview.
 
     Always rolled back at the end. Refuses a database that is not ready to trace or not
-    neutralised. Leave `record_ids` empty for model-level methods; `kwargs` are the
-    method's keyword arguments as JSON values. A failing workflow is a valid result: see
-    `error` and `failures`. If the call times out, the run may still finish in Odoo.
+    neutralised. Leave `record_ids` empty for model-level methods; any other method then
+    runs on an empty recordset, and `warnings` says so. `kwargs` are the method's keyword
+    arguments as JSON values. A failing workflow is a valid result: see `error` and
+    `failures`. If the call times out, the run may still finish in Odoo. Dry runs still use
+    up database sequences, so ids and document numbers get higher with every run.
 
     The overview lists counts per kind, model and module, every changed field with its
-    values, the top-level calls and where failures start. Use find_steps and get_step with
-    the returned `trace_id` to go deeper.
+    values per record, the top-level calls and where failures start. Use find_steps and
+    get_step with the returned `trace_id` to go deeper.
     """
     app = ctx.request_context.lifespan_context
     _ensure_traceable(await check_status(app.client, app.expected_login))
@@ -44,6 +48,7 @@ async def run_trace(
         dry_run=True,
     )
     trace = await _record(app, request)
+    trace["warnings"] = await _empty_recordset_warnings(app, request)
     app.keep_trace(trace)
     return trace_view.overview(trace)
 
@@ -71,8 +76,8 @@ async def find_steps(
     kind: str | None = None,
     field: str | None = None,
     failed_only: bool = False,
-    limit: int = 50,
-    offset: int = 0,
+    limit: Annotated[int, Field(ge=1)] = 50,
+    offset: Annotated[int, Field(ge=0)] = 0,
 ) -> dict[str, Any]:
     """Find steps of a kept trace, in execution order. All given filters must match exactly.
 
@@ -130,6 +135,22 @@ async def _record(app: AppContext, request: TraceRequest) -> dict[str, Any]:
             f"The recorder's answer is not a valid trace: {exc.error_count()} errors"
         ) from exc
     return result.payload
+
+
+async def _empty_recordset_warnings(app: AppContext, request: TraceRequest) -> list[str]:
+    """Only a hint: if it cannot be checked, the recorded trace still counts."""
+    if request.record_ids:
+        return []
+    try:
+        signature = await entrypoint_signature(app.client, request.model, request.method)
+    except OdooClientError:
+        return []
+    if signature.model_level:
+        return []
+    return [
+        f"{request.model}.{request.method} works on records, but ran on an empty recordset "
+        "because no record_ids were given, so most of its logic probably did not run"
+    ]
 
 
 def _stored_trace(app: AppContext, trace_id: str) -> dict[str, Any]:
