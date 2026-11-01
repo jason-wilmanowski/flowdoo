@@ -30,7 +30,7 @@ claude mcp add --transport stdio flowdoo -- uv run --directory /absolute/path/to
 |---|---|
 | `odoo_status` | Reachable, Odoo 19.0, valid key, addon switched on, neutralised database |
 | `describe_entrypoint` | Parameters of a method before tracing it |
-| `list_models` | Models by a part of their name or description |
+| `list_models` | Models by a part of their name or description, page by page |
 | `describe_model` | Fields, inheritance and relations of a model |
 | `run_trace` | Records a dry run, keeps the trace and returns its overview |
 | `list_traces` | The traces kept in this session |
@@ -47,6 +47,9 @@ workflow again, so step ids stay valid.
 Trace answers are made for language models: lists of steps and changes are cut at about
 20,000 characters and say how to get the rest (`next_offset`, `changes_total`). `find_steps`
 shortens long arguments and results; `get_step` shows them as recorded.
+
+A dry run leaves no records behind, but database sequences are not rolled back: ids and
+document numbers such as `WH/OUT/00123` get higher with every run.
 
 ## Development
 
