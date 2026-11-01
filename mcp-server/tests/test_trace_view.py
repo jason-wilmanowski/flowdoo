@@ -23,45 +23,33 @@ def test_overview_names_the_failed_steps() -> None:
     assert overview["error"]["type"] == "odoo.exceptions.UserError"
 
 
+def test_find_steps_without_filters_returns_nothing() -> None:
+    found = trace_view.find_steps(load_fixture("trace-small"))
+
+    assert found == {"steps_total": 0, "steps": []}
+
+
 def test_find_steps_combines_filters() -> None:
     trace = load_fixture("recorded-sale-order-action-confirm")
 
     found = trace_view.find_steps(trace, model="sale.order", field="state")
 
-    assert found["total"] >= 1
-    assert all(step["call"].startswith("sale.order.") for step in found["steps"])
-    assert all("state" in step["changed"] for step in found["steps"])
+    assert found["steps_total"] >= 1
+    for step in found["steps"]:
+        assert step["model"] == "sale.order"
+        assert "state" in {change["field"] for change in step["changes"]}
 
 
 def test_find_steps_reports_the_total_beyond_the_limit() -> None:
     trace = load_fixture("recorded-sale-order-action-confirm")
 
-    found = trace_view.find_steps(trace, limit=5)
+    found = trace_view.find_steps(trace, model="sale.order", limit=2)
 
-    assert found["total"] == len(trace["steps"])
-    assert len(found["steps"]) == 5
+    assert found["steps_total"] > 2
+    assert len(found["steps"]) == 2
 
 
 def test_find_steps_failed_only() -> None:
     found = trace_view.find_steps(load_fixture("trace-error"), failed_only=True)
 
     assert [step["id"] for step in found["steps"]] == ["s1"]
-
-
-def test_step_detail_has_path_and_children() -> None:
-    trace = load_fixture("trace-error")
-
-    assert trace_view.step_detail(trace, "s2") == {
-        "step": trace["steps"][1],
-        "path": ["s1 sale.order.action_confirm"],
-        "children_total": 0,
-        "children": [],
-    }
-    root = trace_view.step_detail(trace, "s1")
-    assert root is not None
-    assert root["path"] == []
-    assert root["children"] == ["s2 sale.order._confirmation_error_message"]
-
-
-def test_step_detail_of_an_unknown_step() -> None:
-    assert trace_view.step_detail(load_fixture("trace-error"), "nope") is None

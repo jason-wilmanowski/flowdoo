@@ -12,7 +12,6 @@ class Settings(BaseSettings):
     odoo_url: str
     odoo_db: str
     odoo_api_key: str
-    odoo_login: str | None = None
     flowdoo_timeout: float = 30.0
 
 
