@@ -31,25 +31,31 @@ claude mcp add --transport stdio flowdoo -- uv run --directory /absolute/path/to
 | `odoo_status` | Reachable, Odoo 19.0, valid key, addon switched on, neutralised database |
 | `describe_entrypoint` | Parameters of a method before tracing it |
 | `list_models` | Models by a part of their name or description, page by page |
-| `describe_model` | Fields, inheritance and relations of a model |
-| `run_trace` | Records a dry run, keeps the trace and returns its overview |
+| `describe_model` | Inheritance and fields of a model, filtered by name, module or stored |
+| `run_trace` | Records a dry run of records given by id or exact name, keeps the trace and returns its overview |
+| `explain_field` | Who changed a field in a kept trace: values, the business method behind it, call path |
 | `list_traces` | The traces kept in this session |
-| `trace_overview` | Counts per kind, model and module, every changed field with its values, top-level calls, where failures start |
-| `find_steps` | Steps by model, method, module, kind, changed field or failure, page by page |
+| `trace_overview` | Counts per kind, model and module, changed values with their method, filled fields per model, top-level calls, where failures start |
+| `find_steps` | Steps by model, method, module, kind, changed field, record, subtree or failure, page by page |
 | `get_step` | One step in full, its call path and children, the implementations of its method that ran |
 
 ## Sessions and sizes
 
 The server is meant for one session, typically one feature. Traces live in its memory until
-the process stops, at most the latest 20 of them. Asking about a kept trace does not run the
+the process stops, at most the latest 20 of them and 100,000 steps in total. Asking about a kept trace does not run the
 workflow again, so step ids stay valid.
 
-Trace answers are made for language models: lists of steps and changes are cut at about
-20,000 characters and say how to get the rest (`next_offset`, `changes_total`). `find_steps`
+Every answer stays in the client's context and is sent again each round, so answers leave out
+empty values and framework noise. Trace answers are made for language models: lists of steps and changes are cut at about
+20,000 characters and say how to get the rest (`next_offset`, `changes_total`). `describe_model` follows the same limit
+and says `fields_total`. `find_steps`
 shortens long arguments and results; `get_step` shows them as recorded.
 
 A dry run leaves no records behind, but database sequences are not rolled back: ids and
 document numbers such as `WH/OUT/00123` get higher with every run.
+
+A trace records ORM changes and method calls. Writes through direct SQL (`cr.execute`) do not appear
+as changes.
 
 ## Development
 
