@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from flow_tracer_api.generated.trace_schema import TracePayload
 from flow_tracer_api.integrations.odoo.errors import OdooClientError
@@ -13,6 +13,17 @@ from flowdoo_mcp.server import MAX_STORED_TRACES, AppContext, ToolContext, mcp
 from flowdoo_mcp.status import OdooStatus, check_status
 from flowdoo_mcp.tools.odoo import entrypoint_signature
 
+StepKind = Literal[
+    "method_call",
+    "orm_create",
+    "orm_write",
+    "orm_unlink",
+    "compute",
+    "onchange",
+    "constraint",
+    "automation",
+]
+
 
 @mcp.tool()
 async def run_trace(
@@ -20,29 +31,25 @@ async def run_trace(
     model: str,
     method: str,
     record_ids: list[int] | None = None,
+    record_names: list[str] | None = None,
     kwargs: dict[str, Any] | None = None,
     context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Run a method in the real Odoo as a dry run, keep the trace and return its overview.
+    """Run a method in the real Odoo as a dry run, always rolled back; returns an overview.
 
-    Always rolled back at the end. Refuses a database that is not ready to trace or not
-    neutralised. Leave `record_ids` empty for model-level methods; any other method then
-    runs on an empty recordset, and `warnings` says so. `kwargs` are the method's keyword
-    arguments as JSON values. A failing workflow is a valid result: see `error` and
-    `failures`. If the call times out, the run may still finish in Odoo. Dry runs still use
-    up database sequences, so ids and document numbers get higher with every run.
-
-    The overview lists counts per kind, model and module, every changed field with its
-    values per record, the top-level calls and where failures start. Use find_steps and
-    get_step with the returned `trace_id` to go deeper.
+    Give the records as `record_ids` or by exact `record_names`, none for model-level methods.
+    Private methods cannot be started. `kwargs` are keyword arguments as JSON values. A failing
+    run is a valid result, see `error` and `failures`. Sequences are not rolled back. Use
+    explain_field, find_steps and get_step with the returned `trace_id` to go deeper.
     """
     app = ctx.request_context.lifespan_context
     _ensure_traceable(await check_status(app.client, app.expected_login))
+    ids = [*(record_ids or ()), *await _ids_of_names(app, model, record_names or [])]
     request = TraceRequest(
         trace_id=uuid.uuid4(),
         model=model,
         method=method,
-        record_ids=tuple(record_ids or ()),
+        record_ids=tuple(ids),
         context=context or {},
         call_kwargs=kwargs or {},
         dry_run=True,
@@ -54,10 +61,26 @@ async def run_trace(
 
 
 @mcp.tool()
-async def list_traces(ctx: ToolContext) -> list[dict[str, Any]]:
+async def explain_field(
+    ctx: ToolContext,
+    trace_id: str,
+    field: str,
+    model: str | None = None,
+    record_id: int | None = None,
+) -> dict[str, Any]:
+    """Who changed a field in a kept trace: values, the business method behind it, call path.
+
+    The fastest way to find where a value comes from. Direct SQL writes are not recorded.
+    """
+    trace = _stored_trace(ctx.request_context.lifespan_context, trace_id)
+    return trace_view.explain_field(trace, field, model=model, record_id=record_id)
+
+
+@mcp.tool()
+async def list_traces(ctx: ToolContext) -> dict[str, Any]:
     """List the traces kept in this session, oldest first."""
     traces = ctx.request_context.lifespan_context.traces
-    return [trace_view.summary(trace) for trace in traces.values()]
+    return {"traces": [trace_view.summary(trace) for trace in traces.values()]}
 
 
 @mcp.tool()
@@ -73,19 +96,20 @@ async def find_steps(
     model: str | None = None,
     method: str | None = None,
     module: str | None = None,
-    kind: str | None = None,
+    kind: StepKind | None = None,
     field: str | None = None,
+    record_id: int | None = None,
+    under: str | None = None,
+    exclude_modules: list[str] | None = None,
     failed_only: bool = False,
-    limit: Annotated[int, Field(ge=1)] = 50,
+    limit: Annotated[int, Field(ge=1)] = 20,
     offset: Annotated[int, Field(ge=0)] = 0,
 ) -> dict[str, Any]:
-    """Find steps of a kept trace, in execution order. All given filters must match exactly.
+    """Find steps of a kept trace in execution order; all filters must match exactly.
 
-    `field` matches steps that changed a field of that name, `kind` is e.g. method_call,
-    orm_write or compute. Each step shows its call, module, MRO position, super() call,
-    shortened arguments and result, field changes and error. `total` tells how many matched;
-    if `next_offset` is set, call again with it as `offset` or narrow the filters. Use
-    get_step for everything about one step.
+    `under` keeps a step and everything below it. `mro_position` counts the implementations of
+    that method on the server, 0 is the most derived. If `next_offset` is set, narrow the
+    filters or call again with it as `offset`.
     """
     return trace_view.find_steps(
         _stored_trace(ctx.request_context.lifespan_context, trace_id),
@@ -94,6 +118,9 @@ async def find_steps(
         module=module,
         kind=kind,
         field=field,
+        record_id=record_id,
+        under=under,
+        exclude_modules=exclude_modules,
         failed_only=failed_only,
         limit=limit,
         offset=offset,
@@ -102,12 +129,7 @@ async def find_steps(
 
 @mcp.tool()
 async def get_step(ctx: ToolContext, trace_id: str, step_id: str) -> dict[str, Any]:
-    """Show one step of a kept trace in full: all field changes, arguments, result, error.
-
-    Also returns the call path leading to it, its direct children to walk the tree, and the
-    implementations of the same method that ran in this trace with their MRO position and
-    super() call, which show where a hook is possible.
-    """
+    """One step of a kept trace in full, its call path, children and the overrides that ran."""
     trace = _stored_trace(ctx.request_context.lifespan_context, trace_id)
     detail = trace_view.step_detail(trace, step_id)
     if detail is None:
@@ -135,6 +157,18 @@ async def _record(app: AppContext, request: TraceRequest) -> dict[str, Any]:
             f"The recorder's answer is not a valid trace: {exc.error_count()} errors"
         ) from exc
     return result.payload
+
+
+async def _ids_of_names(app: AppContext, model: str, names: list[str]) -> list[int]:
+    """Clients know orders by name, and looking up each id costs them a round."""
+    ids = []
+    for name in names:
+        with odoo_errors_as_tool_errors():
+            found = await app.client.call(model, "name_search", name=name, operator="=", limit=2)
+        if len(found) != 1:
+            raise ToolError(f"{len(found)} {model} records are named {name!r}, expected one")
+        ids.append(found[0][0])
+    return ids
 
 
 async def _empty_recordset_warnings(app: AppContext, request: TraceRequest) -> list[str]:

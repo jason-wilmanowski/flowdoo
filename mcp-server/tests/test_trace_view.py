@@ -39,17 +39,17 @@ def overview_with_changes(*changes: dict[str, Any]) -> dict[str, Any]:
 
 
 def test_changed_field_of_one_record_shows_its_first_and_last_value() -> None:
-    overview = overview_with_changes(change(1, None, 1), change(1, 1, 2))
+    overview = overview_with_changes(change(1, 0, 1), change(1, 1, 2))
 
-    assert overview["changed_fields"][0].startswith("stock.move.qty: None -> 2 (2x, first in s")
+    assert overview["changed_fields"][0].startswith("stock.move.qty: 0 -> 2 (2x, first in s")
 
 
 def test_changed_field_of_several_records_shows_each_different_transition() -> None:
-    overview = overview_with_changes(change(1, None, 38), change(2, None, 6), change(3, None, 5))
+    overview = overview_with_changes(change(1, 0, 38), change(2, 0, 6), change(3, 0, 5))
 
     line = overview["changed_fields"][0]
 
-    assert line.startswith("stock.move.qty: None -> 38, None -> 6, None -> 5 (3 records, 3x, ")
+    assert line.startswith("stock.move.qty: 0 -> 38, 0 -> 6, 0 -> 5 (3 records, 3x, ")
 
 
 def test_changed_field_of_several_records_merges_equal_transitions() -> None:
@@ -59,12 +59,12 @@ def test_changed_field_of_several_records_merges_equal_transitions() -> None:
 
 
 def test_changed_field_lists_a_few_transitions_and_says_how_many_more() -> None:
-    overview = overview_with_changes(*(change(number, None, number) for number in range(1, 6)))
+    overview = overview_with_changes(*(change(number, 0, number) for number in range(1, 6)))
 
     line = overview["changed_fields"][0]
 
-    assert "None -> 3, +2 more (5 records, 5x, " in line
-    assert "None -> 4" not in line
+    assert "0 -> 3, +2 more (5 records, 5x, " in line
+    assert "0 -> 4" not in line
 
 
 def test_changed_fields_stay_within_the_size_limit_and_report_the_total() -> None:
@@ -101,7 +101,7 @@ def test_overview_reports_the_total_of_cut_lists() -> None:
 
 def test_overview_shows_warnings_kept_with_the_trace() -> None:
     trace = load_fixture("trace-small")
-    assert trace_view.overview(trace)["warnings"] == []
+    assert "warnings" not in trace_view.overview(trace)
 
     assert trace_view.overview({**trace, "warnings": ["careful"]})["warnings"] == ["careful"]
 
@@ -134,7 +134,8 @@ def test_find_steps_combines_filters_and_shows_details() -> None:
     step = found["steps"][0]
     assert step["call"] == "sale.order.write"
     assert any("state: 'draft' -> 'sale'" in change for change in step["changes"])
-    assert {"mro_position", "calls_super", "args", "returns", "duration_ms"} <= step.keys()
+    assert step["mro_position"] is not None
+    assert step["args"]
 
 
 def test_find_steps_pages_through_all_steps_within_the_size_limit() -> None:
@@ -180,7 +181,7 @@ def test_step_detail_has_the_full_step_path_children_and_implementations() -> No
     assert root["path"] == []
     assert root["children"][0].startswith("s2 method_call sale.order._confirmation_error_message")
     assert root["implementations_seen"] == [
-        {"mro_position": 0, "module": "sale", "calls_super": False}
+        {"mro_position": 0, "module": "sale", "calls_super": False, "step": "s1"}
     ]
 
 
@@ -223,3 +224,147 @@ def test_a_cycle_in_the_step_tree_does_not_hang() -> None:
     trace["steps"][0]["parent_id"] = "s2"
 
     assert trace_view.step_detail(trace, "s2") is not None
+
+
+def changing_steps() -> dict[str, Any]:
+    """action_confirm > _apply_rules > write (mail) > write (ORM, which changes the value)."""
+    trace = load_fixture("trace-small")
+    template = trace["steps"][0]
+    blank = {**template, "changes": [], "error": None, "record_ids": [1], "duration_ms": 1}
+
+    def step(number: int, parent: str | None, kind: str, method: str, module: str | None) -> Any:
+        return {
+            **blank,
+            "id": f"s{number}",
+            "seq": number,
+            "parent_id": parent,
+            "kind": kind,
+            "model": "sale.order",
+            "method": method,
+            "module": module,
+        }
+
+    steps = [
+        step(1, None, "method_call", "action_confirm", "sale"),
+        step(2, "s1", "method_call", "_apply_rules", "custom"),
+        step(3, "s2", "orm_write", "write", "mail"),
+        step(4, "s3", "orm_write", "write", None),
+        step(5, "s1", "method_call", "_other", "sale"),
+    ]
+    steps[3]["changes"] = [
+        {"model": "sale.order", "record_id": 1, "field": "policy", "old": "a", "new": "b"}
+    ]
+    return {**trace, "steps": steps}
+
+
+def test_a_change_names_the_business_method_above_the_write_chain() -> None:
+    overview = trace_view.overview(changing_steps())
+
+    assert "by sale.order._apply_rules [custom]" in overview["changed_fields"][0]
+
+
+def test_explain_field_gives_the_change_its_method_and_path() -> None:
+    answer = trace_view.explain_field(changing_steps(), "policy")
+
+    change = answer["changes"][0]
+    assert answer["changes_total"] == 1
+    assert (change["step"], change["old"], change["new"]) == ("s4", "a", "b")
+    assert change["by"] == "sale.order._apply_rules [custom]"
+    assert change["path"][1].startswith("s2 method_call sale.order._apply_rules")
+
+
+def test_explain_field_filters_by_record_and_model() -> None:
+    assert trace_view.explain_field(changing_steps(), "policy", record_id=2)["changes"] == []
+    assert trace_view.explain_field(changing_steps(), "policy", model="x")["changes"] == []
+    assert trace_view.explain_field(changing_steps(), "policy", record_id=1)["changes"]
+
+
+def test_explain_field_without_a_change_warns_about_direct_sql() -> None:
+    answer = trace_view.explain_field(changing_steps(), "credit_state")
+
+    assert answer["changes_total"] == 0
+    assert "direct SQL" in answer["hint"]
+
+
+def test_fields_only_filled_on_new_records_become_one_line_per_model() -> None:
+    new = [{"model": "m", "record_id": 1, "field": name, "old": None, "new": 1} for name in "ab"]
+    trace = changing_steps()
+    trace["steps"][2]["changes"] = new
+
+    overview = trace_view.overview(trace)
+
+    assert overview["filled_fields"] == ["m: a, b"]
+    assert overview["changed_fields_total"] == 3
+    assert len(overview["changed_fields"]) == 1
+
+
+def test_find_steps_stays_within_a_subtree() -> None:
+    found = trace_view.find_steps(changing_steps(), under="s2")
+
+    assert [step["id"] for step in found["steps"]] == ["s2", "s3", "s4"]
+
+
+def test_find_steps_excludes_modules_and_finds_a_record() -> None:
+    trace = changing_steps()
+
+    kept = trace_view.find_steps(trace, exclude_modules=["mail", "sale"])
+    other = trace_view.find_steps(trace, record_id=99)
+
+    assert [step["id"] for step in kept["steps"]] == ["s2", "s4"]
+    assert other["total"] == 0
+
+
+def test_a_short_step_leaves_out_empty_values() -> None:
+    step = trace_view.find_steps(changing_steps(), method="_other")["steps"][0]
+
+    assert "changes" not in step
+    assert "error" not in step
+    assert "calls_super" not in step
+    assert "duration_ms" not in step
+    assert step["module"] == "sale"
+
+
+def test_the_orm_write_is_shown_as_base() -> None:
+    step = trace_view.find_steps(changing_steps(), field="policy")["steps"][0]
+
+    assert step["module"] == "base"
+
+
+def test_huge_input_is_cut_in_the_overview() -> None:
+    trace = load_fixture("trace-small")
+    trace["entrypoint"]["kwargs"] = {"vals_list": [{"name": "x" * 100}] * 1000}
+
+    overview = trace_view.overview(trace)
+
+    assert len(overview["kwargs"]) < 400
+    assert answer_size(overview) < trace_view.MAX_ANSWER_CHARS
+
+
+def test_a_cut_recording_is_no_failure() -> None:
+    trace = load_fixture("trace-small")
+    trace["error"] = {"type": trace_view.TRUNCATED_ERROR, "message": "Stopped after 20000 steps"}
+
+    overview = trace_view.overview(trace)
+
+    assert overview["error"] is None
+    assert "20000" in overview["recording_truncated"]
+
+
+def test_noise_is_left_out_of_the_top_level_calls() -> None:
+    trace = changing_steps()
+    trace["steps"][4]["method"] = "_track_prepare"
+
+    calls = trace_view.overview(trace)["top_level_calls"]
+
+    assert not any("_track_prepare" in call for call in calls)
+
+
+def test_long_lists_of_counts_are_summed_up() -> None:
+    assert trace_view._counts(str(number) for number in range(12))["(others)"] == 2
+
+
+def test_list_summary_tells_apart_runs_of_one_method() -> None:
+    trace = load_fixture("trace-small")
+    trace["entrypoint"]["kwargs"] = {"a": 1}
+
+    assert '"a": 1' in trace_view.summary(trace)["kwargs"]

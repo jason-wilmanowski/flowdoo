@@ -14,7 +14,7 @@ from mcp.client import Client
 import flowdoo_mcp.tools  # noqa: F401
 from flowdoo_mcp import server
 from flowdoo_mcp.config import get_settings
-from flowdoo_mcp.server import MAX_STORED_TRACES, AppContext, mcp
+from flowdoo_mcp.server import MAX_STORED_STEPS, MAX_STORED_TRACES, AppContext, mcp
 
 ADDON_READY = {"enabled": True, "recorder_available": True, "is_admin": True}
 
@@ -72,9 +72,7 @@ async def call(client: Client, tool: str, **arguments: Any) -> Any:
 
 
 async def listed_traces(client: Client) -> list[dict[str, Any]]:
-    result = await client.call_tool("list_traces", {})
-    assert not result.is_error
-    return [json.loads(item.text) for item in result.content]
+    return (await call(client, "list_traces"))["traces"]
 
 
 async def error_of(client: Client, tool: str, **arguments: Any) -> str:
@@ -112,6 +110,7 @@ async def test_all_tools_are_registered() -> None:
         "trace_overview",
         "find_steps",
         "get_step",
+        "explain_field",
     }
 
 
@@ -131,7 +130,6 @@ async def test_a_kept_trace_can_be_read_with_the_other_tools(use_odoo: UseOdoo) 
         step = await call(client, "get_step", trace_id=trace_id, step_id="s2")
 
     assert overview["trace_id"] == trace_id
-    assert overview["dry_run"] is True
     assert overview["failures"][0]["step"] == "s1"
     assert [item["trace_id"] for item in listed] == [trace_id]
     assert again == overview
@@ -287,7 +285,7 @@ async def test_run_trace_does_not_warn_about_a_model_level_method(use_odoo: UseO
     async with Client(mcp) as client:
         overview = await call(client, "run_trace", model="res.partner", method="create")
 
-    assert overview["warnings"] == []
+    assert "warnings" not in overview
 
 
 @pytest.mark.anyio
@@ -307,7 +305,7 @@ async def test_a_failing_signature_check_does_not_lose_the_trace(use_odoo: UseOd
     async with Client(mcp) as client:
         overview = await call(client, "run_trace", model="sale.order", method="action_confirm")
 
-    assert overview["warnings"] == []
+    assert "warnings" not in overview
     assert overview["step_count"] > 0
 
 
@@ -386,3 +384,144 @@ def test_only_the_latest_traces_are_kept() -> None:
     assert len(app.traces) == MAX_STORED_TRACES
     assert "0" not in app.traces
     assert str(MAX_STORED_TRACES + 1) in app.traces
+
+
+def test_a_few_huge_traces_are_dropped_before_the_count_limit() -> None:
+    app = AppContext(client=None, gateway=None)  # type: ignore[arg-type]
+    huge = [{}] * (MAX_STORED_STEPS // 2 + 1)
+
+    for number in range(3):
+        app.keep_trace({"trace_id": str(number), "steps": huge})
+
+    assert list(app.traces) == ["2"]
+
+
+def test_the_newest_trace_is_kept_even_if_it_is_over_the_limit() -> None:
+    app = AppContext(client=None, gateway=None)  # type: ignore[arg-type]
+
+    app.keep_trace({"trace_id": "big", "steps": [{}] * (MAX_STORED_STEPS + 1)})
+
+    assert list(app.traces) == ["big"]
+
+
+@pytest.mark.anyio
+async def test_run_trace_finds_records_by_name(use_odoo: UseOdoo) -> None:
+    trace = load_fixture("trace-small")
+    answers = ready_odoo(trace)
+    answers["/json/2/sale.order/name_search"] = [[7, "S00007"]]
+    seen = use_odoo(answers)
+    bodies: list[dict[str, Any]] = []
+    original = OdooJson2Client.post
+
+    async def spy(self: OdooJson2Client, path: str, payload: dict[str, Any], **kw: Any) -> Any:
+        if path.endswith("/trace"):
+            bodies.append(payload)
+        return await original(self, path, payload, **kw)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(OdooJson2Client, "post", spy)
+        async with Client(mcp) as client:
+            await call(
+                client,
+                "run_trace",
+                model="sale.order",
+                method="action_confirm",
+                record_names=["S00007"],
+            )
+
+    assert bodies[0]["record_ids"] == [7]
+    assert "/flow_tracer/v1/signature" not in seen
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("found", [[], [[1, "A"], [2, "A"]]])
+async def test_run_trace_refuses_a_name_that_is_not_unique(
+    use_odoo: UseOdoo, found: list[Any]
+) -> None:
+    answers = ready_odoo(load_fixture("trace-small"))
+    answers["/json/2/sale.order/name_search"] = found
+    use_odoo(answers)
+
+    async with Client(mcp) as client:
+        message = await error_of(
+            client, "run_trace", model="sale.order", method="action_confirm", record_names=["A"]
+        )
+
+    assert "expected one" in message
+
+
+@pytest.mark.anyio
+async def test_explain_field_reads_a_kept_trace(use_odoo: UseOdoo) -> None:
+    trace = load_fixture("trace-small")
+    use_odoo(ready_odoo(trace))
+
+    async with Client(mcp) as client:
+        await call(client, "run_trace", model="sale.order", method="action_confirm", record_ids=[1])
+        answer = await call(client, "explain_field", trace_id=trace["trace_id"], field="nope")
+
+    assert answer["changes"] == []
+    assert "direct SQL" in answer["hint"]
+
+
+@pytest.mark.anyio
+async def test_find_steps_refuses_an_unknown_kind(use_odoo: UseOdoo) -> None:
+    trace = load_fixture("trace-small")
+    use_odoo(ready_odoo(trace))
+
+    async with Client(mcp) as client:
+        await call(client, "run_trace", model="sale.order", method="action_confirm", record_ids=[1])
+        message = await error_of(client, "find_steps", trace_id=trace["trace_id"], kind="nope")
+
+    assert "kind" in message
+
+
+def model_detail() -> dict[str, Any]:
+    def field(name: str, *, module: str, stored: bool) -> dict[str, Any]:
+        return {
+            "name": name,
+            "type": "char",
+            "string": name.title(),
+            "module": module,
+            "target": None,
+            "inverse": None,
+            "required": False,
+            "readonly": False,
+            "stored": stored,
+            "compute": None,
+            "related": None,
+            "selection": None,
+        }
+
+    return {
+        "model": "sale.order",
+        "description": "Order",
+        "module": "sale",
+        "modules": ["sale"],
+        "abstract": False,
+        "transient": False,
+        "parents": [],
+        "delegates": {},
+        "fields": [
+            field("state", module="sale", stored=True),
+            field("note", module="sale", stored=False),
+            field("incoterm", module="sale_stock", stored=True),
+        ],
+    }
+
+
+@pytest.mark.anyio
+async def test_describe_model_filters_and_leaves_out_empty_values(use_odoo: UseOdoo) -> None:
+    use_odoo({"/flow_tracer/v1/model": model_detail()})
+
+    async with Client(mcp) as client:
+        everything = await call(client, "describe_model", model="sale.order")
+        found = await call(client, "describe_model", model="sale.order", search="STAT")
+        stored = await call(client, "describe_model", model="sale.order", stored_only=True)
+        module = await call(client, "describe_model", model="sale.order", module="sale_stock")
+
+    assert everything["fields_total"] == 3
+    assert "abstract" not in everything
+    assert "target" not in everything["fields"][0]
+    assert [item["name"] for item in found["fields"]] == ["state"]
+    assert [item["name"] for item in stored["fields"]] == ["state", "incoterm"]
+    assert [item["name"] for item in module["fields"]] == ["incoterm"]
