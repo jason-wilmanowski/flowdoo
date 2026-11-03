@@ -368,3 +368,73 @@ def test_list_summary_tells_apart_runs_of_one_method() -> None:
     trace["entrypoint"]["kwargs"] = {"a": 1}
 
     assert '"a": 1' in trace_view.summary(trace)["kwargs"]
+
+
+def compared(**change: Any) -> tuple[dict[str, Any], dict[str, Any]]:
+    first, second = changing_steps(), changing_steps()
+    second["steps"] = second["steps"][:2] + second["steps"][4:]
+    return first, second
+
+
+def test_compare_finds_the_first_different_step_with_its_path() -> None:
+    first, second = compared()
+
+    answer = trace_view.compare_traces(first, second)
+
+    assert answer["same_steps"] is False
+    assert answer["first_difference"]["a"]["step"].startswith("s3 orm_write sale.order.write")
+    assert answer["first_difference"]["a"]["path"][-1].startswith("s2 method_call")
+    assert answer["first_difference"]["b"] is None
+    assert answer["only_in_a"] == {"sale.order.write": 2}
+    assert answer["only_in_b"] == {}
+
+
+def test_compare_shows_values_that_differ_and_ignores_generated_ones() -> None:
+    first, second = changing_steps(), changing_steps()
+    second["steps"][3]["changes"] = [{**first["steps"][3]["changes"][0], "new": "c"}]
+    extra = {"model": "m", "record_id": 1, "field": "name", "old": None}
+    first["steps"][4]["changes"] = [{**extra, "new": "x"}]
+    second["steps"][4]["changes"] = [{**extra, "new": "y"}]
+
+    answer = trace_view.compare_traces(first, second)
+
+    assert answer["same_steps"] is True
+    assert answer["different_values"] == ["sale.order.policy: a 'b' (s4), b 'c' (s4)"]
+
+
+def test_compare_reports_direct_sql_of_one_run() -> None:
+    first, second = changing_steps(), changing_steps()
+    first["raw_sql_writes"] = [
+        {
+            "operation": "UPDATE",
+            "table": "t",
+            "columns": ["c"],
+            "method": "m",
+            "file": "f.py",
+            "line": 1,
+        }
+    ]
+
+    answer = trace_view.compare_traces(first, second)
+
+    assert answer["raw_sql_only_in_a"] == ["UPDATE t c by m at f.py:1"]
+    assert answer["raw_sql_only_in_b"] == []
+
+
+def test_compare_of_very_long_runs_stays_cheap() -> None:
+    first, second = changing_steps(), changing_steps()
+    first["steps"] = [
+        {**first["steps"][0], "id": f"x{n}", "seq": n}
+        for n in range(trace_view.MAX_COMPARED_STEPS + 1)
+    ]
+
+    assert "note" in trace_view.compare_traces(first, second)
+
+
+def test_a_path_shows_a_chain_of_overrides_once() -> None:
+    trace = changing_steps()
+    trace["steps"][1]["method"] = "action_confirm"
+
+    path = trace_view.explain_field(trace, "policy")["changes"][0]["path"]
+
+    assert [line.split()[0] for line in path] == ["s1", "s3"]

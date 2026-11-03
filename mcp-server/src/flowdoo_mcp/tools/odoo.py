@@ -1,33 +1,26 @@
-from typing import Annotated, Any
+from typing import Any
 
 from flow_tracer_api.integrations.odoo.client import OdooJson2Client
-from flow_tracer_api.schemas import EntrypointSignature, ModelDetail, ModelList
-from pydantic import Field
+from flow_tracer_api.schemas import EntrypointSignature, ModelDetail
 
 from flowdoo_mcp import trace_view
 from flowdoo_mcp.errors import odoo_errors_as_tool_errors
 from flowdoo_mcp.server import ToolContext, mcp
-from flowdoo_mcp.status import OdooStatus, check_status
 
 SIGNATURE_ROUTE = "/flow_tracer/v1/signature"
-MODELS_ROUTE = "/flow_tracer/v1/models"
 MODEL_ROUTE = "/flow_tracer/v1/model"
-MODEL_LIST_LIMIT = 100
+METHOD_ROUTE = "/flow_tracer_mcp/v1/method"
+FIELD_ROUTE = "/flow_tracer_mcp/v1/field"
 
 
 @mcp.tool()
-async def odoo_status(ctx: ToolContext) -> OdooStatus:
-    """Is Odoo reachable and ready to trace? `problems` says what blocks it."""
-    app = ctx.request_context.lifespan_context
-    return await check_status(app.client, app.expected_login)
-
-
-@mcp.tool()
-async def describe_entrypoint(ctx: ToolContext, model: str, method: str) -> EntrypointSignature:
-    """What a method expects: parameters, most derived module, whether it is model-level."""
+async def resolve_method(ctx: ToolContext, model: str, method: str) -> dict[str, Any]:
+    """Every active override of a method without running it: order, module, file, line, super()."""
     with odoo_errors_as_tool_errors():
-        return await entrypoint_signature(
-            ctx.request_context.lifespan_context.client, model, method
+        return dict(
+            await ctx.request_context.lifespan_context.client.post(
+                METHOD_ROUTE, {"model": model, "method": method}, target=f"{model}.{method}"
+            )
         )
 
 
@@ -43,45 +36,27 @@ async def entrypoint_signature(
 
 
 @mcp.tool()
-async def list_models(
-    ctx: ToolContext, search: str = "", offset: Annotated[int, Field(ge=0)] = 0
-) -> dict[str, Any]:
-    """Find models by a part of their name or description; at most 100 per call."""
-    with odoo_errors_as_tool_errors():
-        answer = await ctx.request_context.lifespan_context.client.post(
-            MODELS_ROUTE, {}, target="model registry"
-        )
-    needle = search.casefold()
-    matches = [
-        {"model": item.model, "description": item.description, "module": item.module}
-        for item in ModelList.model_validate(answer).models
-        if needle in item.model.casefold() or needle in (item.description or "").casefold()
-    ]
-    next_offset = offset + MODEL_LIST_LIMIT
-    return {
-        "total": len(matches),
-        "offset": offset,
-        "next_offset": next_offset if next_offset < len(matches) else None,
-        "models": matches[offset:next_offset],
-    }
-
-
-@mcp.tool()
 async def describe_model(
     ctx: ToolContext,
     model: str,
     search: str = "",
     module: str | None = None,
     stored_only: bool = False,
+    field: str | None = None,
 ) -> dict[str, Any]:
-    """Inheritance of a model and its fields, filtered by name or label, module or stored.
+    """Fields and inheritance of a model; filter them. `field` tells how one field gets its value.
 
-    Large models have hundreds of fields, so filter if you can; `fields_total` tells the rest.
+    With `field`: compute method, what it depends on and which stored fields it recomputes.
     """
+    client = ctx.request_context.lifespan_context.client
     with odoo_errors_as_tool_errors():
-        answer = await ctx.request_context.lifespan_context.client.post(
-            MODEL_ROUTE, {"model": model}, target=f"{model} model"
-        )
+        if field:
+            return dict(
+                await client.post(
+                    FIELD_ROUTE, {"model": model, "field": field}, target=f"{model}.{field}"
+                )
+            )
+        answer = await client.post(MODEL_ROUTE, {"model": model}, target=f"{model} model")
     return _compact_model(ModelDetail.model_validate(answer), search, module, stored_only)
 
 

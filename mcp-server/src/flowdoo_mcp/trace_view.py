@@ -6,6 +6,7 @@ a value, find_steps pages through steps, and step_detail shows one step in full.
 at MAX_ANSWER_CHARS, and an answer says when it was cut.
 """
 
+import difflib
 import json
 from collections import Counter
 from typing import Any
@@ -28,11 +29,15 @@ MAX_INLINE_VALUE = 80
 MAX_ECHOED_INPUT = 300
 MAX_ERROR_TEXT = 300
 MIN_SHOWN_DURATION_MS = 10
+MAX_LISTED_SQL = 15
+MAX_LISTED_DIFFERENCES = 15
+MAX_COMPARED_STEPS = 6000
 
 ORM_KINDS = frozenset({"orm_create", "orm_write", "orm_unlink"})
 # Called around nearly every field computation, they say nothing about the workflow.
 NOISE_METHODS = frozenset({"_compute_field_value", "_track_prepare"})
 TRUNCATED_ERROR = "flow_tracer.TraceTruncated"
+GENERATED_FIELDS = frozenset({"name", "message_id", "origin", "reference", "date_order"})
 NO_CHANGE_HINT = (
     "No change of this field was recorded. A trace records ORM changes only: a direct SQL write "
     "(cr.execute) does not appear, so search the code for the field if it should have changed."
@@ -67,6 +72,8 @@ def overview(trace: Trace) -> dict[str, Any]:
         "failed_total": len(failed),
         **_failure_origins(steps, failed),
     }
+    if trace.get("raw_sql_writes"):
+        answer["raw_sql_writes"] = _sql_lines(trace["raw_sql_writes"])
     if _is_truncated(trace):
         answer["recording_truncated"] = trace["error"]["message"]
     if trace.get("warnings"):
@@ -90,9 +97,111 @@ def explain_field(
     ]
     shown = fitting(found[:MAX_LISTED_CHANGES])
     answer: dict[str, Any] = {"field": field, "changes_total": len(found), "changes": shown}
-    if not found:
+    sql = [
+        line
+        for line in _sql_lines(trace.get("raw_sql_writes", []))
+        if f" {field}" in line or f",{field}" in line
+    ]
+    if sql:
+        answer["raw_sql_writes"] = sql
+    if not found and not sql:
         answer["hint"] = NO_CHANGE_HINT
     return answer
+
+
+def compare_traces(first: Trace, second: Trace) -> dict[str, Any]:
+    """Where two runs part ways: the first different step and what differs in total."""
+    a_steps, b_steps = _comparable(first), _comparable(second)
+    answer: dict[str, Any] = {
+        "a": summary(first),
+        "b": summary(second),
+        **_step_differences(first, second, a_steps, b_steps),
+    }
+    values = _value_differences(a_steps, b_steps)
+    if values:
+        answer["different_values"] = values[:MAX_LISTED_DIFFERENCES]
+    sql_a, sql_b = (
+        set(_sql_lines(first.get("raw_sql_writes", []))),
+        set(_sql_lines(second.get("raw_sql_writes", []))),
+    )
+    if sql_a != sql_b:
+        answer["raw_sql_only_in_a"] = sorted(sql_a - sql_b)
+        answer["raw_sql_only_in_b"] = sorted(sql_b - sql_a)
+    return answer
+
+
+def _comparable(trace: Trace) -> list[Step]:
+    return [step for step in _in_order(trace) if step["method"] not in NOISE_METHODS]
+
+
+def _step_key(step: Step) -> tuple[str, str, str, Any]:
+    return (step["kind"], step["model"], step["method"], step["module"])
+
+
+def _step_differences(first: Trace, second: Trace, a: list[Step], b: list[Step]) -> dict[str, Any]:
+    if max(len(a), len(b)) > MAX_COMPARED_STEPS:
+        return {"note": f"Too long to compare in detail, limit {MAX_COMPARED_STEPS} steps"}
+    keys_a, keys_b = [_step_key(s) for s in a], [_step_key(s) for s in b]
+    blocks = difflib.SequenceMatcher(None, keys_a, keys_b, autojunk=False).get_opcodes()
+    differing = [block for block in blocks if block[0] != "equal"]
+    if not differing:
+        return {"same_steps": True}
+    only_a = [a[i] for _, i1, i2, _, _ in differing for i in range(i1, i2)]
+    only_b = [b[j] for _, _, _, j1, j2 in differing for j in range(j1, j2)]
+    _, i1, i2, j1, j2 = differing[0]
+    return {
+        "same_steps": False,
+        "first_difference": {
+            "a": _difference_side(first, a[i1]) if i1 < i2 else None,
+            "b": _difference_side(second, b[j1]) if j1 < j2 else None,
+            "after": _label(a[i1 - 1]) if i1 else None,
+        },
+        "only_in_a": _call_counts(only_a),
+        "only_in_b": _call_counts(only_b),
+    }
+
+
+def _difference_side(trace: Trace, step: Step) -> dict[str, Any]:
+    return {"step": _label(step), "module": _module(step), "path": _path(_in_order(trace), step)}
+
+
+def _call_counts(steps: list[Step]) -> dict[str, int]:
+    counted = Counter(f"{step['model']}.{step['method']}" for step in steps)
+    return dict(counted.most_common(MAX_LISTED_DIFFERENCES))
+
+
+def _value_differences(a: list[Step], b: list[Step]) -> list[str]:
+    """Last value per field; ids and generated values differ in every run and are left out."""
+    first, second = _last_values(a), _last_values(b)
+    lines = []
+    for name in first.keys() & second.keys():
+        (a_value, a_step), (b_value, b_step) = first[name], second[name]
+        if (
+            a_value != b_value
+            and not isinstance(a_value, list)
+            and name.split(".")[-1] not in GENERATED_FIELDS
+        ):
+            lines.append(
+                f"{name}: a {_inline(a_value)} ({a_step}), b {_inline(b_value)} ({b_step})"
+            )
+    return sorted(lines)
+
+
+def _last_values(steps: list[Step]) -> dict[str, tuple[Any, str]]:
+    values: dict[str, tuple[Any, str]] = {}
+    for step in steps:
+        for change in step["changes"]:
+            values[f"{change['model']}.{change['field']}"] = (change["new"], step["id"])
+    return values
+
+
+def _sql_lines(writes: list[dict[str, Any]]) -> list[str]:
+    lines = [
+        f"{w['operation']} {w['table']} {','.join(w['columns'])} "
+        f"by {w['method']} at {w['file']}:{w['line']}"
+        for w in writes
+    ]
+    return list(dict.fromkeys(lines))[:MAX_LISTED_SQL]
 
 
 def find_steps(
@@ -323,14 +432,24 @@ def fitting(items: list[Any]) -> list[Any]:
 def _path(steps: list[Step], step: Step) -> list[str]:
     """The calls leading to ``step``, outermost first."""
     by_id = {candidate["id"]: candidate for candidate in steps}
-    path: list[str] = []
+    parents: list[Step] = []
     parent = by_id.get(step["parent_id"])
     # The bound protects against a cycle in the recorder's answer.
-    while parent is not None and len(path) < len(steps):
-        path.append(_label(parent))
+    while parent is not None and len(parents) < len(steps):
+        parents.append(parent)
         parent = by_id.get(parent["parent_id"])
-    path.reverse()
-    return path
+    parents.reverse()
+    # Overrides of one method repeat its name many times; the outermost one is enough here.
+    shown = [
+        current
+        for previous, current in zip([None, *parents], parents, strict=False)
+        if previous is None or _call(previous) != _call(current)
+    ]
+    return [_label(item) for item in shown]
+
+
+def _call(step: Step) -> str:
+    return f"{step['model']}.{step['method']}"
 
 
 def _implementations(steps: list[Step], step: Step) -> list[dict[str, Any]]:

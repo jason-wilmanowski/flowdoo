@@ -71,10 +71,6 @@ async def call(client: Client, tool: str, **arguments: Any) -> Any:
     return json.loads(result.content[0].text)
 
 
-async def listed_traces(client: Client) -> list[dict[str, Any]]:
-    return (await call(client, "list_traces"))["traces"]
-
-
 async def error_of(client: Client, tool: str, **arguments: Any) -> str:
     result = await client.call_tool(tool, arguments)
     assert result.is_error
@@ -101,16 +97,12 @@ async def test_all_tools_are_registered() -> None:
     names = {tool.name for tool in await mcp.list_tools()}
 
     assert names == {
-        "odoo_status",
-        "describe_entrypoint",
-        "list_models",
-        "describe_model",
         "run_trace",
-        "list_traces",
-        "trace_overview",
-        "find_steps",
-        "get_step",
+        "compare_runs",
         "explain_field",
+        "find_steps",
+        "resolve_method",
+        "describe_model",
     }
 
 
@@ -124,15 +116,11 @@ async def test_a_kept_trace_can_be_read_with_the_other_tools(use_odoo: UseOdoo) 
         overview = await call(
             client, "run_trace", model="sale.order", method="action_confirm", record_ids=[3]
         )
-        listed = await listed_traces(client)
-        again = await call(client, "trace_overview", trace_id=trace_id)
         found = await call(client, "find_steps", trace_id=trace_id, failed_only=True)
-        step = await call(client, "get_step", trace_id=trace_id, step_id="s2")
+        step = await call(client, "find_steps", trace_id=trace_id, step_id="s2")
 
     assert overview["trace_id"] == trace_id
     assert overview["failures"][0]["step"] == "s1"
-    assert [item["trace_id"] for item in listed] == [trace_id]
-    assert again == overview
     assert [item["id"] for item in found["steps"]] == ["s1"]
     assert step["step"]["id"] == "s2"
 
@@ -153,7 +141,8 @@ async def test_run_trace_always_asks_for_a_dry_run(use_odoo: UseOdoo) -> None:
         async with Client(mcp) as client:
             await call(client, "run_trace", model="sale.order", method="action_confirm")
 
-    assert bodies[0]["dry_run"] is True
+    # The route of flow_tracer_mcp has no such parameter, it always runs dry.
+    assert bodies[-1]["dry_run"] is True
 
 
 @pytest.mark.anyio
@@ -164,7 +153,7 @@ async def test_traces_are_gone_with_the_session(use_odoo: UseOdoo) -> None:
     async with Client(mcp) as client:
         await call(client, "run_trace", model="sale.order", method="action_confirm")
     async with Client(mcp) as client:
-        message = await error_of(client, "get_step", trace_id=trace["trace_id"], step_id="s1")
+        message = await error_of(client, "find_steps", trace_id=trace["trace_id"], step_id="s1")
 
     assert "No trace" in message
 
@@ -194,30 +183,13 @@ async def test_refuses_when_the_addon_is_switched_off(use_odoo: UseOdoo) -> None
 
 
 @pytest.mark.anyio
-async def test_status_checks_the_expected_login(
-    use_odoo: UseOdoo, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("ODOO_LOGIN", "someone")
-    get_settings.cache_clear()
-    use_odoo(ready_odoo(load_fixture("trace-small")))
-
-    async with Client(mcp) as client:
-        status = await call(client, "odoo_status")
-
-    assert status["ok"] is False
-    assert "ODOO_LOGIN" in status["problems"][0]
-
-
-@pytest.mark.anyio
 async def test_an_invalid_trace_is_rejected_and_not_kept(use_odoo: UseOdoo) -> None:
     use_odoo(ready_odoo({"steps": []}))
 
     async with Client(mcp) as client:
         message = await error_of(client, "run_trace", model="sale.order", method="action_confirm")
-        listed = await listed_traces(client)
 
     assert "not a valid trace" in message
-    assert listed == []
 
 
 @pytest.mark.anyio
@@ -227,9 +199,9 @@ async def test_unknown_trace_and_step_explain_themselves(use_odoo: UseOdoo) -> N
 
     async with Client(mcp) as client:
         await call(client, "run_trace", model="sale.order", method="action_confirm")
-        unknown_trace = await error_of(client, "get_step", trace_id="nope", step_id="s1")
+        unknown_trace = await error_of(client, "find_steps", trace_id="nope", step_id="s1")
         unknown_step = await error_of(
-            client, "get_step", trace_id=trace["trace_id"], step_id="nope"
+            client, "find_steps", trace_id=trace["trace_id"], step_id="nope"
         )
 
     assert "No trace" in unknown_trace
@@ -270,10 +242,8 @@ async def test_run_trace_warns_about_a_record_method_without_records(use_odoo: U
 
     async with Client(mcp) as client:
         overview = await call(client, "run_trace", model="sale.order", method="action_confirm")
-        again = await call(client, "trace_overview", trace_id=overview["trace_id"])
 
     assert "empty recordset" in overview["warnings"][0]
-    assert again == overview
 
 
 @pytest.mark.anyio
@@ -309,51 +279,6 @@ async def test_a_failing_signature_check_does_not_lose_the_trace(use_odoo: UseOd
     assert overview["step_count"] > 0
 
 
-def model_list(count: int) -> dict[str, Any]:
-    models = [
-        {
-            "model": f"m.{number:03}",
-            "description": None,
-            "module": "base",
-            "modules": ["base"],
-            "abstract": False,
-            "transient": False,
-            "parents": [],
-            "delegates": {},
-            "field_count": 0,
-            "relations": [],
-        }
-        for number in range(count)
-    ]
-    return {"schema_version": "0.1.0", "models": models}
-
-
-@pytest.mark.anyio
-async def test_list_models_reaches_every_model_page_by_page(use_odoo: UseOdoo) -> None:
-    use_odoo({"/flow_tracer/v1/models": model_list(230)})
-    seen: list[str] = []
-    offset: int | None = 0
-
-    async with Client(mcp) as client:
-        while offset is not None:
-            page = await call(client, "list_models", offset=offset)
-            assert page["total"] == 230
-            seen += [item["model"] for item in page["models"]]
-            offset = page["next_offset"]
-
-    assert len(seen) == len(set(seen)) == 230
-
-
-@pytest.mark.anyio
-async def test_list_models_refuses_a_negative_offset(use_odoo: UseOdoo) -> None:
-    use_odoo({"/flow_tracer/v1/models": model_list(1)})
-
-    async with Client(mcp) as client:
-        message = await error_of(client, "list_models", offset=-1)
-
-    assert "offset" in message
-
-
 @pytest.mark.anyio
 async def test_odoo_errors_reach_the_model(use_odoo: UseOdoo) -> None:
     use_odoo({})
@@ -362,17 +287,6 @@ async def test_odoo_errors_reach_the_model(use_odoo: UseOdoo) -> None:
         message = await error_of(client, "describe_model", model="nope")
 
     assert "no route /flow_tracer/v1/model" in message
-
-
-@pytest.mark.anyio
-async def test_status_reports_problems_instead_of_failing(use_odoo: UseOdoo) -> None:
-    use_odoo({})
-
-    async with Client(mcp) as client:
-        status = await call(client, "odoo_status")
-
-    assert status["ok"] is False
-    assert status["problems"]
 
 
 def test_only_the_latest_traces_are_kept() -> None:
@@ -525,3 +439,76 @@ async def test_describe_model_filters_and_leaves_out_empty_values(use_odoo: UseO
     assert [item["name"] for item in found["fields"]] == ["state"]
     assert [item["name"] for item in stored["fields"]] == ["state", "incoterm"]
     assert [item["name"] for item in module["fields"]] == ["incoterm"]
+
+
+@pytest.mark.anyio
+async def test_a_trace_includes_direct_sql_with_the_mcp_addon(use_odoo: UseOdoo) -> None:
+    trace = load_fixture("trace-small")
+    write = {
+        "operation": "UPDATE",
+        "table": "sale_order",
+        "columns": ["credit_state"],
+        "method": "_release_credit",
+        "file": "sale_credit/models/sale_order.py",
+        "line": 30,
+    }
+    answers = ready_odoo(trace)
+    answers["/flow_tracer_mcp/v1/trace"] = {"trace": trace, "raw_sql_writes": [write]}
+    use_odoo(answers)
+
+    async with Client(mcp) as client:
+        overview = await call(
+            client, "run_trace", model="sale.order", method="action_confirm", record_ids=[1]
+        )
+        field = await call(
+            client, "explain_field", trace_id=trace["trace_id"], field="credit_state"
+        )
+
+    assert "UPDATE sale_order credit_state by _release_credit" in overview["raw_sql_writes"][0]
+    assert "_release_credit" in field["raw_sql_writes"][0]
+    assert "hint" not in field
+
+
+@pytest.mark.anyio
+async def test_compare_runs_warms_up_and_compares_two_records(use_odoo: UseOdoo) -> None:
+    trace = load_fixture("trace-small")
+    seen = use_odoo(ready_odoo(trace))
+
+    async with Client(mcp) as client:
+        answer = await call(
+            client,
+            "compare_runs",
+            model="sale.order",
+            method="action_confirm",
+            record_a=1,
+            record_b=2,
+        )
+
+    assert answer["same_steps"] is True
+    assert seen.count("/flow_tracer/v1/trace") == 3
+
+
+@pytest.mark.anyio
+async def test_compare_runs_needs_a_complete_request(use_odoo: UseOdoo) -> None:
+    use_odoo({})
+
+    async with Client(mcp) as client:
+        message = await error_of(client, "compare_runs", model="sale.order")
+
+    assert "record_a" in message
+
+
+@pytest.mark.anyio
+async def test_resolve_method_and_field_answer_from_the_addon(use_odoo: UseOdoo) -> None:
+    method = {
+        "implementations": [{"position": 0, "module": "sale", "file": "sale/x.py", "line": 3}]
+    }
+    field = {"compute": "_c", "depends_on": ["a"], "recomputes": ["m.b"]}
+    use_odoo({"/flow_tracer_mcp/v1/method": method, "/flow_tracer_mcp/v1/field": field})
+
+    async with Client(mcp) as client:
+        resolved = await call(client, "resolve_method", model="sale.order", method="write")
+        graph = await call(client, "describe_model", model="sale.order", field="state")
+
+    assert resolved["implementations"][0]["file"] == "sale/x.py"
+    assert graph["recomputes"] == ["m.b"]
