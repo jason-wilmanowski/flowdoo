@@ -7,6 +7,7 @@ dependencies = [
     "flow-tracer-api",
     "httpx>=0.28.1",
     "mcp[cli]>=2.3.0",
+    "pydantic-settings>=2.16.2",
 ]
 
 [project.scripts]
@@ -25,6 +26,7 @@ packages = ["src/flowdoo_mcp"]
 [dependency-groups]
 dev = [
     "mypy>=2.4.0",
+    "pytest>=9.2.0",
     "ruff>=0.16.10",
 ]
 
@@ -41,3 +43,10 @@ python_version = "3.12"
 strict = true
 mypy_path = "src"
 packages = ["flowdoo_mcp"]
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.uv]
+exclude-dependencies = ["alembic", "asyncpg", "fastapi", "sqlalchemy", "uvicorn"]
