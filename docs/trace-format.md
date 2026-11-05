@@ -130,6 +130,22 @@ JSON Schema cannot express:
 Invalid traces are stored with status `failed` and the reason as error text. Valid traces
 are stored exactly as received.
 
+## Sensitive values
+
+The recorder masks values before they leave Odoo, so the backend, the frontend and the MCP server never
+receive them.
+
+- **Fields and parameters:** values of names containing a name part are replaced by `***`. That applies to
+  field changes, summaries of arguments and results, and the entrypoint's `kwargs` and `context`. An empty
+  value stays `null`.
+- **Name parts:** credentials by default (`password`, `passwd`, `secret`, `token`, `api_key`, `apikey`,
+  `private_key`, `totp`, `credit_card`, `card_number`). Add your own with
+  `flow_tracer_masked_fields = email,phone` in the Odoo configuration. `masked_fields` in the trace lists the
+  parts in force.
+- **Database errors:** PostgreSQL's `DETAIL`, which repeats row and key values, is removed.
+- **Limits:** only names are checked. A secret inside a free text, such as a note or an exception message, is
+  not recognised, and Odoo's own server log is not touched.
+
 ## Changing the format
 
 1. Change `shared/schemas/trace.schema.json` and bump `schema_version` (semver; breaking
@@ -138,7 +154,6 @@ are stored exactly as received.
 3. Update the fixtures, the recorder, the backend and the frontend; all tests green.
 4. Update this page. Everything in the same pull request.
 
-Masking of sensitive values is not part of the format yet and will be added in a later version.
 
 ## Changelog
 

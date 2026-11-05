@@ -59,6 +59,8 @@ document numbers such as `WH/OUT/00123` get higher with every run.
 A trace records ORM changes and method calls. Writes through direct SQL (`cr.execute`) do not appear
 as changes; `flow_tracer_mcp` lists them separately, with table, columns and code, never with values.
 
+Sensitive values are masked in the recorder, see [Sensitive values](../docs/trace-format.md#sensitive-values).
+
 ## Development
 
 ```

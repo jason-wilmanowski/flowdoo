@@ -12,6 +12,9 @@ field values changed. That shows you where you can hook in.
 > business logic in the connected database. Document numbers drawn during a dry run (e.g.
 > `WH/OUT/00008`) stay used: PostgreSQL sequences are not rolled back, so the next real
 > document skips them. No data is written.
+>
+> Sensitive values such as passwords and tokens are masked before they leave Odoo, and you can
+> add your own fields. See [Sensitive values](docs/trace-format.md#sensitive-values) for the limits.
 
 ## Status
 
