@@ -1,4 +1,4 @@
-# Trace format (schema v0.2.0)
+# Trace format (schema v0.3.0)
 
 A trace is one recorded run of an Odoo entrypoint. Its format is the contract between the
 recorder (Odoo addon), the backend and the frontend.
@@ -28,7 +28,8 @@ be `null`.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `schema_version` | `"0.2.0"` | Version of this format |
+| `schema_version` | `"0.3.0"` | Version of this format |
+| `masked_fields` | string[], optional | Name parts that mark a field or parameter as sensitive; see [Sensitive values](#sensitive-values) |
 | `trace_id` | UUID | Assigned by the backend before the run |
 | `odoo_version` | string (≤ 32) | Odoo series, e.g. `"19.0"` |
 | `dry_run` | boolean | `true`: the run was rolled back at the end |
@@ -143,5 +144,6 @@ Masking of sensitive values is not part of the format yet and will be added in a
 
 | Version | Change |
 |---|---|
+| 0.3.0 | `masked_fields` (optional): values of sensitive fields and parameters are replaced by `***` |
 | 0.2.0 | `entrypoint.kwargs` (required): entrypoints can take keyword arguments; `record_ids` may be empty for model-level methods |
 | 0.1.0 | First version |

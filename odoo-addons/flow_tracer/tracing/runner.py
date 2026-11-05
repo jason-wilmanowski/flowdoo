@@ -1,4 +1,4 @@
-"""Run one entrypoint under the recorder and build the trace (schema v0.2.0).
+"""Run one entrypoint under the recorder and build the trace (schema v0.3.0).
 
 Dry run (default): the run happens inside a savepoint, followed by ``flush_all()`` so
 pending recomputes and constraints are part of the flow. Afterwards the savepoint is
@@ -20,7 +20,7 @@ from .monitor import CURRENT_SESSION, MONITOR
 from .session import TraceSession
 from .targets import get_index
 
-SCHEMA_VERSION = "0.2.0"
+SCHEMA_VERSION = "0.3.0"
 
 
 class DryRunCommitError(RuntimeError):

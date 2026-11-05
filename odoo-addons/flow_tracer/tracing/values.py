@@ -1,4 +1,4 @@
-"""Serialise values for the trace (schema v0.2.0 limits) without touching the ORM.
+"""Serialise values for the trace (schema v0.3.0 limits) without touching the ORM.
 
 Field values are read from the ORM cache (``Field._get_cache``), never fetched or
 computed, so recording does not change what it observes.
