@@ -13,6 +13,7 @@ import time
 from odoo.models import BaseModel
 
 from . import values
+from .masking import masked_field_value
 from .noise import is_noise
 from .targets import Target, TargetIndex
 
@@ -192,8 +193,8 @@ def _changes(records, fnames, before) -> list[dict]:
                     "model": records._name,
                     "record_id": rid,
                     "field": fname,
-                    "old": old_value,
-                    "new": new_value,
+                    "old": masked_field_value(fname, old_value),
+                    "new": masked_field_value(fname, new_value),
                 }
             )
     return changes[: values.IDS_MAX]
@@ -210,5 +211,5 @@ def _args_summary(code, local_vars) -> str | None:
     names = code.co_varnames[1:count]
     if not names:
         return None
-    parts = [f"{name}={values.summary(local_vars.get(name))}" for name in names]
+    parts = [values.argument_summary(name, local_vars.get(name)) for name in names]
     return values.truncate(", ".join(parts))

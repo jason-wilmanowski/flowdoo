@@ -16,6 +16,7 @@ from odoo import release
 from odoo.service.model import get_public_method
 
 from . import values
+from .masking import masked, masked_fields
 from .monitor import CURRENT_SESSION, MONITOR
 from .session import TraceSession
 from .targets import get_index
@@ -103,6 +104,7 @@ def run_trace(
     error, commit_attempts = _execute(env, records, method, kwargs, session, index, dry_run)
     return {
         "schema_version": SCHEMA_VERSION,
+        "masked_fields": masked_fields(),
         "trace_id": trace_id,
         "odoo_version": release.serie,
         "dry_run": dry_run,
@@ -111,8 +113,8 @@ def run_trace(
             "model": model,
             "method": method,
             "record_ids": list(record_ids),
-            "context": context,
-            "kwargs": kwargs,
+            "context": masked(context),
+            "kwargs": masked(kwargs),
         },
         "steps": session.steps,
         "error": _run_error(session, error, commit_attempts),

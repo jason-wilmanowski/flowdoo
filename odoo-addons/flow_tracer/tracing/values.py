@@ -8,6 +8,8 @@ import datetime
 import json
 import reprlib
 
+from .masking import MASKED, is_sensitive, masked
+
 SUMMARY_MAX = 2000
 IDS_MAX = 1000
 MESSAGE_MAX = 4000
@@ -31,7 +33,14 @@ def short_repr(value) -> str:
 
 def summary(value) -> str | None:
     """Summary of an argument or return value; ``None`` (nothing) stays null."""
-    return None if value is None else short_repr(value)
+    return None if value is None else short_repr(masked(value))
+
+
+def argument_summary(name: str, value) -> str:
+    """One argument of a call; a parameter with a sensitive name is masked as a whole."""
+    if value is not None and is_sensitive(name):
+        return f"{name}={MASKED!r}"
+    return f"{name}={summary(value)}"
 
 
 def ids_of(records) -> list[int]:

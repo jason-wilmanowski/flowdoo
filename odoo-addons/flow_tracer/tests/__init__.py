@@ -1,5 +1,6 @@
 from . import (
     test_entrypoints,
+    test_masking,
     test_overview,
     test_recorder,
     test_runner,
