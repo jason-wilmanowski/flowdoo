@@ -68,7 +68,7 @@ describe("fixture data source", () => {
     expect(trace.status).toBe("succeeded");
     expect(trace.payload?.steps).toHaveLength(879);
     expect(trace.entrypoint_model).toBe("sale.order");
-    expect(trace.schema_version).toBe("0.2.0");
+    expect(trace.schema_version).toBe("0.3.0");
   });
 
   it("keeps recording status and Odoo exception apart", async () => {

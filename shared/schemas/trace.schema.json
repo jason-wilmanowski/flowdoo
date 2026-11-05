@@ -18,7 +18,16 @@
   "properties": {
     "schema_version": {
       "description": "Version of this schema (semver). Breaking changes bump the major version.",
-      "const": "0.2.0"
+      "const": "0.3.0"
+    },
+    "masked_fields": {
+      "description": "Name parts that mark a field or parameter as sensitive for this run. Values of matching fields and parameters are replaced by \"***\" before they leave Odoo.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 128
+      },
+      "maxItems": 200
     },
     "trace_id": {
       "description": "Id of the trace, assigned by the backend before the run.",

@@ -1,4 +1,4 @@
-"""Serialise values for the trace (schema v0.2.0 limits) without touching the ORM.
+"""Serialise values for the trace (schema v0.3.0 limits) without touching the ORM.
 
 Field values are read from the ORM cache (``Field._get_cache``), never fetched or
 computed, so recording does not change what it observes.
@@ -6,12 +6,16 @@ computed, so recording does not change what it observes.
 
 import datetime
 import json
+import re
 import reprlib
+
+from .masking import MASKED, is_sensitive, masked
 
 SUMMARY_MAX = 2000
 IDS_MAX = 1000
 MESSAGE_MAX = 4000
 MISSING = object()
+DATABASE_DETAIL = re.compile(r"DETAIL:.*", re.DOTALL)
 
 _repr = reprlib.Repr(maxlevel=3, maxdict=8, maxlist=8, maxtuple=8, maxset=8, maxstring=200)
 _repr.maxother = 200
@@ -31,7 +35,14 @@ def short_repr(value) -> str:
 
 def summary(value) -> str | None:
     """Summary of an argument or return value; ``None`` (nothing) stays null."""
-    return None if value is None else short_repr(value)
+    return None if value is None else short_repr(masked(value))
+
+
+def argument_summary(name: str, value) -> str:
+    """One argument of a call; a parameter with a sensitive name is masked as a whole."""
+    if value is not None and is_sensitive(name):
+        return f"{name}={MASKED!r}"
+    return f"{name}={summary(value)}"
 
 
 def ids_of(records) -> list[int]:
@@ -103,9 +114,14 @@ def field_value(field, value):
     return truncate(repr(value))
 
 
+def _without_database_row(message: str) -> str:
+    """PostgreSQL's DETAIL repeats the values of the row or key, whatever their field names."""
+    return DATABASE_DETAIL.sub("DETAIL: (values hidden)", message)
+
+
 def error_of(exc: BaseException) -> dict:
     cls = type(exc)
     return {
         "type": truncate(f"{cls.__module__}.{cls.__qualname__}", 256),
-        "message": truncate(str(exc), MESSAGE_MAX),
+        "message": truncate(_without_database_row(str(exc)), MESSAGE_MAX),
     }

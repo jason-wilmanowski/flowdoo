@@ -43,7 +43,13 @@ export interface TracePayload {
   /**
    * Version of this schema (semver). Breaking changes bump the major version.
    */
-  schema_version: "0.2.0";
+  schema_version: "0.3.0";
+  /**
+   * Name parts that mark a field or parameter as sensitive for this run. Values of matching fields and parameters are replaced by "***" before they leave Odoo.
+   *
+   * @maxItems 200
+   */
+  masked_fields?: string[];
   /**
    * Id of the trace, assigned by the backend before the run.
    */

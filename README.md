@@ -12,6 +12,9 @@ field values changed. That shows you where you can hook in.
 > business logic in the connected database. Document numbers drawn during a dry run (e.g.
 > `WH/OUT/00008`) stay used: PostgreSQL sequences are not rolled back, so the next real
 > document skips them. No data is written.
+>
+> Sensitive values such as passwords and tokens are masked before they leave Odoo, and you can
+> add your own fields. See [Sensitive values](docs/trace-format.md#sensitive-values) for the limits.
 
 ## Status
 
@@ -24,7 +27,7 @@ backend and addon are complete for these two modes; next is access from Claude C
 |---|---|
 | Odoo recorder addon (`odoo-addons/flow_tracer`) | ✅ Recorder (`sys.monitoring`, [ADR 0001](docs/adr/0001-recorder-mechanism.md)), dry run, trace, signature and status endpoints, model registry for the overview |
 | Backend API (`backend/`) | ✅ Records traces through the addon, validates and stores them; connection check; model registry and method signatures |
-| Trace schema (`shared/schemas`) | ✅ v0.2.0 with generated types, hand-written and recorded fixtures ([format](docs/trace-format.md)) |
+| Trace schema (`shared/schemas`) | ✅ v0.3.0 with generated types, hand-written and recorded fixtures ([format](docs/trace-format.md)) |
 | Frontend (`frontend/`) | ✅ Trace list, trace view with replay, start dialog, model overview, settings; fully usable on fixtures without backend and Odoo ([architecture](docs/frontend-architecture.md)) |
 | MCP server (`mcp-server/`) | 🚧 First version: connection check, model and entrypoint lookups, dry runs, reading a trace kept in memory ([setup](mcp-server/README.md)) |
 

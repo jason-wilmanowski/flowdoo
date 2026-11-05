@@ -8,6 +8,10 @@ from uuid import UUID
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, RootModel
 
 
+class MaskedField(RootModel[str]):
+    root: Annotated[str, Field(max_length=128)]
+
+
 class Identifier(RootModel[str]):
     root: Annotated[str, Field(max_length=128, min_length=1)]
     """
@@ -197,9 +201,13 @@ class TracePayload(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    schema_version: Literal["0.2.0"]
+    schema_version: Literal["0.3.0"]
     """
     Version of this schema (semver). Breaking changes bump the major version.
+    """
+    masked_fields: Annotated[list[MaskedField] | None, Field(max_length=200)] = None
+    """
+    Name parts that mark a field or parameter as sensitive for this run. Values of matching fields and parameters are replaced by "***" before they leave Odoo.
     """
     trace_id: UUID
     """

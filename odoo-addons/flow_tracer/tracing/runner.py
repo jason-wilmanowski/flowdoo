@@ -1,4 +1,4 @@
-"""Run one entrypoint under the recorder and build the trace (schema v0.2.0).
+"""Run one entrypoint under the recorder and build the trace (schema v0.3.0).
 
 Dry run (default): the run happens inside a savepoint, followed by ``flush_all()`` so
 pending recomputes and constraints are part of the flow. Afterwards the savepoint is
@@ -16,11 +16,12 @@ from odoo import release
 from odoo.service.model import get_public_method
 
 from . import values
+from .masking import masked, masked_fields
 from .monitor import CURRENT_SESSION, MONITOR
 from .session import TraceSession
 from .targets import get_index
 
-SCHEMA_VERSION = "0.2.0"
+SCHEMA_VERSION = "0.3.0"
 
 
 class DryRunCommitError(RuntimeError):
@@ -103,6 +104,7 @@ def run_trace(
     error, commit_attempts = _execute(env, records, method, kwargs, session, index, dry_run)
     return {
         "schema_version": SCHEMA_VERSION,
+        "masked_fields": masked_fields(),
         "trace_id": trace_id,
         "odoo_version": release.serie,
         "dry_run": dry_run,
@@ -111,8 +113,8 @@ def run_trace(
             "model": model,
             "method": method,
             "record_ids": list(record_ids),
-            "context": context,
-            "kwargs": kwargs,
+            "context": masked(context),
+            "kwargs": masked(kwargs),
         },
         "steps": session.steps,
         "error": _run_error(session, error, commit_attempts),

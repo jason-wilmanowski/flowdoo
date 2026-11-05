@@ -28,7 +28,7 @@ class TraceCase(TransactionCase):
         )
 
     def assertValidTree(self, payload):
-        """Rules of schema v0.2.0 that JSON Schema itself cannot express."""
+        """Rules of schema v0.3.0 that JSON Schema itself cannot express."""
         steps = payload["steps"]
         ids = [s["id"] for s in steps]
         self.assertEqual(len(ids), len(set(ids)), "step ids must be unique")

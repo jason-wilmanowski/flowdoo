@@ -12,7 +12,7 @@ from flow_tracer_api.services.common.ports import PayloadValidationError
 
 _MAX_REPORTED_ERRORS = 5
 
-# The version the generated model accepts, e.g. "0.2.0" (single source: the schema).
+# The version the generated model accepts, e.g. "0.3.0" (single source: the schema).
 SCHEMA_VERSION: str = get_args(TracePayload.model_fields["schema_version"].annotation)[0]
 
 

@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.2.0",
+  "schema_version": "0.3.0",
   "trace_id": "22585514-6fae-4c9b-96ee-3f431ba1035a",
   "odoo_version": "19.0",
   "dry_run": true,
