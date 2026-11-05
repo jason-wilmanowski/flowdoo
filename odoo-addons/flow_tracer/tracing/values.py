@@ -6,6 +6,7 @@ computed, so recording does not change what it observes.
 
 import datetime
 import json
+import re
 import reprlib
 
 from .masking import MASKED, is_sensitive, masked
@@ -14,6 +15,7 @@ SUMMARY_MAX = 2000
 IDS_MAX = 1000
 MESSAGE_MAX = 4000
 MISSING = object()
+DATABASE_DETAIL = re.compile(r"DETAIL:.*", re.DOTALL)
 
 _repr = reprlib.Repr(maxlevel=3, maxdict=8, maxlist=8, maxtuple=8, maxset=8, maxstring=200)
 _repr.maxother = 200
@@ -112,9 +114,14 @@ def field_value(field, value):
     return truncate(repr(value))
 
 
+def _without_database_row(message: str) -> str:
+    """PostgreSQL's DETAIL repeats the values of the row or key, whatever their field names."""
+    return DATABASE_DETAIL.sub("DETAIL: (values hidden)", message)
+
+
 def error_of(exc: BaseException) -> dict:
     cls = type(exc)
     return {
         "type": truncate(f"{cls.__module__}.{cls.__qualname__}", 256),
-        "message": truncate(str(exc), MESSAGE_MAX),
+        "message": truncate(_without_database_row(str(exc)), MESSAGE_MAX),
     }

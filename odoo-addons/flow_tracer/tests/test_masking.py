@@ -67,6 +67,16 @@ class TestMaskingRules(TransactionCase):
         self.assertIn("Ada", summary)
         self.assertNotIn("s3cret", summary)
 
+    def test_database_details_are_hidden(self):
+        error = Exception(
+            'violates "x"\nDETAIL:  Failing row contains (1, secret@example.com, 2).\n'
+        )
+
+        message = values.error_of(error)["message"]
+
+        self.assertIn('violates "x"', message)
+        self.assertNotIn("secret@example.com", message)
+
 
 @tagged("post_install", "-at_install")
 class TestMaskingInTraces(TransactionCase):
@@ -106,3 +116,12 @@ class TestMaskingInTraces(TransactionCase):
             payload = self._trace([{"name": "Ada", "email": "real@example.com"}])
 
         self.assertIsNone(payload["error"])
+
+    def test_a_database_error_shows_no_row(self):
+        payload = self._trace([{"email": "row@example.com"}])
+
+        self.assertIn("res_partner_check_name", payload["error"]["message"])
+        self.assertNotIn("row@example.com", payload["error"]["message"])
+        failed = [step["error"]["message"] for step in payload["steps"] if step["error"]]
+        self.assertTrue(failed)
+        self.assertNotIn("row@example.com", str(failed))
