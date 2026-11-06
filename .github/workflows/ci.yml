@@ -136,6 +136,38 @@ jobs:
             exit 1
           fi
 
+  mcp-server-checks:
+    name: MCP server · ruff, mypy, tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: mcp-server
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.22"
+          working-directory: mcp-server
+
+      # The server reuses the backend package (ADR 0006), installed from ../backend.
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: ruff check
+        run: uv run --no-sync ruff check --output-format=github .
+
+      - name: ruff format --check
+        run: uv run --no-sync ruff format --check --diff .
+
+      - name: mypy
+        run: uv run --no-sync mypy
+
+      # The tests answer Odoo's requests from a table, so they need no Odoo.
+      - name: pytest
+        run: uv run --no-sync pytest -ra
+
   frontend-checks:
     name: Frontend · lint, typecheck, test, build
     runs-on: ubuntu-latest
