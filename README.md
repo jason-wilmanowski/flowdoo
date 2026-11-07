@@ -18,10 +18,10 @@ field values changed. That shows you where you can hook in.
 
 ## Status
 
-Both modes work end to end against a real Odoo 19: tracing a workflow and replaying it
-step by step, and the overview of models, fields, relations and inheritance. Frontend,
-backend and addon are complete for these two modes; next is access from Claude Code
-(see [Planned](#planned)).
+**Finished.** Both modes work end to end against a real Odoo 19: tracing a workflow and
+replaying it step by step, and the overview of models, fields, relations and inheritance.
+Claude Code and other MCP clients can trace through the [MCP server](#mcp-server). What is
+left out on purpose is listed under [Known limits](#known-limits).
 
 | Part | State |
 |---|---|
@@ -29,14 +29,20 @@ backend and addon are complete for these two modes; next is access from Claude C
 | Backend API (`backend/`) | ✅ Records traces through the addon, validates and stores them; connection check; model registry and method signatures |
 | Trace schema (`shared/schemas`) | ✅ v0.3.0 with generated types, hand-written and recorded fixtures ([format](docs/trace-format.md)) |
 | Frontend (`frontend/`) | ✅ Trace list, trace view with replay, start dialog, model overview, settings; fully usable on fixtures without backend and Odoo ([architecture](docs/frontend-architecture.md)) |
-| MCP server (`mcp-server/`) | 🚧 First version: connection check, model and entrypoint lookups, dry runs, reading a trace kept in memory ([setup](mcp-server/README.md)) |
+| Addon for AI clients (`odoo-addons/flow_tracer_mcp`) | ✅ Optional: active overrides with file and line, field graphs, direct SQL writes ([ADR 0007](docs/adr/0007-flow-tracer-mcp-addon.md), [install](odoo-addons/flow_tracer_mcp/README.md)) |
+| MCP server (`mcp-server/`) | ✅ Six tools: dry runs, comparing two runs, where a value comes from, steps, overrides, fields ([setup](mcp-server/README.md)) |
+| Masking | ✅ Sensitive values are replaced before they leave Odoo ([rules](docs/trace-format.md#sensitive-values)) |
 
-## Planned
+## Known limits
 
-| What | Why |
+| Limit | Meaning |
 |---|---|
-| Masking of sensitive values | A configurable list of fields whose values never leave Odoo in a trace. Needed before traces are handed to an AI model. |
-| Addon and integration tests in CI | Today CI runs only the tests that need neither Postgres nor Odoo; the addon tests and the reference trace run locally. |
+| Odoo 19.0 Community only | Other versions are refused at connection |
+| Development databases only | Runs execute real business logic; use a neutralised database |
+| Addon tests not in CI | CI runs no Odoo. The tests of both addons and the reference trace run locally against Odoo 19 |
+| Masking checks names only | A secret inside a free text, such as a note, is not recognised; Odoo's own log is not touched |
+| Direct SQL is a heuristic | `flow_tracer_mcp` sees writes through `Cursor.execute` only |
+| Benefit of the MCP server | In benchmarks it helped on hard problems across many modules, not on easy tasks, where it costs tokens. Load it for debugging complex flows |
 
 ## How it works
 
@@ -131,6 +137,8 @@ Open <http://localhost:5173>. Press `?` anywhere for the keyboard shortcuts.
 │   ├── src/ui/              # UI primitives (no feature logic)
 │   └── src/assets/          # logo
 ├── odoo-addons/flow_tracer/ # recorder addon for Odoo 19
+├── odoo-addons/flow_tracer_mcp/ # optional addon with extra answers for the MCP server
+├── mcp-server/              # MCP server for Claude Code and other MCP clients
 ├── shared/                  # trace schema and fixtures (the contract)
 ├── docs/                    # trace format, frontend architecture, ADRs
 ├── docker-compose.yml       # db, api, frontend; profile "test": odoo-test
@@ -198,6 +206,9 @@ On start, the `api` container runs `alembic upgrade head` (disable with
    docker compose up -d api
    curl http://localhost:8000/odoo/status
    ```
+
+   For the MCP server, also install the optional `flow_tracer_mcp`
+   ([install](odoo-addons/flow_tracer_mcp/README.md)).
 
    `ok: true` means: reachable, Odoo 19.0, valid key, `flow_tracer` installed and switched
    on, recorder available, key user is an administrator. Otherwise `problems` says what is
@@ -335,14 +346,17 @@ Every pull request runs:
 | backend generated types | regenerated from `shared/schemas`, no diff |
 | frontend | lint (ESLint, stylelint, Prettier), typecheck, Vitest, build |
 | frontend generated types | regenerated from `shared/schemas` and the backend's OpenAPI, no diff |
+| MCP server | ruff, mypy (strict) and its tests, which need no Odoo |
 
 ## MCP server
 
 Access from the terminal. An MCP server lets Claude Code, and other MCP clients, trace
 workflows while you develop, **without the frontend, the backend container or the Flowdoo
-database**. It logs into the Odoo you already run and calls the `flow_tracer` addon directly.
-The addon only has to be installed once. Setup and tools are in
-[`mcp-server/README.md`](mcp-server/README.md).
+database**. It logs into the Odoo you already run and calls the addons directly. Setup and
+tools are in [`mcp-server/README.md`](mcp-server/README.md).
+
+Use it for debugging complex flows: why one record behaves differently from another, where
+a value comes from, which overrides really run. For easy tasks, reading the code is cheaper.
 
 ```mermaid
 flowchart LR
@@ -351,7 +365,7 @@ flowchart LR
         MCP["MCP server"]
     end
     subgraph yours["Your existing Odoo 19"]
-        ODOO["Odoo + flow_tracer addon"]
+        ODOO["Odoo + flow_tracer<br/>(+ flow_tracer_mcp)"]
     end
     CC -- "MCP" --> MCP
     MCP -- "JSON-2 API + API key" --> ODOO
@@ -370,10 +384,11 @@ server is a second way in, for the moment you want an answer while you work:
 - **Lightweight.** The server only imports the backend's Odoo client, gateway and schemas,
   without its services, database or web stack
   ([ADR 0006](docs/adr/0006-mcp-server-uses-backend-package.md)).
-- **Made for language models.** A recorded trace is far too large to read whole (the
-  reference trace has 879 steps, about 360 KB). `run_trace` returns an overview, `find_steps`
-  and `get_step` answer narrow questions with step IDs, and long answers are cut with a note
-  on how to get the rest.
+- **Answers, not raw data.** A recorded trace is far too large to read whole (the reference
+  trace has 879 steps, about 360 KB). The tools answer questions directly: `compare_runs`
+  finds where two runs part ways, `explain_field` names the method behind a value,
+  `resolve_method` lists the overrides with file and line. Answers leave out empty values and
+  are cut with a note on how to get the rest ([ADR 0007](docs/adr/0007-flow-tracer-mcp-addon.md)).
 - **Same contract.** Every trace is validated against the model generated from
   `shared/schemas`.
 
@@ -383,6 +398,6 @@ server is a second way in, for the moment you want an answer while you work:
 |---|---|
 | Dry run | `run_trace` always runs as a dry run and refuses a database that is not neutralised |
 | Data, not instructions | Values in a trace come from the database. The server tells the client to treat them as data, never as instructions |
-| Sensitive values | Until masking (see [Planned](#planned)) exists, trace values go to the model behind your client. Use a development database |
+| Sensitive values | Masked in the recorder before they leave Odoo ([rules](docs/trace-format.md#sensitive-values)). Other trace values go to the model behind your client, so use a development database |
 | Credentials | Set in the git-ignored `mcp-server/.env`, or as environment variables in the MCP client's configuration. Use a dedicated development user and API key |
 | Timeout | Per run and configurable (default 30 s), with a clear message when exceeded. An abandoned HTTP call does not necessarily stop the run in Odoo |
