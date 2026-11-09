@@ -1,6 +1,6 @@
 # ADR 0006: A lightweight MCP server on parts of the backend package
 
-- **Status:** accepted
+- **Status:** accepted, list of tools replaced by [ADR 0007](0007-flow-tracer-mcp-addon.md)
 - **Date:** 2026-11-01
 
 ## Context
